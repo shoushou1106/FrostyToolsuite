@@ -1,8 +1,9 @@
 ﻿using System;
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using FrostyEditor.Interfaces;
+using Avalonia.ThemeManager;
 using FrostyEditor.Themes;
 using FrostyEditor.Utils;
 using FrostyEditor.ViewModels;
@@ -17,13 +18,29 @@ public class App : Application
         $"{Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)}/Frosty/editor_config.json";
     
     public static IThemeManager? ThemeManager;
-    
+
     public override void Initialize()
     {
-        ThemeManager = new FluentThemeManager();
-        ThemeManager.Initialize(this);
-        
         Config.Load(ConfigPath);
+
+        //if (Config.Theme is null)
+        //{
+        //    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        //    {
+        //        Config.Theme = new Themes.Windows.WinDefaultThemeManager();
+        //    }
+        //    else
+        //    {
+        //        // CS8602 without this
+        //        Config.Theme = new Themes.Windows.WinDefaultThemeManager();
+        //    }
+        //}
+
+        //ThemeManager = Config.Theme;
+        ThemeManager = new DefaultThemeManager.DefaultThemeManager();
+        ThemeManager.Initialize(this);
+
+
 
         AvaloniaXamlLoader.Load(this);
     }

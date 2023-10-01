@@ -4,7 +4,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using Avalonia.Platform;
+using Avalonia;
+using Avalonia.ThemeManager;
 using Frosty.Sdk;
+using System.Runtime.InteropServices;
 
 namespace FrostyEditor.Utils;
 
@@ -196,6 +200,9 @@ public static class Config
     }
 
     private static InternalConfig? s_current;
+
+    public static string? ThemePath;
+    public static int ThemeType;
 
     public static IEnumerable<string> GameProfiles
     {
