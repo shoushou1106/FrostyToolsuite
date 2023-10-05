@@ -1,10 +1,9 @@
-﻿using System;
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Styling;
 using Avalonia.ThemeManager;
 using Avalonia.Themes.Simple;
-using FrostyTheme;
+using DefaultThemeManager.Styles;
 
 namespace DefaultThemeManager;
 
@@ -18,19 +17,19 @@ public class DefaultThemeManager : IThemeManager
 
     private static readonly TreeDataGridTheme s_treeDataGrid = new();
 
-    private static readonly Styles s_simpleDark = new()
+    private static readonly Avalonia.Styling.Styles s_simpleDark = new()
     {
         new StyleInclude(s_baseUri)
         {
-            Source = new Uri("avares://DefaultThemeManager/FluentDark.axaml")
+            Source = new Uri("avares://DefaultThemeManager/Styles/Dark.axaml")
         }
     };
 
-    private static readonly Styles s_simpleLight = new()
+    private static readonly Avalonia.Styling.Styles s_simpleLight = new()
     {
         new StyleInclude(s_baseUri)
         {
-            Source = new Uri("avares://DefaultThemeManager/FluentLight.axaml")
+            Source = new Uri("avares://DefaultThemeManager/Styles/Light.axaml")
         }
     };
 

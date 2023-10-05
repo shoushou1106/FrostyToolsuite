@@ -33,6 +33,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentThemeManager", "Theme
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DefaultThemeManager", "Themes\DefaultThemeManager\DefaultThemeManager.csproj", "{D109808C-79E4-4C0F-B0A1-ECD5DE44BF16}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FrostyPlugin", "FrostyPlugin\FrostyPlugin.csproj", "{F3DC48CA-C31B-469E-A8D8-9B22A5AF7F50}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -75,6 +77,10 @@ Global
 		{D109808C-79E4-4C0F-B0A1-ECD5DE44BF16}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D109808C-79E4-4C0F-B0A1-ECD5DE44BF16}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D109808C-79E4-4C0F-B0A1-ECD5DE44BF16}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F3DC48CA-C31B-469E-A8D8-9B22A5AF7F50}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F3DC48CA-C31B-469E-A8D8-9B22A5AF7F50}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F3DC48CA-C31B-469E-A8D8-9B22A5AF7F50}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F3DC48CA-C31B-469E-A8D8-9B22A5AF7F50}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

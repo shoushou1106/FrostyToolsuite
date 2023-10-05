@@ -23,7 +23,6 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.0.0" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.0" />
     <PackageReference Include="Avalonia.ThemeManager" Version="11.0.0" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
     <PackageReference Include="Dock.Avalonia" Version="11.0.0" />
     <PackageReference Include="Dock.Model" Version="11.0.0" />
@@ -37,6 +36,10 @@
   <ItemGroup>
     <ProjectReference Include="..\FrostySdk\FrostySdk.csproj" />
     <ProjectReference Include="..\Themes\DefaultThemeManager\DefaultThemeManager.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Themes\" />
   </ItemGroup>
 
 </Project>

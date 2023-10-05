@@ -40,8 +40,6 @@ public class App : Application
         ThemeManager = new DefaultThemeManager.DefaultThemeManager();
         ThemeManager.Initialize(this);
 
-
-
         AvaloniaXamlLoader.Load(this);
     }
 

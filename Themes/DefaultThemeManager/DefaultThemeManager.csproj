@@ -7,8 +7,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.0.0" />
-    <PackageReference Include="Avalonia.ThemeManager" Version="11.0.0" />
+	<PackageReference Include="Avalonia" Version="11.0.0" />
+	<PackageReference Include="Avalonia.Controls.TreeDataGrid" Version="11.0.0" />
+	<PackageReference Include="Avalonia.ThemeManager" Version="11.0.0" />
+	<PackageReference Include="Dock.Avalonia" Version="11.0.0" />
+	<PackageReference Include="Dock.Model" Version="11.0.0" />
+	<PackageReference Include="Dock.Model.Mvvm" Version="11.0.0" />
+	<PackageReference Include="Dock.Serializer" Version="11.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\FrostyPlugin\FrostyPlugin.csproj" >
+	  <Private>false</Private>
+	  <ExcludeAssets>runtime</ExcludeAssets>
+	</ProjectReference>
   </ItemGroup>
 	
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
