@@ -13,6 +13,5 @@ public class ThemePlugin : IFrostyTheme
     public List<object>? Screenshots { get; }
     public string? Description { get; }
     public List<string>? Links { get; }
-    public bool SupportAllPlatforms { get => false; }
     public List<OSPlatform>? SupportPlatforms { get => new() { OSPlatform.Windows }; }
 }
