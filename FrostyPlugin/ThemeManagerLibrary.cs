@@ -1,6 +1,10 @@
 ﻿using Avalonia.ThemeManager;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.IO;
+using System;
+using MsBox.Avalonia;
 
 namespace Frosty.Plugin.ThemeManagerLibrary;
 
@@ -62,7 +66,7 @@ public interface IFrostyTheme
     List<OSPlatform>? SupportPlatforms { get; }
 }
 
-public static class ThemeManagerLibrary
+public class ThemeManagerLibrary
 {
     public static bool IsInitialized { get; private set; }
 
@@ -74,8 +78,32 @@ public static class ThemeManagerLibrary
         {
             Themes = new();
         }
-        
 
+        string themePluginFolder = Directory.GetCurrentDirectory() + "\\Themes\\"; // TODO: Move this to config
+        foreach (var themePluginPath in Directory.GetFiles(themePluginFolder))
+        {
+            try
+            {
+                Assembly themePluginAssembly = Assembly.LoadFile(themePluginPath);
+                Type? themePlugin = themePluginAssembly.GetType(themePluginAssembly.GetName().Name + ".ThemePlugin");
+                if (themePlugin != null)
+                {
+                    if (typeof(IFrostyTheme).IsAssignableFrom(themePlugin))
+                    {
+                        IFrostyTheme? result = Activator.CreateInstance(themePlugin) as IFrostyTheme;
+                        if (result != null)
+                        {
+                            Themes.Add(result);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // TODO: Exception box
+                var MessageBox = MessageBoxManager.GetMessageBoxStandard("Failed to load theme", ex.Message).ShowAsync;
+            }
+        }
 
         IsInitialized = true;
         return true;

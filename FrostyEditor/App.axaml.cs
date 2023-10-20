@@ -4,7 +4,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.ThemeManager;
-using FrostyEditor.Themes;
+using Frosty.Plugin.ThemeManagerLibrary;
 using FrostyEditor.Utils;
 using FrostyEditor.ViewModels;
 using FrostyEditor.ViewModels.Windows;
@@ -23,6 +23,7 @@ public class App : Application
     {
         Config.Load(ConfigPath);
 
+        ThemeManagerLibrary.Initialize();
         //if (Config.Theme is null)
         //{
         //    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
