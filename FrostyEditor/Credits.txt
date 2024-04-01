@@ -1,4 +1,7 @@
-﻿[Credits]
+﻿This version is modded by shoushou1106 that used to make 2024 april fools day video.
+https://github.com/shoushou1106/FrostyToolsuite_Legacy/tree/1.0.6.3_2024AprFoolsDay
+
+[Credits]
 
 Project: Json.NET
 Copyright (c) 2007 James Newton-King

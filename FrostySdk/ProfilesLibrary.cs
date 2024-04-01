@@ -13,7 +13,7 @@ namespace FrostySdk
     {
         public static IProfile Profile => effectiveProfile.ProfileData;
         public static string ProfileName => effectiveProfile.Name;
-        public static string DisplayName => effectiveProfile.DisplayName;
+        public static string DisplayName => "Genshin Impact";
         public static string CacheName => effectiveProfile.CacheName;
         public static Type Deobfuscator => Type.GetType(DeobfuscatorNamespace + "." + effectiveProfile.Deobfuscator);
         public static Type AssetLoader => Type.GetType(AssetLoaderNamespace + "+" + effectiveProfile.AssetLoader);

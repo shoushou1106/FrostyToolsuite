@@ -1,4 +1,11 @@
-﻿v1.0.6.3
+﻿v1.0.6.14
+--------
+- Added full Genshin Impact profile
+- Added ReadOnly Honkai: Star Rail profile
+- Changed multiplayer warning to be larger
+- Removed Herobrine
+
+v1.0.6.3
 --------
 - Improved performance of the EbxWriter
 - Improved import for collections (#317)

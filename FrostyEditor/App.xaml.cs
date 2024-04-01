@@ -60,6 +60,8 @@ namespace FrostyEditor
             DispatcherUnhandledException += App_DispatcherUnhandledException;
             Exit += Application_Exit;
 
+            Version += " (Super Developer)";
+
 #if FROSTY_DEVELOPER
             Version += " (Developer)";
 #elif FROSTY_ALPHA

@@ -294,6 +294,13 @@
     <Resource Include="ChangeLog.txt" />
     <Resource Include="Credits.txt" />
   </ItemGroup>
+
+
+  <ItemGroup>
+    <Resource Include="Images\Genshin.png" />
+    <Resource Include="Images\GenshinIco.png" />
+  </ItemGroup>
+
   <ItemGroup>
     <Resource Include="Images\Recent.png" />
     <Content Include="Resources\Icons\fbproject.ico">

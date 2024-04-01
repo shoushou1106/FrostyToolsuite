@@ -528,7 +528,7 @@
                                          Icon="/FrostyEditor;component/Images/Home.png">
                         <Grid Background="{StaticResource ControlBackground}">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="64" />
+                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
@@ -536,19 +536,29 @@
                             <Grid Margin="2"
                                   Background="{StaticResource ListBackground}">
                                 <Grid Grid.Row="0"
-                                      Margin="5">
-                                    <Image Source="/FrostyEditor;component/Images/Warning.png"
-                                           Width="32"
+                                      Margin="5"
+                                      Height="Auto">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Image Grid.Column="0"
+                                        Source="/FrostyEditor;component/Images/Warning.png"
+                                           Width="75"
                                            HorizontalAlignment="Left"
                                            Margin="20,0,0,0"
                                            VerticalAlignment="Center" />
-                                    <TextBlock Text="The developers do not support this tool being used to modify files that impact multiplayer in any way shape or form, and will not provide support to anyone who attempts this."
+                                    <TextBlock Grid.Column="1"
+                                        Text="The developers do not support this tool being used to modify files that impact multiplayer in any way shape or form, and will not provide support to anyone who attempts this."
                                                Foreground="{StaticResource FontColor}"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Left"
                                                TextWrapping="Wrap"
                                                TextAlignment="Left"
-                                               Margin="80,0,50,0" />
+                                               Margin="35, 20, 20, 20"
+                                               FontSize="35"
+                                               FontWeight="ExtraBold"
+                                               />
                                 </Grid>
                             </Grid>
 

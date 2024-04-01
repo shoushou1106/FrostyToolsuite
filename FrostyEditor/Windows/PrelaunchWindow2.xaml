@@ -27,8 +27,8 @@
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" Height="48">
-                                            <Image Source="{Binding Path=Thumbnail}" Width="32" Margin="0 0 8 0"/>
-                                            <TextBlock Text="{Binding Path=GameName}" VerticalAlignment="Center"/>
+                                            <Image Source="/FrostyEditor;component/Images/GenshinIco.png" Width="32" Margin="0 0 8 0"/>
+                                            <TextBlock Text="Genshin Impact" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>

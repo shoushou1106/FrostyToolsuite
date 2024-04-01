@@ -77,7 +77,7 @@ namespace FrostyEditor.Windows
             App.Logger.Log("Loading Profile For " + ProfilesLibrary.DisplayName);
 
             profileTextBlock.Text = ProfilesLibrary.DisplayName;
-            bannerImage.Source = LoadBanner(ProfilesLibrary.Banner);
+            //bannerImage.Source = LoadBanner(ProfilesLibrary.Banner);
 
             DirectoryInfo di = new DirectoryInfo("Caches");
             if (!Directory.Exists(di.FullName))
