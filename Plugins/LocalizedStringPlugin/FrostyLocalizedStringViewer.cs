@@ -475,32 +475,168 @@ namespace LocalizedStringPlugin
             }
         }
 
+        public struct OptStr
+        {
+            public string Key;
+            public string Eng;
+            public string Zh;
+            public List<string> Path;
+            public List<string> Guess;
+            public string Opt
+            {
+                get
+                {
+                    //#正式使用时请删除前三行。Please remove the first 3 lines in production.
+                    //# 键值,原文,译文,上下文（可选）
+                    //# Key,Source,Translation,Context(optional)
+                    //key_apple,apple,苹果,"A common, round fruit produced by the tree Malus domestica, cultivated in temperate climates."
+                    //key_pear,pear,梨
+                    //key_peach, peach, 桃子
+                    //key_peach_etymology,"The scientific name persica, along with the word ""peach"" itself and its cognates in many European languages, derives from an early European belief that peaches were native to Persia (modern-day Iran).",
+                    //key_potato,potato,马铃薯
+                    //key_peas, peas, 豌豆
+                    //key_green_bean,green bean, 青豆
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append(Key);
+                    sb.Append(",\"");
+                    if (Eng.Contains('\"'))
+                        sb.Append("稍后上传");
+                    else
+                        sb.Append(Eng);
+                    sb.Append("\",\"\",\"");
+
+                    var list = Path.Distinct().ToList();
+                    sb.AppendLine("路径: ");
+                    foreach (string str in list)
+                        sb.AppendLine(str);
+
+                    list = Guess.Distinct().ToList();
+                    sb.Append("猜测: ");
+                    foreach (string str in list)
+                        sb.Append(str + "; ");
+
+                    sb.AppendLine();
+                    sb.AppendLine("繁体中文: ");
+                    sb.Append(Zh);
+
+                    sb.Append("\"");
+
+                    return sb.ToString();
+                }
+            }
+        }
+
+        public Dictionary<string, OptStr> EngStr { get; set; }
+
+        public List<string> GuessTag(string path)
+        {
+            path = path.ToLower();
+            List<string> tags = new List<string>();
+            if (path.Contains("_pvz/ui/customization"))
+                tags.Add("装饰");
+            if (path.Contains("_pvz/ui/uiconsumablemetadata"))
+                tags.Add("消耗品");
+            if (path.Contains("packcardmetadata"))
+                tags.Add("组合包");
+            if (path.Contains("online/persistence/pvzawards"))
+                tags.Add("任务");
+            if (path.Contains("online/persistence/scoring/pvzscoring"))
+                tags.Add("得分");
+            if (path.Contains("gameplay/ai/ai_templates"))
+                tags.Add("AI名称");
+            if (path.Contains("BossSpeech"))
+                tags.Add("演讲");
+            if (path.StartsWith("_pvz"))
+                tags.Add("GW1");
+            if (path.StartsWith("ui"))
+                tags.Add("用户界面");
+            if (path.StartsWith("_pvz/ui"))
+                tags.Add("用户界面");
+            if (path.StartsWith("online"))
+                tags.Add("在线");
+            if (path.StartsWith("gameplay"))
+                tags.Add("玩法");
+            if (path.StartsWith("levels"))
+                tags.Add("地图");
+            if (path.StartsWith("worlds"))
+                tags.Add("地图");
+            if (path.StartsWith("sound"))
+                tags.Add("声音");
+
+            return tags;
+        }
+
         private void PART_ExportButton_Click(object sender, RoutedEventArgs e)
         {
-            FrostySaveFileDialog sfd = new FrostySaveFileDialog("Save Localized Strings", "*.csv (CSV File)|*.csv", "LocalizedStrings");
-            if (sfd.ShowDialog())
+            EngStr = new Dictionary<string, OptStr>();
+
+            FrostyTaskWindow.Show("Exporting Localized Strings Usage", "", (task) =>
             {
-                FrostyTaskWindow.Show("Exporting Localized Strings", "", (task) =>
+                uint totalCount = (uint)App.AssetManager.EnumerateEbx().ToList().Count;
+                uint idx = 0;
+
+                foreach (uint stringId in stringIds)
                 {
-                    using (StreamWriter writer = new StreamWriter(sfd.FileName))
+                    OptStr str = new OptStr();
+                    str.Key = stringId.ToString("X8");
+                    str.Eng = db.GetString(stringId);
+                    str.Path = new List<string>();
+                    str.Guess = new List<string>();
+                    EngStr.Add(stringId.ToString("X").ToLower(), str);
+                }
+                foreach (EbxAssetEntry refEntry in App.AssetManager.EnumerateEbx())
+                {
+                    task.Update("Checking: " + refEntry.Name, (idx++ / (double)totalCount) * 100.0d);
+                    EbxAsset refAsset = App.AssetManager.GetEbx(refEntry);
+                    List<string> AlreadyDone = new List<string>();
+                    foreach (dynamic obj in refAsset.Objects)
                     {
-                        int index = 0;
-                        foreach (uint stringId in stringIds)
+                        if (HasProperty(obj, "StringHash"))
                         {
-                            string str = db.GetString(stringId);
-
-                            str = str.Replace("\r", "");
-                            str = str.Replace("\n", " ");
-                            str = str.Replace("\"", "\"\"");
-
-                            writer.WriteLine(stringId.ToString("X8") + ",\"" + str + "\"");
-                            task.Update(progress: ((index++) / (double)stringIds.Count) * 100.0);
+                            string TempString = obj.StringHash.ToString("X").ToLower();
+                            if (EngStr.ContainsKey(TempString) & !AlreadyDone.Contains(TempString))
+                            {
+                                AlreadyDone.Add(TempString);
+                                OptStr str = EngStr[TempString];
+                                str.Path.Add(refEntry.Name);
+                                str.Guess = EngStr[TempString].Guess.Concat(GuessTag(refEntry.Name)).ToList();
+                                EngStr[TempString] = str;
+                            }
+                        }
+                        foreach (PropertyInfo pi in obj.GetType().GetProperties())
+                        {
+                            if (pi.PropertyType == typeof(CString))
+                            {
+                                string TempString = HashStringId(pi.GetValue(obj)).ToString("X").ToLower();
+                                if (EngStr.ContainsKey(TempString) & !AlreadyDone.Contains(TempString))
+                                {
+                                    AlreadyDone.Add(TempString);
+                                    OptStr str = EngStr[TempString];
+                                    str.Path.Add(refEntry.Name);
+                                    str.Guess = EngStr[TempString].Guess.Concat(GuessTag(refEntry.Name)).ToList();
+                                    EngStr[TempString] = str;
+                                }
+                            }
+                            else if (pi.PropertyType == typeof(List<CString>))
+                            {
+                                foreach (CString cst in pi.GetValue(obj))
+                                {
+                                    string TempString = HashStringId(cst).ToString("X").ToLower();
+                                    if (EngStr.ContainsKey(TempString) & !AlreadyDone.Contains(TempString))
+                                    {
+                                        AlreadyDone.Add(TempString);
+                                        OptStr str = EngStr[TempString];
+                                        str.Path.Add(refEntry.Name);
+                                        str.Guess = EngStr[TempString].Guess.Concat(GuessTag(refEntry.Name)).ToList();
+                                        EngStr[TempString] = str;
+                                    }
+                                }
+                            }
                         }
                     }
-                });
-
-                App.Logger.Log("Localized strings saved to {0}", sfd.FileName);
-            }
+                }
+            });
         }
 
         private void BtnImport_Click(object sender, RoutedEventArgs e)
@@ -537,6 +673,7 @@ namespace LocalizedStringPlugin
             }
         }
 
+
         public static bool HasProperty(object obj, string propertyName)
         {
             return obj.GetType().GetProperty(propertyName) != null;
@@ -554,56 +691,16 @@ namespace LocalizedStringPlugin
                     Dictionary<string, string> StringInfo = new Dictionary<string, string>();
                     foreach (uint stringId in stringIds)
                     {
-                        StringInfo.Add(stringId.ToString("X").ToLower(), stringId.ToString("X8") + ", \"" + db.GetString(stringId).Replace("\r", "").Replace("\n", " ") + "\"");
-                    }
-                    foreach (EbxAssetEntry refEntry in App.AssetManager.EnumerateEbx())
-                    {
-                        task.Update("Checking: " + refEntry.Name, (idx++ / (double)totalCount) * 100.0d);
-                        EbxAsset refAsset = App.AssetManager.GetEbx(refEntry);
-                        List<string> AlreadyDone = new List<string>();
-                        foreach (dynamic obj in refAsset.Objects)
-                        {
-                            if (HasProperty(obj, "StringHash"))
-                            {
-                                string TempString = obj.StringHash.ToString("X").ToLower();
-                                if (StringInfo.ContainsKey(TempString) & !AlreadyDone.Contains(TempString))
-                                {
-                                    AlreadyDone.Add(TempString);
-                                    StringInfo[TempString] = StringInfo[TempString] + "\n           -" + refEntry.Name;
-                                }
-                            }
-                            foreach (PropertyInfo pi in obj.GetType().GetProperties())
-                            {
-                                if (pi.PropertyType == typeof(CString))
-                                {
-                                    string TempString = HashStringId(pi.GetValue(obj)).ToString("X").ToLower();
-                                    if (StringInfo.ContainsKey(TempString) & !AlreadyDone.Contains(TempString))
-                                    {
-                                        AlreadyDone.Add(TempString);
-                                        StringInfo[TempString] = StringInfo[TempString] + "\n          -" + refEntry.Name;
-                                    }
-                                }
-                                else if (pi.PropertyType == typeof(List<CString>))
-                                {
-                                    foreach (CString cst in pi.GetValue(obj))
-                                    {
-                                        string TempString = HashStringId(cst).ToString("X").ToLower();
-                                        if (StringInfo.ContainsKey(TempString) & !AlreadyDone.Contains(TempString))
-                                        {
-                                            AlreadyDone.Add(TempString);
-                                            StringInfo[TempString] = StringInfo[TempString] + "\n          -" + refEntry.Name;
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        OptStr str = EngStr[stringId.ToString("X").ToLower()];
+                        str.Zh = db.GetString(stringId);
+                        EngStr[stringId.ToString("X").ToLower()] = str;
                     }
 
                     using (StreamWriter writer = new StreamWriter(sfd.FileName))
                     {
-                        foreach (string StringData in StringInfo.Values)
+                        foreach (OptStr StringData in EngStr.Values)
                         {
-                            writer.WriteLine(StringData);
+                            writer.WriteLine(StringData.Opt);
                         }
                     }
                 });
