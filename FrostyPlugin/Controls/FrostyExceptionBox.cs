@@ -171,6 +171,8 @@ namespace Frosty.Core.Controls
                 StringBuilder sb = new StringBuilder();
                 sb.Append("Type=");
                 sb.AppendLine(ex.GetType().ToString());
+                sb.Append("HResult=");
+                sb.AppendLine("0x" + ex.HResult.ToString("X"));
                 sb.Append("Message=");
                 sb.AppendLine(ex.Message);
                 sb.Append("Source=");
@@ -200,6 +202,8 @@ namespace Frosty.Core.Controls
                 StringBuilder sb = new StringBuilder();
                 sb.Append("Type=");
                 sb.AppendLine(_ex.GetType().ToString());
+                sb.Append("HResult=");
+                sb.AppendLine("0x" + _ex.HResult.ToString("X"));
                 sb.Append("Message=");
 
                 string message = _ex.Message;
