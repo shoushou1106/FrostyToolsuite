@@ -1,27 +1,21 @@
 ﻿using Frosty.Controls;
-using FrostyCore;
 using System;
-using System.Collections;
 using System.Globalization;
 using System.IO;
-using System.Reflection;
 using System.Resources;
 using System.Text;
-using System.Threading;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Input;
 
 namespace Frosty.Core.Controls
 {
     /// <summary>
     /// Handle button click
     /// </summary>
-    public class ExceptionBoxClickCommand : ICommand
+    public class ExceptionBoxClickCommand : System.Windows.Input.ICommand
     {
         public event EventHandler CanExecuteChanged {
-            add => CommandManager.RequerySuggested += value;
-            remove => CommandManager.RequerySuggested -= value;
+            add => System.Windows.Input.CommandManager.RequerySuggested += value;
+            remove => System.Windows.Input.CommandManager.RequerySuggested -= value;
         }
 
         public bool CanExecute(object parameter)
@@ -31,7 +25,7 @@ namespace Frosty.Core.Controls
 
         public void Execute(object parameter)
         {
-            Button btn = parameter as Button;
+            System.Windows.Controls.Button btn = parameter as System.Windows.Controls.Button;
             FrostyExceptionBox parentWin = Window.GetWindow(btn) as FrostyExceptionBox;
 
             string buttonName = btn.Name;
@@ -117,7 +111,7 @@ namespace Frosty.Core.Controls
             {
                 Title = title,
                 ExceptionText = UnlocalizeException(e),
-                LogText = (App.Logger as FrostyLogger).LogText,
+                LogText = (App.Logger as FrostyCore.FrostyLogger).LogText,
                 ExceptionMessageText = e.Message
             };
 
@@ -162,8 +156,8 @@ namespace Frosty.Core.Controls
             try
             {
                 // Call UnlocalizedExceptionGenerator to get exception message in English
-                UnlocalizedExceptionGenerator ueg = new UnlocalizedExceptionGenerator(ex, Thread.CurrentThread.CurrentUICulture);
-                Thread thread = new Thread(ueg.Run)
+                UnlocalizedExceptionGenerator ueg = new UnlocalizedExceptionGenerator(ex, System.Threading.Thread.CurrentThread.CurrentUICulture);
+                System.Threading.Thread thread = new System.Threading.Thread(ueg.Run)
                 {
                     CurrentCulture = CultureInfo.InvariantCulture,
                     CurrentUICulture = CultureInfo.InvariantCulture
@@ -225,11 +219,11 @@ namespace Frosty.Core.Controls
                 string message = _ex.Message;
                 try
                 {
-                    Assembly assembly = _ex.GetType().Assembly;
+                    System.Reflection.Assembly assembly = _ex.GetType().Assembly;
                     ResourceManager rm = new ResourceManager(assembly.GetName().Name, assembly);
                     ResourceSet originalResources = rm.GetResourceSet(_origCultureInfo, true, true);
                     ResourceSet targetResources = rm.GetResourceSet(CultureInfo.InvariantCulture, true, true);
-                    foreach (DictionaryEntry originalResource in originalResources)
+                    foreach (System.Collections.DictionaryEntry originalResource in originalResources)
                     {
                         if (originalResource.Value.ToString().Equals(_ex.Message.ToString(), StringComparison.Ordinal))
                         {

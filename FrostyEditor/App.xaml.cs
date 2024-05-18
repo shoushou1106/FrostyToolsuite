@@ -77,7 +77,6 @@ namespace FrostyEditor
                 if (project.IsDirty)
                 {
                     string name = project.DisplayName.Replace(".fbproject", "");
-                    DateTime timeStamp = DateTime.Now;
 
                     project.Filename = "Autosave/" + name + "_" + DateTime.Now.ToString("ddMMyyyy_HHmmss") + ".fbproject";
                     project.Save();
