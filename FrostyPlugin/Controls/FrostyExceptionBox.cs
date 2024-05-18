@@ -163,7 +163,7 @@ namespace Frosty.Core.Controls
             {
                 // Call UnlocalizedExceptionGenerator to get exception message in English
                 UnlocalizedExceptionGenerator ueg = new UnlocalizedExceptionGenerator(ex, Thread.CurrentThread.CurrentUICulture);
-                Thread thread = new Thread(ueg.Unloc)
+                Thread thread = new Thread(ueg.Run)
                 {
                     CurrentCulture = CultureInfo.InvariantCulture,
                     CurrentUICulture = CultureInfo.InvariantCulture
@@ -212,7 +212,7 @@ namespace Frosty.Core.Controls
                 _origCultureInfo = origCultureInfo;
             }
 
-            public void Unloc()
+            public void Run()
             {
                 StringBuilder sb = new StringBuilder();
                 sb.Append("Type=");
