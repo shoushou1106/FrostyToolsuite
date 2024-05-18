@@ -129,7 +129,7 @@ namespace Frosty.Core.Controls
                 {
                     writer.WriteLine(window.ExceptionText);
                     writer.WriteLine("Log:");
-                    writer.WriteLine(window.LogText);
+                    writer.Write(window.LogText);
                 }
             }
             catch (IOException) // Directory maybe in use
@@ -138,7 +138,7 @@ namespace Frosty.Core.Controls
                 {
                     writer.WriteLine(window.ExceptionText);
                     writer.WriteLine("Log:");
-                    writer.WriteLine((App.Logger as FrostyLogger).LogText);
+                    writer.Write(window.LogText);
                 }
             }
             catch
