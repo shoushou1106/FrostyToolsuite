@@ -1431,7 +1431,7 @@
                         <!-- Buttons -->
                         <StackPanel Grid.Row="2" Margin="8" FlowDirection="RightToLeft" Orientation="Horizontal">
                             <Button Content="OK" Width="75" Command="{StaticResource CloseCommand}" CommandParameter="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type Window}}}"/>
-                            <Button x:Name="PART_IgnoreButton" Content="Ignore" Width="75" Margin="5,0,0,0" Command="{StaticResource exceptionBoxClickCommand}" CommandParameter="{Binding RelativeSource={RelativeSource Self}}"/>
+                            <Button x:Name="PART_IgnoreButton" Content="Ignore" ToolTip="Try to ignore exception, unknown error may occurs" Width="75" Margin="5,0,0,0" Command="{StaticResource exceptionBoxClickCommand}" CommandParameter="{Binding RelativeSource={RelativeSource Self}}"/>
                             <!--<Button x:Name="PART_ReportCrashButton" Content="Report Crash" Width="100" Margin="5,0,0,0"/>-->
                         </StackPanel>
                         <StackPanel Grid.Row="2" Margin="8" FlowDirection="LeftToRight" Orientation="Horizontal">
