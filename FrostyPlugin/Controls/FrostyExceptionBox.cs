@@ -1,21 +1,80 @@
 ﻿using Frosty.Controls;
-using Frosty.Core.Windows;
+using FrostyCore;
 using System;
+using System.Collections;
+using System.Globalization;
+using System.IO;
+using System.Reflection;
+using System.Resources;
+using System.Text;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace Frosty.Core.Controls
 {
+    public class ExceptionBoxClickCommand : ICommand
+    {
+        public event EventHandler CanExecuteChanged {
+            add => CommandManager.RequerySuggested += value;
+            remove => CommandManager.RequerySuggested -= value;
+        }
+
+        public bool CanExecute(object parameter)
+        {
+            return true;
+        }
+
+        public void Execute(object parameter)
+        {
+            Button btn = parameter as Button;
+            FrostyExceptionBox parentWin = Window.GetWindow(btn) as FrostyExceptionBox;
+
+            string buttonName = btn.Name;
+
+            if (buttonName == "PART_CopyExceptionButton")
+            {
+                Clipboard.SetText(parentWin.ExceptionText);
+                Clipboard.Flush();
+            }
+            else if (buttonName == "PART_CopyLogButton")
+            {
+                Clipboard.SetText(parentWin.LogText);
+                Clipboard.Flush();
+            }
+            else if (buttonName == "PART_IgnoreButton")
+            {
+                parentWin.isIgnored = true;
+                parentWin.Close();
+            }
+        }
+    }
+
     public class FrostyExceptionBox : FrostyDockableWindow
     {
         #region -- Properties --
 
-        #region -- ExceptionText --
+        public bool isIgnored { get; internal set; } = false;
+
+        #region -- Text --
         public static readonly DependencyProperty ExceptionTextProperty = DependencyProperty.Register("ExceptionText", typeof(string), typeof(FrostyExceptionBox), new PropertyMetadata(""));
         public string ExceptionText
         {
             get => (string)GetValue(ExceptionTextProperty);
             set => SetValue(ExceptionTextProperty, value);
+        }
+
+        public static readonly DependencyProperty ExceptionMessageTextProperty = DependencyProperty.Register("ExceptionMessageText", typeof(string), typeof(FrostyExceptionBox), new PropertyMetadata(""));
+        public string ExceptionMessageText {
+            get => (string)GetValue(ExceptionMessageTextProperty);
+            set => SetValue(ExceptionMessageTextProperty, value);
+        }
+
+        public static readonly DependencyProperty LogTextProperty = DependencyProperty.Register("LogText", typeof(string), typeof(FrostyExceptionBox), new PropertyMetadata(""));
+        public string LogText {
+            get => (string)GetValue(LogTextProperty);
+            set => SetValue(LogTextProperty, value);
         }
         #endregion
 
@@ -49,15 +108,126 @@ namespace Frosty.Core.Controls
             base.OnApplyTemplate();
         }
 
-        public static MessageBoxResult Show(Exception e, string title)
+        public static MessageBoxResult Show(Exception e, string title = "Frosty Toolsuite")
         {
             FrostyExceptionBox window = new FrostyExceptionBox
             {
                 Title = title,
-                ExceptionText = e.Message + "\n\n" + e.StackTrace
+                ExceptionText = UnlocalizeException(e),
+                LogText = (App.Logger as FrostyLogger).LogText,
+                ExceptionMessageText = e.Message
             };
 
-            return (window.ShowDialog() == true) ? MessageBoxResult.OK : MessageBoxResult.Cancel;
+            try
+            {
+                Directory.CreateDirectory($"{Environment.CurrentDirectory}\\CrashLogs");
+                using (StreamWriter writer = new StreamWriter(new FileStream($"{Environment.CurrentDirectory}\\CrashLogs\\{DateTime.Now.ToString("ddMMyyyy_HHmmss")}_{e.Source}.txt", FileMode.Create)))
+                {
+                    writer.WriteLine(window.ExceptionText);
+                    writer.WriteLine("Log:");
+                    writer.WriteLine(window.LogText);
+                }
+            }
+            catch (IOException)
+            {
+                using (StreamWriter writer = new StreamWriter(new FileStream($"crashlog_{DateTime.Now.ToString("ddMMyyyy_HHmmss")}.txt", FileMode.Create)))
+                {
+                    writer.WriteLine(window.ExceptionText);
+                    writer.WriteLine("Log:");
+                    writer.WriteLine((App.Logger as FrostyLogger).LogText);
+                }
+            }
+            catch
+            {
+                App.Logger.LogError("Failed to write crash log");
+            }
+            
+
+            window.ShowDialog();
+
+            if (window.isIgnored) return MessageBoxResult.Cancel;
+            return (window.DialogResult == true) ? MessageBoxResult.OK : MessageBoxResult.No;
+        }
+
+        private static string UnlocalizeException(Exception ex)
+        {
+            try
+            {
+                UnlocalizedExceptionGenerator ueg = new UnlocalizedExceptionGenerator(ex, Thread.CurrentThread.CurrentUICulture);
+                Thread thread = new Thread(ueg.Unloc)
+                {
+                    CurrentCulture = CultureInfo.InvariantCulture,
+                    CurrentUICulture = CultureInfo.InvariantCulture
+                };
+                thread.Start();
+                thread.Join();
+
+                return ueg.ExceptionDetails;
+            }
+            catch
+            {
+                App.Logger.LogError("Failed to translate exception");
+
+                StringBuilder sb = new StringBuilder();
+                sb.Append("Type=");
+                sb.AppendLine(ex.GetType().ToString());
+                sb.Append("Message=");
+                sb.AppendLine(ex.Message);
+                sb.Append("Source=");
+                sb.AppendLine(ex.Source);
+                sb.AppendLine("StackTrace:");
+                sb.AppendLine(ex.StackTrace);
+                return sb.ToString();
+            }
+        }
+
+        // https://stackoverflow.com/questions/209133/exception-messages-in-english
+        private class UnlocalizedExceptionGenerator
+        {
+            private Exception _ex;
+            private CultureInfo _origCultureInfo;
+
+            public string ExceptionDetails;
+
+            public UnlocalizedExceptionGenerator(Exception ex, CultureInfo cultureInfo)
+            {
+                _ex = ex;
+                _origCultureInfo = cultureInfo;
+            }
+
+            public void Unloc()
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.Append("Type=");
+                sb.AppendLine(_ex.GetType().ToString());
+                sb.Append("Message=");
+
+                string message = _ex.Message;
+                try
+                {
+                    Assembly assembly = _ex.GetType().Assembly;
+                    ResourceManager rm = new ResourceManager(assembly.GetName().Name, assembly);
+                    ResourceSet originalResources = rm.GetResourceSet(_origCultureInfo, true, true);
+                    ResourceSet targetResources = rm.GetResourceSet(CultureInfo.InvariantCulture, true, true);
+                    foreach (DictionaryEntry originalResource in originalResources)
+                    {
+                        if (originalResource.Value.ToString().Equals(_ex.Message.ToString(), StringComparison.Ordinal))
+                        {
+                            message = targetResources.GetString(originalResource.Key.ToString(), false);
+                            break;
+                        }
+                    }
+                }
+                catch { }
+                sb.AppendLine(message);
+
+                sb.Append("Source=");
+                sb.AppendLine(_ex.Source);
+                sb.AppendLine("StackTrace:");
+                sb.AppendLine(_ex.StackTrace);
+
+                ExceptionDetails = sb.ToString();
+            }
         }
     }
 }
