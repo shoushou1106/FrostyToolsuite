@@ -1420,7 +1420,8 @@
                                 </Grid>
                             </ctrl:FrostyTabItem>
                         </ctrl:FrostyTabControl>
-
+                        
+                        <!-- Header -->
                         <StackPanel Grid.Row="0" Margin="2">
                             <TextBlock Text="An unhandled exception has occurred" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource FontColor}" FontFamily="Global User Interface" FontSize="16"/>
                             <TextBlock Text="{Binding ExceptionMessageText, RelativeSource={RelativeSource AncestorType={x:Type local:FrostyExceptionBox}}}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource FontColor}" FontFamily="Global User Interface"/>

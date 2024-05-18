@@ -14,6 +14,9 @@ using System.Windows.Input;
 
 namespace Frosty.Core.Controls
 {
+    /// <summary>
+    /// Handle button click
+    /// </summary>
     public class ExceptionBoxClickCommand : ICommand
     {
         public event EventHandler CanExecuteChanged {
@@ -118,6 +121,7 @@ namespace Frosty.Core.Controls
                 ExceptionMessageText = e.Message
             };
 
+            // Write crash log
             try
             {
                 Directory.CreateDirectory($"{Environment.CurrentDirectory}\\CrashLogs");
@@ -128,7 +132,7 @@ namespace Frosty.Core.Controls
                     writer.WriteLine(window.LogText);
                 }
             }
-            catch (IOException)
+            catch (IOException) // Directory maybe in use
             {
                 using (StreamWriter writer = new StreamWriter(new FileStream($"crashlog_{DateTime.Now.ToString("ddMMyyyy_HHmmss")}.txt", FileMode.Create)))
                 {
@@ -145,14 +149,19 @@ namespace Frosty.Core.Controls
 
             window.ShowDialog();
 
+            // Return MessageBoxResult.Cancel if user click Ignore
             if (window.isIgnored) return MessageBoxResult.Cancel;
             return (window.DialogResult == true) ? MessageBoxResult.OK : MessageBoxResult.No;
         }
 
+        /// <summary>
+        /// Generate exception message in English (if possible)
+        /// </summary>
         private static string UnlocalizeException(Exception ex)
         {
             try
             {
+                // Call UnlocalizedExceptionGenerator to get exception message in English
                 UnlocalizedExceptionGenerator ueg = new UnlocalizedExceptionGenerator(ex, Thread.CurrentThread.CurrentUICulture);
                 Thread thread = new Thread(ueg.Unloc)
                 {
@@ -183,7 +192,10 @@ namespace Frosty.Core.Controls
             }
         }
 
-        // https://stackoverflow.com/questions/209133/exception-messages-in-english
+        /// <summary>
+        /// Use for generate exception message in English
+        /// https://stackoverflow.com/questions/209133/exception-messages-in-english
+        /// </summary>
         private class UnlocalizedExceptionGenerator
         {
             private Exception _ex;
@@ -191,10 +203,13 @@ namespace Frosty.Core.Controls
 
             public string ExceptionDetails;
 
-            public UnlocalizedExceptionGenerator(Exception ex, CultureInfo cultureInfo)
+            /// <summary>
+            /// </summary>
+            /// <param name="cultureInfo">Current(user’s) CultureInfo</param>
+            public UnlocalizedExceptionGenerator(Exception ex, CultureInfo origCultureInfo)
             {
                 _ex = ex;
-                _origCultureInfo = cultureInfo;
+                _origCultureInfo = origCultureInfo;
             }
 
             public void Unloc()
@@ -206,6 +221,7 @@ namespace Frosty.Core.Controls
                 sb.AppendLine("0x" + _ex.HResult.ToString("X"));
                 sb.Append("Message=");
 
+                // Find message in .net localize resources
                 string message = _ex.Message;
                 try
                 {
