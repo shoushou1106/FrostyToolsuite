@@ -16,6 +16,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace Frosty.ModSupport
 {
@@ -1041,7 +1042,22 @@ namespace Frosty.ModSupport
             {
                 if (process.ProcessName.Equals(processName, StringComparison.OrdinalIgnoreCase))
                 {
-                    FrostyMessageBox.Show(string.Format("Unable to launch process as there is already a running process with process Id {0}", process.Id), "Frosty Toolsuite");
+                    if (FrostyMessageBox.Show(
+                        $"Unable to launch process as there is already a running process with process Id {process.Id}" + Environment.NewLine + "Do you want to kill game process?", "Frosty Toolsuite",
+                        MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                    {
+                        try
+                        {
+                            process.Kill();
+                        }
+                        catch
+                        {
+                            FrostyMessageBox.Show($"Failed to kill process");
+                            return -1;
+                        }
+                        break;
+                    }
+                    
                     return -1;
                 }
             }
