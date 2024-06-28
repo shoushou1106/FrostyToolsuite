@@ -47,6 +47,7 @@ namespace FrostyEditor.Windows
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            throw new Exception("This is a custom exception message\r\nthat have two lines.");
             RefreshConfigurationList();
 
             RemoveConfigButton.IsEnabled = false;
