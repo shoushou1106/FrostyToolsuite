@@ -6,9 +6,7 @@ using Frosty.Core.Mod;
 using System.Collections.Generic;
 using System;
 using System.Linq;
-using System.Text;
 using System.Windows.Controls;
-using FrostySdk.IO;
 
 namespace FrostyEditor.Windows
 {
