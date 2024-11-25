@@ -80,12 +80,12 @@ namespace FrostyEditor.Windows
             // Check Title
             if (String.IsNullOrEmpty(modTitleTextBox.Text))
             {
-                errors.Add("Title are mandatory fields");
+                errors.Add("Title is a mandatory field");
                 modTitleTextBox.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             else if (modTitleTextBox.Text.Any(c => c > sbyte.MaxValue))
             {
-                errors.Add("Title can only contain ASCII characters.");
+                errors.Add("Title can only contain ASCII characters");
                 modTitleTextBox.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             else
@@ -96,12 +96,12 @@ namespace FrostyEditor.Windows
             // Check Author
             if (String.IsNullOrEmpty(modAuthorTextBox.Text))
             {
-                errors.Add("Author are mandatory fields");
+                errors.Add("Author is a mandatory field");
                 modAuthorTextBox.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             else if (modAuthorTextBox.Text.Any(c => c > sbyte.MaxValue))
             {
-                errors.Add("Author can only contain ASCII characters.");
+                errors.Add("Author can only contain ASCII characters");
                 modAuthorTextBox.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             else
@@ -112,12 +112,12 @@ namespace FrostyEditor.Windows
             // Check Category
             if (String.IsNullOrEmpty(modCategoryTextBox.Text))
             {
-                errors.Add("Category are mandatory fields");
+                errors.Add("Category is a mandatory field");
                 modCategoryTextBox.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             else if (modCategoryTextBox.Text.Any(c => c > sbyte.MaxValue))
             {
-                errors.Add("Category can only contain ASCII characters.");
+                errors.Add("Category can only contain ASCII characters");
                 modCategoryTextBox.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             else
@@ -128,12 +128,12 @@ namespace FrostyEditor.Windows
             // Check Version
             if (String.IsNullOrEmpty(modVersionTextBox.Text))
             {
-                errors.Add("Version are mandatory fields");
+                errors.Add("Version is a mandatory field");
                 modVersionTextBox.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             else if (modVersionTextBox.Text.Any(c => c > sbyte.MaxValue))
             {
-                errors.Add("Version can only contain ASCII characters.");
+                errors.Add("Version can only contain ASCII characters");
                 modVersionTextBox.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             else
@@ -162,7 +162,7 @@ namespace FrostyEditor.Windows
 
                     if (modPageLinkTextBox.Text.Any(c => c > sbyte.MaxValue))
                     {
-                        errors.Add("Link can only contain ASCII characters.");
+                        errors.Add("Link can only contain ASCII characters");
                         modPageLinkTextBox.BorderBrush = System.Windows.Media.Brushes.Red;
                     }
                     else
@@ -180,7 +180,7 @@ namespace FrostyEditor.Windows
             if (!String.IsNullOrEmpty(modDescriptionTextBox.Text) &&
                 !modDescriptionTextBox.Text.Any(c => c > sbyte.MaxValue))
             {
-                errors.Add("Description can only contain ASCII characters.");
+                errors.Add("Description can only contain ASCII characters");
                 modDescriptionTextBox.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             else
