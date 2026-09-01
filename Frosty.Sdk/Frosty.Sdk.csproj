@@ -1,10 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
-        <ImplicitUsings>disable</ImplicitUsings>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <RootNamespace>Frosty.Sdk</RootNamespace>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <Version>2.0.0</Version>
         <Authors>FrostyToolsuite Team</Authors>
