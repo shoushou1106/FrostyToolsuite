@@ -9,7 +9,7 @@ using Frosty.Sdk.Ebx;
 using Frosty.Sdk.IO;
 using Frosty.Sdk.Utils;
 
-namespace FrostyCli.Project;
+namespace Frosty.Cli.Project;
 
 public class FrostyProject
 {

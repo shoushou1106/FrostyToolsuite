@@ -8,7 +8,7 @@ using Frosty.Sdk.Managers.Entries;
 using Frosty.Sdk.Utils;
 using Sharprompt;
 
-namespace FrostyCli;
+namespace Frosty.Cli;
 
 internal static partial class Program
 {

@@ -1,7 +1,7 @@
 using System.CommandLine;
 using System.IO;
 
-namespace FrostyCli;
+namespace Frosty.Cli;
 
 internal static partial class Program
 {

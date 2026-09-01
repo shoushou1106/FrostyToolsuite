@@ -2,13 +2,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+
+using Frosty.Cli.Project;
 using Frosty.ModSupport;
 using Frosty.ModSupport.Mod;
 using Frosty.Sdk;
 using Frosty.Sdk.Managers;
-using FrostyCli.Project;
 
-namespace FrostyCli;
+namespace Frosty.Cli;
 
 internal static partial class Program
 {

@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Frosty.Sdk.Interfaces;
 using Pastel;
 
-namespace FrostyCli;
+namespace Frosty.Cli;
 
 internal class Logger : ILogger
 {

@@ -1,4 +1,4 @@
-namespace FrostyCli.Project;
+namespace Frosty.Cli.Project;
 
 public abstract class Asset
 {

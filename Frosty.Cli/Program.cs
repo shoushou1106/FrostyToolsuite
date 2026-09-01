@@ -11,7 +11,7 @@ using Frosty.Sdk.Sdk;
 using Frosty.Sdk.Utils;
 using Sharprompt;
 
-namespace FrostyCli;
+namespace Frosty.Cli;
 
 internal static partial class Program
 {
@@ -42,9 +42,9 @@ internal static partial class Program
         Assembly assembly = Assembly.GetExecutingAssembly();
 #if DEBUG || NIGHTLY
         Logger.LogInfoInternal(
-            $"FrostyCli v{assembly.GetName().Version?.ToString(2)}-{assembly.GetCustomAttributes<AssemblyMetadataAttribute>().FirstOrDefault(a => a.Key == "GitHash")?.Value}");
+            $"Frosty.Cli v{assembly.GetName().Version?.ToString(2)}-{assembly.GetCustomAttributes<AssemblyMetadataAttribute>().FirstOrDefault(a => a.Key == "GitHash")?.Value}");
 #else
-        Logger.LogInfoInternal($"FrostyCli v{assembly.GetName().Version?.ToString(3)}");
+        Logger.LogInfoInternal($"Frosty.Cli v{assembly.GetName().Version?.ToString(3)}");
 
 #endif
 
