@@ -12,7 +12,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\FrostySdk\FrostySdk.csproj" />
+        <ProjectReference Include="..\..\Frosty.Sdk\Frosty.Sdk.csproj" />
         <ProjectReference Include="..\FrostyTypeSdkGenerator\FrostyTypeSdkGenerator.csproj"
                           PrivateAssets="all"
                           ReferenceOutputAssembly="false"

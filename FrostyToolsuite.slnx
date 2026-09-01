@@ -8,9 +8,9 @@
     <File Path="NOTICE.md" />
     <File Path="README.md" />
   </Folder>
+  <Project Path="Frosty.Sdk\Frosty.Sdk.csproj" />
   <Project Path="FrostyCli/FrostyCli.csproj" />
   <Project Path="FrostyEditor/FrostyEditor.csproj" />
   <Project Path="FrostyModSupport/FrostyModSupport.csproj" />
-  <Project Path="FrostySdk/FrostySdk.csproj" />
   <Project Path="FrostySdkTest/FrostySdkTest.csproj" />
 </Solution>
