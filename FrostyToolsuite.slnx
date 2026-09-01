@@ -4,7 +4,6 @@
     <Project Path="FrostyTypeSdkGenerator/FrostyTypeSdkGenerator/FrostyTypeSdkGenerator.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
-    <File Path="CodingStandards.cs" />
     <File Path="LICENSE" />
     <File Path="NOTICE.md" />
     <File Path="README.md" />
