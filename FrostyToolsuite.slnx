@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/FrostyTypeSdkGenerator/">
+    <Project Path="FrostyTypeSdkGenerator/FrostyTypeSdkGenerator.Example/FrostyTypeSdkGenerator.Example.csproj" />
+    <Project Path="FrostyTypeSdkGenerator/FrostyTypeSdkGenerator/FrostyTypeSdkGenerator.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="CodingStandards.cs" />
+    <File Path="LICENSE" />
+    <File Path="NOTICE.md" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="FrostyCli/FrostyCli.csproj" />
+  <Project Path="FrostyEditor/FrostyEditor.csproj" />
+  <Project Path="FrostyModSupport/FrostyModSupport.csproj" />
+  <Project Path="FrostySdk/FrostySdk.csproj" />
+  <Project Path="FrostySdkTest/FrostySdkTest.csproj" />
+</Solution>
