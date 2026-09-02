@@ -1,0 +1,11 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace Frosty.Modding.ModInfos;
+
+public class BundleModAction
+{
+    public HashSet<string> Ebx = new();
+    public HashSet<string> Res = new();
+    public HashSet<Guid> Chunks = new();
+}
