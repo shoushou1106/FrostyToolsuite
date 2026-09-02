@@ -1,26 +1,34 @@
-# Installation
+# Frosty CLI
 
-## Build from source
+## Installation
 
-### Install dependencies
-This project requires [.NET 8](https://learn.microsoft.com/en-us/dotnet/core/install/)
+### Build from source
 
-### Build instructions
+#### Install dependencies
+This project requires [.NET 10](https://learn.microsoft.com/en-us/dotnet/core/install/)
+
+#### Build instructions
 Follow the [build instructions](https://github.com/FrostyToolsuite/FrostyToolsuite?tab=readme-ov-file#from-source).
 
-The compiled executable will be in the `FrostyCLI/bin/Debug/net8.0/` directory.
+The compiled executable will be in the `Frosty.Cli/bin/Debug/net10.0/` directory.
 
 ## Nightly builds
 Grab the latest CLI build for Windows or Linux from the [Github Actions](https://github.com/FrostyToolsuite/FrostyToolsuite/actions), compiled from the latest commit.
 
-On Linux, set FrostyCli to be executable before using it:
+On Linux, set FrostyCli to be executable:
 ```bash
 chmod +x FrostyCli
 ```
 
-# Usage
+On macOS, remove the [Gatekeeper](https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df) and set FrostyCli to be executable before using it:
+```zsh
+xattr -d com.apple.quarantine FrostyCli
+chmod +x FrostyCli
+```
 
-## Overview
+## Usage
+
+### Overview
 > [!NOTE]
 > Mods made with Frosty 1.0.x must be converted using the UpdateMod option in interactive mode or with the update-mod argument before use with FrostyCLI.
 ```
@@ -41,17 +49,14 @@ Commands:
   create-mod <game-path> <project-path> <--output>  Creates a mod from a project.
 ```
 
-## Interactive mode
+### Interactive mode
 Using the interactive CLI mode:
 ```bash
 $ ./FrostyCli
 ```
 Example clip using the interactive mode to generate mod data:
 
-
 ![Frosty CLI Interactive Mode](../Resources/FrostyCLIDemo.gif)
-
-
 
 After generating a mod data folder, pass the datapath argument to the games launch options to apply the mods as such:
 
@@ -65,11 +70,11 @@ Or as an alternative to the datapath launch command, you can use the `GAME_DATA_
 
 
 > [!NOTE]
-> Games of Frostbite version above 2014.4.11 require the following steps (check version in the games json file in the Profiles folder) 
+> Games using the Frostbite version above 2014.4.11 require the following steps (check version in the games json file in the Profiles folder) 
 
-### On Linux
+#### Linux and macOS
 Please copy the bcrypt.dll file from the ThirdParty folder and paste it into the games files, and add the wine DLL override before the datapath command as such:
 ```WINEDLLOVERRIDES="bcrypt=n,b" %command% -datapath '<mod data path>'```
 
-### On Windows
+#### Windows
 For Windows users, please copy the CryptBase.dll file from the ThirdParty folder and paste it into the games files.
