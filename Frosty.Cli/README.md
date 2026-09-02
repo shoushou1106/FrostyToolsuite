@@ -13,7 +13,7 @@ Follow the [build instructions](https://github.com/FrostyToolsuite/FrostyToolsui
 The compiled executable will be in the `Frosty.Cli/bin/Debug/net10.0/` directory.
 
 ## Nightly builds
-Grab the latest CLI build for Windows or Linux from the [Github Actions](https://github.com/FrostyToolsuite/FrostyToolsuite/actions), compiled from the latest commit.
+Grab the latest CLI build for Windows or Linux from the [GitHub Actions](https://github.com/FrostyToolsuite/FrostyToolsuite/actions), compiled from the latest commit.
 
 On Linux, set FrostyCli to be executable:
 ```bash
@@ -58,23 +58,30 @@ Example clip using the interactive mode to generate mod data:
 
 ![Frosty CLI Interactive Mode](../Resources/FrostyCLIDemo.gif)
 
-After generating a mod data folder, pass the datapath argument to the games launch options to apply the mods as such:
+After generating a mod data folder, pass the `datapath` argument to the game's launch options to apply the mods as such:
 
-```-dataPath "<mod data path>"```
-the dataPath argument takes either absolute paths or paths relative to the games directory, so for example if your mod data folder is in the games folder, it'd look like:
-```-dataPath "Moddata"```
+```
+-dataPath "<mod data path>"
+```
 
-Or as an alternative to the datapath launch command, you can use the `GAME_DATA_DIR` environment variable instead as such:
+The dataPath argument takes either absolute paths or paths relative to the games directory. For example, if your mod data folder is in the games folder, it'd look like:
 
-```GAME_DATA_DIR=<mod data path>```
+```
+-dataPath "Moddata"
+```
 
+Or as an alternative to the `datapath` launch command, you can use the `GAME_DATA_DIR` environment variable instead as such:
+
+```
+GAME_DATA_DIR=<mod data path>
+```
 
 > [!NOTE]
-> Games using the Frostbite version above 2014.4.11 require the following steps (check version in the games json file in the Profiles folder) 
+> Games using the Frostbite version above 2014.4.11 require the following steps (check the version in the game's JSON file in the Profiles folder) 
 
 #### Linux and macOS
-Please copy the bcrypt.dll file from the ThirdParty folder and paste it into the games files, and add the wine DLL override before the datapath command as such:
+Please copy the bcrypt.dll file from the ThirdParty folder and paste it into the game's folder and add the wine DLL override before the `datapath` command as such:
 ```WINEDLLOVERRIDES="bcrypt=n,b" %command% -datapath '<mod data path>'```
 
 #### Windows
-For Windows users, please copy the CryptBase.dll file from the ThirdParty folder and paste it into the games files.
+For Windows users, please copy the CryptBase.dll file from the ThirdParty folder and paste it into the game's folder.
