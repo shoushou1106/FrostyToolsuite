@@ -8,7 +8,7 @@ using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Managers.Entries;
 using Frosty.Sdk.Managers;
 using Frosty.Sdk.Interfaces;
-using static Frosty.Sdk.Sdk.TypeFlags;
+using static Frosty.Sdk.TypeSdk.TypeFlags;
 using System.IO;
 
 namespace Frosty.Sdk.IO;

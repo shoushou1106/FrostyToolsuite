@@ -1,4 +1,4 @@
-using Frosty.Sdk.Sdk;
+using Frosty.Sdk.TypeSdk;
 
 namespace Frosty.Sdk.IO.RiffEbx;
 

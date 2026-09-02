@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Frosty.Sdk;
-using Frosty.Sdk.Sdk;
+using Frosty.Sdk.TypeSdk;
 
 namespace FrostyEditor.ViewModels;
 

@@ -1,12 +1,11 @@
-﻿using System;
-using System.Diagnostics;
-using System.Text;
+﻿using System.Text;
+
 using Frosty.Sdk.Attributes;
 using Frosty.Sdk.IO;
-using Frosty.Sdk.Sdk.TypeInfoDatas;
-using Frosty.Sdk.Sdk.TypeInfos;
+using Frosty.Sdk.TypeSdk.TypeInfoDatas;
+using Frosty.Sdk.TypeSdk.TypeInfos;
 
-namespace Frosty.Sdk.Sdk;
+namespace Frosty.Sdk.TypeSdk;
 
 internal class TypeInfoData
 {

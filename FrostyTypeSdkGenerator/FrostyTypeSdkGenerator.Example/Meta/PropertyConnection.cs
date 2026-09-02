@@ -1,5 +1,6 @@
 using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Sdk;
+using Frosty.Sdk.TypeSdk;
 
 namespace Frosty.Sdk.Ebx;
 

@@ -4,7 +4,6 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Ebx;
-using Frosty.Sdk.Sdk;
 
 namespace FrostyTypeSdkGenerator.Example;
 

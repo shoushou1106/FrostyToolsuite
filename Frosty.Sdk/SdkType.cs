@@ -2,7 +2,7 @@ using System;
 using System.Reflection;
 using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Interfaces;
-using Frosty.Sdk.Sdk;
+using Frosty.Sdk.TypeSdk;
 
 namespace Frosty.Sdk;
 

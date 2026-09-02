@@ -2,7 +2,7 @@ using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Ebx;
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO.Ebx;
-using static Frosty.Sdk.Sdk.TypeFlags;
+using static Frosty.Sdk.TypeSdk.TypeFlags;
 using System;
 using System.Collections;
 using System.Diagnostics;

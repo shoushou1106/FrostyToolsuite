@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Frosty.Sdk.Sdk;
+﻿namespace Frosty.Sdk.TypeSdk;
 
 public struct TypeFlags
 {

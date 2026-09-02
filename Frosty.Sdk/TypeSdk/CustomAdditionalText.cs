@@ -1,9 +1,7 @@
-﻿using System.IO;
-using System.Threading;
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
-namespace Frosty.Sdk.Sdk;
+namespace Frosty.Sdk.TypeSdk;
 
 public class CustomAdditionalText : AdditionalText
 {

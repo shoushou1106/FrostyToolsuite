@@ -1,6 +1,6 @@
-﻿using Frosty.Sdk.Sdk.TypeInfoDatas;
+﻿using Frosty.Sdk.TypeSdk.TypeInfoDatas;
 
-namespace Frosty.Sdk.Sdk.TypeInfos;
+namespace Frosty.Sdk.TypeSdk.TypeInfos;
 
 internal class FunctionInfo : TypeInfo
 {

@@ -1,11 +1,11 @@
-﻿using System.Collections.Generic;
-using System.Text;
+﻿using System.Text;
+
 using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO;
-using Frosty.Sdk.Sdk.TypeInfos;
+using Frosty.Sdk.TypeSdk.TypeInfos;
 
-namespace Frosty.Sdk.Sdk.TypeInfoDatas;
+namespace Frosty.Sdk.TypeSdk.TypeInfoDatas;
 
 internal class DelegateInfoData : TypeInfoData
 {

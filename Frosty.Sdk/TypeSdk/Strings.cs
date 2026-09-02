@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace Frosty.Sdk.Sdk;
+﻿namespace Frosty.Sdk.TypeSdk;
 
 internal static class Strings
 {

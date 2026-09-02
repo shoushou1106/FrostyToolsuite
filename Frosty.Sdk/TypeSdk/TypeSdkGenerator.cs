@@ -1,25 +1,24 @@
-﻿using System;
-using System.Buffers.Binary;
-using System.Collections.Generic;
+﻿using System.Buffers.Binary;
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+
 using Frosty.Sdk.IO;
 using Frosty.Sdk.Managers;
-using Frosty.Sdk.Sdk.TypeInfos;
+using Frosty.Sdk.TypeSdk.TypeInfos;
+
 using FrostyTypeSdkGenerator;
+
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 
-namespace Frosty.Sdk.Sdk;
+namespace Frosty.Sdk.TypeSdk;
 
 public class TypeSdkGenerator
 {

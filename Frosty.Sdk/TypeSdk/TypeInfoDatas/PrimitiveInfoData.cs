@@ -1,9 +1,10 @@
 ﻿using System.Globalization;
 using System.Text;
+
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO;
 
-namespace Frosty.Sdk.Sdk.TypeInfoDatas;
+namespace Frosty.Sdk.TypeSdk.TypeInfoDatas;
 
 internal class PrimitiveInfoData : TypeInfoData
 {

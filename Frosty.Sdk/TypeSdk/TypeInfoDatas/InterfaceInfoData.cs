@@ -1,7 +1,8 @@
 using System.Text;
+
 using Frosty.Sdk.IO;
 
-namespace Frosty.Sdk.Sdk.TypeInfoDatas;
+namespace Frosty.Sdk.TypeSdk.TypeInfoDatas;
 
 internal class InterfaceInfoData : TypeInfoData
 {

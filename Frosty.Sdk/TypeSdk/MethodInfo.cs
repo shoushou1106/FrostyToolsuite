@@ -1,7 +1,7 @@
 ﻿using Frosty.Sdk.IO;
-using Frosty.Sdk.Sdk.TypeInfos;
+using Frosty.Sdk.TypeSdk.TypeInfos;
 
-namespace Frosty.Sdk.Sdk;
+namespace Frosty.Sdk.TypeSdk;
 
 internal class MethodInfo
 {

@@ -1,10 +1,10 @@
-﻿using System.Collections.Generic;
-using System.Text;
-using Frosty.Sdk.IO;
-using Frosty.Sdk.Sdk.TypeInfoDatas;
-using Frosty.Sdk.Sdk.TypeInfos;
+﻿using System.Text;
 
-namespace Frosty.Sdk.Sdk;
+using Frosty.Sdk.IO;
+using Frosty.Sdk.TypeSdk.TypeInfoDatas;
+using Frosty.Sdk.TypeSdk.TypeInfos;
+
+namespace Frosty.Sdk.TypeSdk;
 
 internal class TypeInfo
 {

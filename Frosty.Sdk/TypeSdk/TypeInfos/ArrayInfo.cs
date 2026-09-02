@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
-using System.Text;
-using Frosty.Sdk.IO;
-using Frosty.Sdk.Sdk.TypeInfoDatas;
+﻿using System.Text;
 
-namespace Frosty.Sdk.Sdk.TypeInfos;
+using Frosty.Sdk.IO;
+using Frosty.Sdk.TypeSdk.TypeInfoDatas;
+
+namespace Frosty.Sdk.TypeSdk.TypeInfos;
 
 internal class ArrayInfo : TypeInfo
 {

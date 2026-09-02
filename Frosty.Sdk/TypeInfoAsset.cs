@@ -1,6 +1,6 @@
 using System;
 using Frosty.Sdk.Interfaces;
-using Frosty.Sdk.Sdk;
+using Frosty.Sdk.TypeSdk;
 using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk;

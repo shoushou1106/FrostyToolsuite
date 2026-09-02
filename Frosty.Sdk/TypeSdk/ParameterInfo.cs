@@ -1,6 +1,6 @@
 ﻿using Frosty.Sdk.IO;
 
-namespace Frosty.Sdk.Sdk;
+namespace Frosty.Sdk.TypeSdk;
 
 internal class ParameterInfo
 {

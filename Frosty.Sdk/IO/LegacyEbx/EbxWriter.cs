@@ -8,10 +8,10 @@ using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Ebx;
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO.Ebx;
-using Frosty.Sdk.Sdk;
+using Frosty.Sdk.TypeSdk;
 using Frosty.Sdk.Utils;
-using static Frosty.Sdk.Sdk.TypeFlags;
-using TypeInfo = Frosty.Sdk.Sdk.TypeInfo;
+using static Frosty.Sdk.TypeSdk.TypeFlags;
+using TypeInfo = Frosty.Sdk.TypeSdk.TypeInfo;
 
 namespace Frosty.Sdk.IO.LegacyEbx;
 

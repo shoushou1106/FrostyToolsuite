@@ -1,4 +1,4 @@
-namespace Frosty.Sdk.Sdk.TypeInfos;
+namespace Frosty.Sdk.TypeSdk.TypeInfos;
 
 internal class InterfaceInfo : TypeInfo
 {
