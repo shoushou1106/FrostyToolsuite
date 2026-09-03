@@ -13,12 +13,11 @@ jobs:
   build:
     runs-on: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: global.json
+          global-json-file: global.json
       - name: Restore Dependencies
         run: dotnet restore
       - name: Build
