@@ -12,13 +12,6 @@ using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.Managers.Loaders;
 
-public enum Code
-{
-    NotFound,
-    Continue,
-    Stop
-}
-
 public class Manifest2019AssetLoader : IAssetLoader
 {
     [Flags]
