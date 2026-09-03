@@ -57,3 +57,4 @@ jobs:
         with:
           name: FrostyCli-${{ matrix.os }}-${{ matrix.arch }}
           path: publish
+          if-no-files-found: error
