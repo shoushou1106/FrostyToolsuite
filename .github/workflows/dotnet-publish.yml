@@ -1,0 +1,59 @@
+# This workflow will publish nightly Frosty CLI to GitHub Actions Artifact
+# For more information see: https://docs.github.com/actions/automating-builds-and-tests/building-and-testing-net
+
+name: .NET Nightly Publish
+
+on:
+  push:
+    branches: [ "master" ]
+
+jobs:
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs-on: windows-latest
+            os: win
+            arch: x64
+          - runs-on: windows-latest
+            os: win
+            arch: arm64
+          - runs-on: ubuntu-latest
+            os: linux
+            arch: x64
+          - runs-on: ubuntu-latest
+            os: linux
+            arch: arm64
+          - runs-on: ubuntu-latest
+            os: linux
+            arch: arm # ARMv7
+          - runs-on: macos-latest
+            os: osx
+            arch: arm64
+          - runs-on: macos-latest
+            os: osx
+            arch: x64 # x64 is planned for full deprecation with macOS 28 release
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Restore Dependencies
+        run: dotnet restore
+      - name: Publish Frosty.Cli
+        run: >
+          dotnet publish Frosty.Cli
+          --self-contained
+          --os ${{ matrix.os }}
+          --arch ${{ matrix.arch }}
+          --configuration Release
+          -p:Nightly=true
+          -p:DebugType=None
+          -p:DebugSymbols=false
+      - uses: actions/upload-artifact@v7
+        with:
+          name: FrostyCli-${{ matrix.os }}-${{ matrix.arch }}
+          path: publish

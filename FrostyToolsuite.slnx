@@ -7,6 +7,7 @@
     <File Path="LICENSE" />
     <File Path="NOTICE.md" />
     <File Path="README.md" />
+    <File Path="global.json" />
   </Folder>
   <Project Path="Frosty.Cli\Frosty.Cli.csproj" />
   <Project Path="Frosty.Modding\Frosty.Modding.csproj" />
