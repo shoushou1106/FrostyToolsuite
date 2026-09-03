@@ -10,7 +10,7 @@ using Frosty.Sdk.IO;
 using Frosty.Sdk.Utils;
 using static Frosty.Sdk.Utils.EncodingResult;
 
-namespace FrostySdkTest.Utils;
+namespace Frosty.Sdk.Tests.Utils;
 
 public class HuffmanEncodingTests
 {
@@ -205,8 +205,8 @@ public class HuffmanEncodingTests
         return HuffmanEncoder.GetDataLengthInBytes(bitSize, usePadding);
     }
 
-    [TestCase("FrostySdkTest.TestData.original_huffman", Endian.Big, ExpectedResult = "win32/content/common/configs/bundles/careermodestory_sba")]
-    [TestCase("FrostySdkTest.TestData.new_huffman", Endian.Little, ExpectedResult = "win32/content/cinematic/scenes/livinghubs/f22_pap_lh_ll/f22_pap_lh_ll_set_sublevel")]
+    [TestCase("Frosty.Sdk.Tests.TestData.original_huffman", Endian.Big, ExpectedResult = "win32/content/common/configs/bundles/careermodestory_sba")]
+    [TestCase("Frosty.Sdk.Tests.TestData.new_huffman", Endian.Little, ExpectedResult = "win32/content/cinematic/scenes/livinghubs/f22_pap_lh_ll/f22_pap_lh_ll_set_sublevel")]
     public String TestReadFirstEntryFromFile(string testFilePath, Endian encodedTestEndian)
     {
         var assembly = Assembly.GetExecutingAssembly();

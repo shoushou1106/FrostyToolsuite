@@ -11,7 +11,7 @@
   </Folder>
   <Project Path="Frosty.Cli\Frosty.Cli.csproj" />
   <Project Path="Frosty.Modding\Frosty.Modding.csproj" />
+  <Project Path="Frosty.Sdk.Tests\Frosty.Sdk.Tests.csproj" />
   <Project Path="Frosty.Sdk\Frosty.Sdk.csproj" />
   <Project Path="FrostyEditor/FrostyEditor.csproj" />
-  <Project Path="FrostySdkTest/FrostySdkTest.csproj" />
 </Solution>
