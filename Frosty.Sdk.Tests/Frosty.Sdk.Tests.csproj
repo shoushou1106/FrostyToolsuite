@@ -1,26 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="TestData\new_huffman" />
-    <None Remove="TestData\original_huffman" />
+    <None Remove="TestData\new_huffman"/>
+    <None Remove="TestData\original_huffman"/>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Frosty.Sdk\Frosty.Sdk.csproj" />
+    <ProjectReference Include="..\Frosty.Sdk\Frosty.Sdk.csproj"/>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.7.2" />
-    <PackageReference Include="NUnit" Version="3.13.3" />
-    <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk"/>
+    <PackageReference Include="NUnit"/>
+    <PackageReference Include="NUnit3TestAdapter"/>
   </ItemGroup>
 
   <ItemGroup>

@@ -1,13 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
-    <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
-    </PropertyGroup>
-
-    <ItemGroup>
-      <ProjectReference Include="..\Frosty.Sdk\Frosty.Sdk.csproj" />
-    </ItemGroup>
-
+  <ItemGroup>
+    <ProjectReference Include="..\Frosty.Sdk\Frosty.Sdk.csproj"/>
+  </ItemGroup>
 </Project>
