@@ -1,7 +1,4 @@
-using Frosty.Sdk.Attributes;
-using Frosty.Sdk.TypeSdk;
-
-namespace Frosty.Sdk.Ebx;
+// Never Compiled
 
 public partial struct PropertyConnection
 {

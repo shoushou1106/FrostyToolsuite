@@ -1,9 +1,9 @@
-namespace Frosty.Sdk.Ebx;
+// Never Compiled
 
 public partial class DataBusData
 {
     [OverrideAttribute]
-    [IsHiddenAttribute()]
+    [IsHidden()]
     public ushort Flags { get; set; }
 
     [IsTransientAttribute()]

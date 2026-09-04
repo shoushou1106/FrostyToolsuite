@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 
-namespace FrostyTypeSdkGenerator;
+namespace Frosty.Sdk.TypeSdk.Generation;
 
-public sealed partial class SourceGenerator
+public sealed partial class EbxTypeSourceGenerator
 {
     private record TypeContext(string? Namespace, string Name, bool IsValueType, ImmutableArray<FieldContext> Fields, TypeContext? ContainingType);
 
@@ -17,8 +17,13 @@ public sealed partial class SourceGenerator
 
         public static TypeContextEqualityComparer Instance { get; } = new();
 
-        public bool Equals(TypeContext x, TypeContext y)
+        public bool Equals(TypeContext? x, TypeContext? y)
         {
+            if (x is null || y is null)
+            {
+                return false;
+            }
+
             return x.Namespace == y.Namespace &&
                    x.Name == y.Name &&
                    x.IsValueType == y.IsValueType &&

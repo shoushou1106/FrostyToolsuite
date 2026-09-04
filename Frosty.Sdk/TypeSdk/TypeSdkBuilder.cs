@@ -10,9 +10,8 @@ using System.Text.Json;
 
 using Frosty.Sdk.IO;
 using Frosty.Sdk.Managers;
+using Frosty.Sdk.TypeSdk.Generation;
 using Frosty.Sdk.TypeSdk.TypeInfos;
-
-using FrostyTypeSdkGenerator;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -399,7 +398,7 @@ public class TypeSdkBuilder
         }
 
         GeneratorDriver driver = CSharpGeneratorDriver
-            .Create(new SourceGenerator())
+            .Create(new EbxTypeSourceGenerator())
             .AddAdditionalTexts(ImmutableArray.CreateRange(meta));
 
         driver.RunGeneratorsAndUpdateCompilation(

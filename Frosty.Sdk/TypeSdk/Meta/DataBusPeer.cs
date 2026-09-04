@@ -1,4 +1,4 @@
-namespace Frosty.Sdk.Ebx;
+// Never Compiled
 
 public partial class DataBusPeer
 {
@@ -35,7 +35,7 @@ public partial class DataBusPeer
     public bool IsServerPropertyConnectionTarget
     {
         get => (Flags & 0x10000000u) != 0;
-        set => Flags = value ? _Flags | 0x10000000u : Flags & ~0x10000000u;
+        set => Flags = value ? Flags | 0x10000000u : Flags & ~0x10000000u;
     }
 
     [IsTransientAttribute()]

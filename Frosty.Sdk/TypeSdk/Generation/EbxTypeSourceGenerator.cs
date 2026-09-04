@@ -7,10 +7,10 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace FrostyTypeSdkGenerator;
+namespace Frosty.Sdk.TypeSdk.Generation;
 
 [Generator(LanguageNames.CSharp)]
-public sealed partial class SourceGenerator : IIncrementalGenerator
+public sealed partial class EbxTypeSourceGenerator : IIncrementalGenerator
 {
     private static readonly MetaCollector s_metaCollector = new();
 

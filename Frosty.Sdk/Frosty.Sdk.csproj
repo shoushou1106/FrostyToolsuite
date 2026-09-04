@@ -4,7 +4,7 @@
     <Title>Frosty SDK</Title>
     <Description>A library to access data from Frostbite game.</Description>
   </PropertyGroup>
-  
+
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
@@ -21,14 +21,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FrostyTypeSdkGenerator\FrostyTypeSdkGenerator\FrostyTypeSdkGenerator.csproj"/>
+    <None Remove="ThirdParty\*"/>
+    <Content Include="ThirdParty\*" CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="ThirdParty\*"/>
-    <Content Include="ThirdParty\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <Compile Remove="TypeSdk\Meta\**\*.cs"/>
+    <Content Include="TypeSdk\Meta\**\*.cs" LinkBase="Meta\"
+             CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
 
 </Project>

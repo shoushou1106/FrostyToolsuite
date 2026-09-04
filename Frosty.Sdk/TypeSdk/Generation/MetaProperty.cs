@@ -1,4 +1,4 @@
-namespace FrostyTypeSdkGenerator;
+namespace Frosty.Sdk.TypeSdk.Generation;
 
 public struct MetaProperty
 {

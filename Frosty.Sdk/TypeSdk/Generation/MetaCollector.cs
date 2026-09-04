@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace FrostyTypeSdkGenerator;
+namespace Frosty.Sdk.TypeSdk.Generation;
 
 public class MetaCollector : CSharpSyntaxWalker
 {

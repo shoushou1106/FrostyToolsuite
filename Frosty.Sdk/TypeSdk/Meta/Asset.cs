@@ -1,4 +1,4 @@
-namespace Frosty.Sdk.Ebx;
+// Never Compiled
 
 public partial class Asset
 {

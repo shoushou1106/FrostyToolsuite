@@ -4,9 +4,9 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace FrostyTypeSdkGenerator;
+namespace Frosty.Sdk.TypeSdk.Generation;
 
-public sealed partial class SourceGenerator
+public sealed partial class EbxTypeSourceGenerator
 {
     private static bool StructPredicate(SyntaxNode node, CancellationToken cancellationToken)
     {
