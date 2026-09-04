@@ -1,14 +1,16 @@
-﻿using System;
-using System.CommandLine;
+﻿using System.CommandLine;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Reflection;
+
 using Frosty.Sdk;
 using Frosty.Sdk.Managers;
 using Frosty.Sdk.Managers.Entries;
 using Frosty.Sdk.TypeSdk;
 using Frosty.Sdk.Utils;
+
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
+
 using Sharprompt;
 
 namespace Frosty.Cli;
@@ -19,123 +21,120 @@ internal static partial class Program
 
     private static int Main(string[] args)
     {
-        RootCommand rootCommand = new("CLI app to load and mod games made with the Frostbite Engine.")
-        {
-            key1Option, key2Option, key3Option
-        };
+        // Logger settings are configured in appsettings.json, applies dynamically.
+        using ILoggerFactory factory = LoggerFactory.Create(builder => builder.AddConsole());
 
-        AddLoadCommand(rootCommand);
+        RootCommand rootCommand =
+            new("❄ Frosty CLI, a command line app to create, update and apply mods for Frostbite Engine games.");
 
-        AddModCommand(rootCommand);
+        FrostyLogger.Logger = factory.CreateLogger("Frosty.Cli");
+        //FrostyLogger.Progress =;
+        // Implement progress logging if needed
+        
+        // rootCommand.Arguments.Add(GameArgument);
 
-        AddUpdateModCommand(rootCommand);
+        rootCommand.Options.Add(PidOption);
+        rootCommand.Options.Add(InitFsKeyOption);
+        rootCommand.Options.Add(BundleKeyOption);
+        rootCommand.Options.Add(CasKeyOption);
 
-        AddCreateModCommand(rootCommand);
+        rootCommand.Subcommands.Add(CreateLoadCommand());
+        rootCommand.Subcommands.Add(CreateModCommand());
+        rootCommand.Subcommands.Add(CreateUpdateModCommand());
+        rootCommand.Subcommands.Add(CreateCreateModCommand());
 
-        rootCommand.SetHandler(InteractiveMode, key1Option, key2Option, key3Option);
+        rootCommand.SetAction(parseResult => InteractiveMode(
+            parseResult.GetValue(InitFsKeyOption),
+            parseResult.GetValue(BundleKeyOption),
+            parseResult.GetValue(CasKeyOption)));
 
-        return rootCommand.InvokeAsync(args).Result;
+        return rootCommand.Parse(args).Invoke();
     }
 
     private static void InteractiveMode(FileInfo? initFsKey, FileInfo? bundleKey, FileInfo? casKey)
     {
         Assembly assembly = Assembly.GetExecutingAssembly();
-#if DEBUG || NIGHTLY
-        Logger.LogInfoInternal(
-            $"Frosty.Cli v{assembly.GetName().Version?.ToString(2)}-{assembly.GetCustomAttributes<AssemblyMetadataAttribute>().FirstOrDefault(a => a.Key == "GitHash")?.Value}");
+
+#if DEBUG
+        FrostyLogger.Logger.LogInformation(
+            $"❄ Frosty CLI v{assembly.GetName().Version?.ToString(3) ?? "Unknown"} (Debug)");
 #else
-        Logger.LogInfoInternal($"Frosty.Cli v{assembly.GetName().Version?.ToString(3)}");
-
+        if (assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Any(m => m is { Key: "Nightly", Value: "true" }))
+        {
+            string infoVersion =
+                assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ??
+                assembly.GetName().Version?.ToString(3) ?? "Unknown";
+            FrostyLogger.Logger.LogInformation($"❄ Frosty CLI v{infoVersion} (Nightly)");
+        }
+        else
+        {
+            FrostyLogger.Logger.LogInformation($"❄ Frosty CLI v{assembly.GetName().Version?.ToString(3) ?? "Unknown"}");
+        }
 #endif
-
 
         if (!LoadGame(inInitFsKeyFileInfo: initFsKey, inBundleKeyFileInfo: bundleKey, inCasKeyFileInfo: casKey))
         {
             return;
         }
 
-        ActionType actionType;
+        InteractiveAction action;
         do
         {
-             switch (actionType = Prompt.Select<ActionType>("Select what you want to do"))
-             {
-                 case ActionType.Quit:
-                     if (FrostyLogger.Logger is Logger logger)
-                     {
-                         logger.StopLogging();
-                     }
-                     break;
-                 case ActionType.Mod:
-                     ModGame();
-                     break;
-                 case ActionType.UpdateMod:
-                     UpdateMod();
-                     break;
-                 case ActionType.CreateMod:
-                     CreateMod();
-                     break;
-                 case ActionType.ListEbx:
-                     ListEbx();
-                     break;
-                 case ActionType.ListRes:
-                     ListRes();
-                     break;
-                 case ActionType.ListChunks:
-                     ListChunks();
-                     break;
-                 case ActionType.DumpEbx:
-                     InteractiveDumpEbx();
-                     break;
-                 case ActionType.DumpRes:
-                     InteractiveDumpRes();
-                     break;
-                 case ActionType.DumpChunks:
-                     InteractiveDumpChunks();
-                     break;
-                 case ActionType.ExportEbx:
-                     InteractiveExportEbx();
-                     break;
-                 case ActionType.ExportRes:
-                     InteractiveExportRes();
-                     break;
-                 case ActionType.ExportChunk:
-                     InteractiveExportChunk();
-                     break;
-             }
-        } while (actionType != ActionType.Quit);
-
-    }
-
-    private enum ActionType
-    {
-        Quit,
-        Mod,
-        UpdateMod,
-        CreateMod,
-        ListEbx,
-        ListRes,
-        ListChunks,
-        DumpEbx,
-        DumpRes,
-        DumpChunks,
-        ExportEbx,
-        ExportRes,
-        ExportChunk,
+            switch (action = Prompt.Select<InteractiveAction>("Select what you want to do"))
+            {
+                case InteractiveAction.Quit:
+                    break;
+                case InteractiveAction.Mod:
+                    ModGame();
+                    break;
+                case InteractiveAction.UpdateMod:
+                    UpdateMod();
+                    break;
+                case InteractiveAction.CreateMod:
+                    CreateMod();
+                    break;
+                case InteractiveAction.ListEbx:
+                    ListEbx();
+                    break;
+                case InteractiveAction.ListRes:
+                    ListRes();
+                    break;
+                case InteractiveAction.ListChunks:
+                    ListChunks();
+                    break;
+                case InteractiveAction.DumpEbx:
+                    InteractiveDumpEbx();
+                    break;
+                case InteractiveAction.DumpRes:
+                    InteractiveDumpRes();
+                    break;
+                case InteractiveAction.DumpChunks:
+                    InteractiveDumpChunks();
+                    break;
+                case InteractiveAction.ExportEbx:
+                    InteractiveExportEbx();
+                    break;
+                case InteractiveAction.ExportRes:
+                    InteractiveExportRes();
+                    break;
+                case InteractiveAction.ExportChunk:
+                    InteractiveExportChunk();
+                    break;
+            }
+        } while (action != InteractiveAction.Quit);
     }
 
     private static bool LoadGame(FileInfo? inGameFileInfo = null, int? inPid = null,
         FileInfo? inInitFsKeyFileInfo = null, FileInfo? inBundleKeyFileInfo = null, FileInfo? inCasKeyFileInfo = null)
     {
         FileInfo? game = inGameFileInfo ?? RequestFile("Input the path to the games executable");
-
+        
         if (game?.Exists != true)
         {
-            Logger.LogErrorInternal("Game does not exist.");
+            FrostyLogger.Logger.LogError("Game does not exist.");
             return false;
         }
-
-        // set logger
-        FrostyLogger.Logger = new Logger();
 
         // set base directory to the directory containing the executable
         Utils.BaseDirectory = Path.GetDirectoryName(AppContext.BaseDirectory) ?? string.Empty;
@@ -152,13 +151,13 @@ internal static partial class Program
 
             if (keyFileInfo?.Exists != true)
             {
-                Logger.LogErrorInternal("Key does not exist.");
+                FrostyLogger.Logger.LogError("Key does not exist.");
                 return false;
             }
 
             if (keyFileInfo.Length != 0x10)
             {
-                Logger.LogErrorInternal("InitFs key needs to be 16 bytes long.");
+                FrostyLogger.Logger.LogError("InitFs key needs to be 16 bytes long.");
                 return false;
             }
 
@@ -171,13 +170,13 @@ internal static partial class Program
 
             if (keyFileInfo?.Exists != true)
             {
-                Logger.LogErrorInternal("Key does not exist.");
+                FrostyLogger.Logger.LogError("Key does not exist.");
                 return false;
             }
 
             if (keyFileInfo.Length != 0x10)
             {
-                Logger.LogErrorInternal("Bundle key needs to be 16 bytes long.");
+                FrostyLogger.Logger.LogError("Bundle key needs to be 16 bytes long.");
                 return false;
             }
 
@@ -190,13 +189,13 @@ internal static partial class Program
 
             if (keyFileInfo?.Exists != true)
             {
-                Logger.LogErrorInternal("Key does not exist.");
+                FrostyLogger.Logger.LogError("Key does not exist.");
                 return false;
             }
 
             if (keyFileInfo.Length != 0x4000)
             {
-                Logger.LogErrorInternal("Cas key needs to be 16384 bytes long.");
+                FrostyLogger.Logger.LogError("Cas key needs to be 16384 bytes long.");
                 return false;
             }
 
@@ -205,7 +204,7 @@ internal static partial class Program
 
         if (game.DirectoryName is null)
         {
-            Logger.LogErrorInternal("The game needs to be in a directory containing the games data.");
+            FrostyLogger.Logger.LogError("The game needs to be in a directory containing the games data.");
             return false;
         }
 
@@ -220,17 +219,17 @@ internal static partial class Program
         {
             int pid = inPid ?? Prompt.Input<int>("Input pid of the currently running game");
 
-            TypeSdkGenerator typeSdkGenerator = new();
+            TypeSdkBuilder typeSdkBuilder = new();
 
             using Process process = Process.GetProcessById(pid);
 
-            if (!typeSdkGenerator.DumpTypes(process))
+            if (!typeSdkBuilder.DumpTypes(process))
             {
                 return false;
             }
 
-            Logger.LogInfoInternal("The game is not needed anymore and can be closed.");
-            if (!typeSdkGenerator.CreateSdk(ProfilesLibrary.SdkPath))
+            FrostyLogger.Logger.LogInformation("The game is not needed anymore and can be closed.");
+            if (!typeSdkBuilder.CreateSdk(ProfilesLibrary.SdkPath))
             {
                 return false;
             }
@@ -295,7 +294,7 @@ internal static partial class Program
         {
             if (string.IsNullOrEmpty(inDefaultName))
             {
-                Logger.LogErrorInternal("Path can not be a Directory.");
+                FrostyLogger.Logger.LogError("Path can not be a Directory.");
                 return null;
             }
 
@@ -310,7 +309,7 @@ internal static partial class Program
         }
         else if (retVal.Directory?.Exists == false)
         {
-            Logger.LogErrorInternal($"Directory containing file {inPath} does not exist.");
+            FrostyLogger.Logger.LogError($"Directory containing file {inPath} does not exist.");
             return null;
         }
 

@@ -29,7 +29,7 @@
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
   
-  <!-- Source Settings -->
+  <!-- Source Link Settings -->
   <PropertyGroup>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
   </PropertyGroup>

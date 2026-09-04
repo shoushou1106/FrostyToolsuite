@@ -16,6 +16,7 @@ using Frosty.Sdk.Managers.Entries;
 using Frosty.Sdk.Managers.Infos;
 using Frosty.Sdk.Profiles;
 using Frosty.Sdk.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace Frosty.Modding.Mod;
 
@@ -37,7 +38,7 @@ public class ModUpdater
         }
         else if (extension != ".fbmod")
         {
-            FrostyLogger.Logger?.LogError("Mod needs to be a .fbmod or .daimod");
+            FrostyLogger.Logger.LogError("Mod needs to be a .fbmod or .daimod file.");
             return false;
         }
 
@@ -108,7 +109,7 @@ public class ModUpdater
             block.Dispose();
         }
 
-        FrostyLogger.Logger?.LogInfo("Successfully updated mod to newest format version.");
+        FrostyLogger.Logger.LogInformation("Successfully updated mod to newest format version.");
         return true;
     }
 
@@ -121,7 +122,7 @@ public class ModUpdater
 
         if (!ProfilesLibrary.ProfileName.Equals(inStream.ReadSizedString(), StringComparison.OrdinalIgnoreCase))
         {
-            FrostyLogger.Logger?.LogError("Mod was not made for this profile");
+            FrostyLogger.Logger.LogError("Mod was not made for this profile");
             return null;
         }
 
@@ -131,7 +132,7 @@ public class ModUpdater
             inStream.ReadNullTerminatedString(), inStream.ReadNullTerminatedString(),
             inStream.ReadNullTerminatedString(), version > 4 ? inStream.ReadNullTerminatedString() : string.Empty);
 
-        FrostyLogger.Logger?.LogInfo(
+        FrostyLogger.Logger.LogInformation(
             $"Converting fbmod (v{version}) \"{modDetails.Title}\" to fbmod (v{FrostyMod.Version})");
 
         int resourceCount = inStream.ReadInt32();
@@ -239,13 +240,13 @@ public class ModUpdater
         DbObjectDict? mod = DbObject.Deserialize(inStream)?.AsDict();
         if (mod is null)
         {
-            FrostyLogger.Logger?.LogError("Not a valid DbObject format fbmod");
+            FrostyLogger.Logger.LogError("Not a valid DbObject format fbmod");
             return null;
         }
 
         if (!ProfilesLibrary.ProfileName.Equals(mod.AsString("gameProfile"), StringComparison.OrdinalIgnoreCase))
         {
-            FrostyLogger.Logger?.LogError("Mod was not made for this profile");
+            FrostyLogger.Logger.LogError("Mod was not made for this profile");
             return null;
         }
 
@@ -254,7 +255,7 @@ public class ModUpdater
         if (version > 2)
         {
             // we just ignore the converted daimods from v1.0.6.2, user should import the original daimod
-            FrostyLogger.Logger?.LogError(
+            FrostyLogger.Logger.LogError(
                 "This mod was converted from a daimod in an older version of frosty, please update the original daimod instead");
             return null;
         }
@@ -262,12 +263,12 @@ public class ModUpdater
         FrostyModDetails modDetails = new(mod.AsString("title"), mod.AsString("author"), mod.AsString("category"),
             mod.AsString("version"), mod.AsString("description"), string.Empty);
 
-        FrostyLogger.Logger?.LogInfo(
+        FrostyLogger.Logger.LogInformation(
             $"Converting legacy fbmod (v{version}) \"{modDetails.Title}\" to fbmod (v{FrostyMod.Version})");
 
         if (modDetails.Description.Contains("(Converted from .daimod)"))
         {
-            FrostyLogger.Logger?.LogError(
+            FrostyLogger.Logger.LogError(
                 "This mod was converted from a daimod in an older version of frosty, please update the original daimod instead");
             return null;
         }
@@ -455,13 +456,13 @@ public class ModUpdater
     {
         if (inStream.ReadFixedSizedString(8) != "DAIMODV2")
         {
-            FrostyLogger.Logger?.LogError("Not a valid daimod");
+            FrostyLogger.Logger.LogError("Not a valid daimod");
             return null;
         }
 
         if (!ProfilesLibrary.IsLoaded(ProfileVersion.DragonAgeInquisition))
         {
-            FrostyLogger.Logger?.LogError("Mod was not made for this profile");
+            FrostyLogger.Logger.LogError("Mod was not made for this profile");
             return null;
         }
 
@@ -476,7 +477,7 @@ public class ModUpdater
         XmlElement? mod = doc["daimod"];
         if (mod is null)
         {
-            FrostyLogger.Logger?.LogError("Not a valid daimod");
+            FrostyLogger.Logger.LogError("Not a valid daimod");
             return null;
         }
 
@@ -487,7 +488,7 @@ public class ModUpdater
             detailsElem?["version"]?.InnerText ?? string.Empty,
             "Converted from DAI Mod\n" + detailsElem?["description"]?.InnerText, string.Empty);
 
-        FrostyLogger.Logger?.LogInfo(
+        FrostyLogger.Logger.LogInformation(
             $"Converting daimod \"{details.Title}\" to fbmod (v{FrostyMod.Version})");
 
         // get bundle actions

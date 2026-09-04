@@ -19,6 +19,7 @@ using Frosty.Sdk.Managers;
 using Frosty.Sdk.Managers.Entries;
 using Frosty.Sdk.Managers.Infos;
 using Frosty.Sdk.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace Frosty.Modding;
 
@@ -100,7 +101,7 @@ public partial class FrostyModExecutor
                 }
                 if (mod.Head != FileSystemManager.Head)
                 {
-                    FrostyLogger.Logger?.LogWarning($"Mod {mod.ModDetails.Title} was made for a different version of the game, it might or might not work");
+                    FrostyLogger.Logger.LogWarning($"Mod {mod.ModDetails.Title} was made for a different version of the game, it might or might not work");
                 }
                 ProcessModResources(mod);
             }
@@ -116,7 +117,7 @@ public partial class FrostyModExecutor
                 {
                     if (mod.Head != FileSystemManager.Head)
                     {
-                        FrostyLogger.Logger?.LogWarning($"Mod {mod.ModDetails.Title} was made for a different version of the game, it might or might not work");
+                        FrostyLogger.Logger.LogWarning($"Mod {mod.ModDetails.Title} was made for a different version of the game, it might or might not work");
                     }
                     ProcessModResources(mod);
                 }

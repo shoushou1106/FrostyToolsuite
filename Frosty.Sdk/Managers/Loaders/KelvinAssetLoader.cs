@@ -8,6 +8,7 @@ using Frosty.Sdk.IO;
 using Frosty.Sdk.Managers.Entries;
 using Frosty.Sdk.Managers.Infos;
 using Frosty.Sdk.Managers.Infos.FileInfos;
+using Microsoft.Extensions.Logging;
 
 namespace Frosty.Sdk.Managers.Loaders;
 
@@ -53,7 +54,7 @@ public class KelvinAssetLoader : IAssetLoader
 
                 if (!found)
                 {
-                    FrostyLogger.Logger?.LogWarning($"Couldn't find SuperBundle \"{sbIc.Name}\"");
+                    FrostyLogger.Logger.LogWarning($"Couldn't find SuperBundle \"{sbIc.Name}\"");
                 }
             }
         }

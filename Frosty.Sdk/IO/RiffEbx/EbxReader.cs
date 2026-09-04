@@ -166,7 +166,7 @@ public class EbxReader : BaseEbxReader
             {
                 if (propertyInfo is null)
                 {
-                    //FrostyLogger.Logger?.LogDebug("Skipping field \"{}.{}\", because it does not exist in the type info", objType.GetName(), fieldDescriptor.NameHash);
+                    //FrostyLogger.Logger.LogDebug("Skipping field \"{}.{}\", because it does not exist in the type info", objType.GetName(), fieldDescriptor.NameHash);
                     continue;
                 }
                 ReadArray(fieldDescriptor, value =>
@@ -203,7 +203,7 @@ public class EbxReader : BaseEbxReader
                     default:
                         if (propertyInfo is null)
                         {
-                            //FrostyLogger.Logger?.LogDebug("Skipping field \"{}.{}\", because it does not exist in the type info", objType.GetName(), fieldDescriptor.NameHash);
+                            //FrostyLogger.Logger.LogDebug("Skipping field \"{}.{}\", because it does not exist in the type info", objType.GetName(), fieldDescriptor.NameHash);
                             continue;
                         }
                         ReadField(fieldDescriptor, value =>

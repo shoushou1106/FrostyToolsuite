@@ -1,5 +1,6 @@
 ﻿using Frosty.Sdk.IO;
 using Frosty.Sdk.TypeSdk.TypeInfoDatas;
+using Microsoft.Extensions.Logging;
 
 namespace Frosty.Sdk.TypeSdk.TypeInfos;
 
@@ -28,7 +29,7 @@ internal class ClassInfo : TypeInfo
         long p = reader.ReadInt();
         if (p != 0)
         {
-            FrostyLogger.Logger?.LogWarning("Ignored default value for class in another struct/class");
+            FrostyLogger.Logger.LogWarning("Ignored default value for class in another struct/class");
         }
 
         return string.Empty;

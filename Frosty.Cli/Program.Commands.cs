@@ -1,119 +1,154 @@
 using System.CommandLine;
-using System.IO;
 
 namespace Frosty.Cli;
 
 internal static partial class Program
 {
-    private static Argument<FileInfo?> gameArg = new(
-        name: "game-path",
-        description: "The path to the game.");
-
-    private static Option<int?> pidOption = new(
-            name: "--pid",
-            description: "The pid of the game if a sdk should get generated for the game.");
-
-    private static Option<FileInfo?> key1Option = new(
-        name: "--initfs-key",
-        description: "The path to a file containing a key for the initfs if needed.");
-
-    private static Option<FileInfo?> key2Option = new(
-        name: "--bundle-key",
-        description: "The path to a file containing a key for bundles if needed.");
-
-    private static Option<FileInfo?> key3Option = new(
-        name: "--cas-key",
-        description: "The path to a file containing a key for cas files if needed.");
-
-    private static void AddLoadCommand(RootCommand rootCommand)
+    internal static readonly Argument<FileInfo?> GameArgument = new("game-path")
     {
-        Command loadCommand = new("load", "Load a games data from the cache or create it.")
-        {
-            gameArg,
-            pidOption,
-            key1Option,
-            key2Option,
-            key3Option
-        };
-        rootCommand.AddCommand(loadCommand);
+        Description = "The path to the game."
+    };
 
-        loadCommand.SetHandler((game, pid, key1, key2, key3) => LoadGame(game, pid, key1, key2, key3), gameArg,
-            pidOption, key1Option, key2Option, key3Option);
+    internal static readonly Option<int?> PidOption = new("--pid")
+    {
+        Description = "The pid of the game if a sdk should get generated for the game.",
+        Recursive = true
+    };
+
+    /// <remarks>
+    ///     Known as Key1
+    /// </remarks>
+    internal static readonly Option<FileInfo?> InitFsKeyOption = new("--initfs-key")
+    {
+        Description = "The path to a file containing a key for the InitFs if needed.",
+        Recursive = true
+    };
+
+    /// <remarks>
+    ///     Known as Key2
+    /// </remarks>
+    internal static readonly Option<FileInfo?> BundleKeyOption = new("--bundle-key")
+    {
+        Description = "The path to a file containing a key for Bundles if needed.",
+        Recursive = true
+    };
+
+    /// <remarks>
+    ///     Known as Key3
+    /// </remarks>
+    internal static readonly Option<FileInfo?> CasKeyOption = new("--cas-key")
+    {
+        Description = "The path to a file containing a key for CAS files if needed.",
+        Recursive = true
+    };
+
+    private static Command CreateLoadCommand()
+    {
+        Command command = new("load", "Load a games data from the cache or create it.")
+        {
+            GameArgument
+        };
+
+        command.SetAction(parseResult => LoadGame(
+            parseResult.GetResult(GameArgument) is not null ? parseResult.GetValue(GameArgument) : null,
+            parseResult.GetValue(PidOption),
+            parseResult.GetValue(InitFsKeyOption),
+            parseResult.GetValue(BundleKeyOption),
+            parseResult.GetValue(CasKeyOption)));
+
+        return command;
     }
 
-    private static void AddModCommand(RootCommand rootCommand)
+    private static Command CreateModCommand()
     {
-        Argument<DirectoryInfo?> modsArg = new(
-            name: "mods-dir",
-            description: "The directory containing the mods to generate the data with.");
-
-        Argument<DirectoryInfo?> modDataOption = new(
-            name: "mod-data-dir",
-            description: "The directory to which the modded data should get generated.");
-
-        Command modCommand = new("mod", "Generates a ModData folder, which can be used to mod the game.")
+        Argument<DirectoryInfo?> modsArgument = new("mods-dir")
         {
-            gameArg,
-            modsArg,
-            modDataOption,
-            pidOption,
-            key1Option,
-            key2Option,
-            key3Option
+            Description = "The directory containing the mods to generate the data with."
         };
-        rootCommand.AddCommand(modCommand);
+        
+        Argument<DirectoryInfo?> modDataArgument = new("mod-data-dir")
+        {
+            Description = "The directory to generate the modded data in."
+        };
+        
+        Command command = new("mod", "Generates a ModData folder, which can be used to mod the game.")
+        {
+            GameArgument,
+            modsArgument,
+            modDataArgument
+        };
 
-        modCommand.SetHandler(ModGame, gameArg, pidOption, key1Option, key2Option, key3Option, modsArg, modDataOption);
+        command.SetAction(parseResult => ModGame(
+            parseResult.GetResult(GameArgument) is not null ? parseResult.GetValue(GameArgument) : null,
+            parseResult.GetValue(PidOption),
+            parseResult.GetValue(InitFsKeyOption),
+            parseResult.GetValue(BundleKeyOption),
+            parseResult.GetValue(CasKeyOption),
+            parseResult.GetValue(modsArgument),
+            parseResult.GetValue(modDataArgument)));
+
+        return command;
     }
 
-    private static void AddUpdateModCommand(RootCommand rootCommand)
+    private static Command CreateUpdateModCommand()
     {
-        Argument<FileInfo> modArg = new(
-            name: "mod-path",
-            description: "The path to the mod that should get updated.");
-
-        Option<string?> outputOption = new(
-            name: "--output",
-            description: "The path where the updated mod should be saved to, defaults to the input path.");
-
-        Command updateModCommand = new("update-mod", "Updates a fbmod to the newest version.")
+        Argument<FileInfo?> modArgument = new("mod-path")
         {
-            gameArg,
-            modArg,
-            outputOption,
-            pidOption,
-            key1Option,
-            key2Option,
-            key3Option
+            Description = "The path to the mod that should get updated."
         };
-        rootCommand.AddCommand(updateModCommand);
 
-        updateModCommand.SetHandler(UpdateMod, gameArg, pidOption, key1Option, key2Option, key3Option, modArg, outputOption);
+        Option<string?> outputOption = new("--output")
+        {
+            Description = "The path where the updated mod should be saved to, defaults to the input path."
+        };
+        
+        Command command = new("update-mod", "Updates a .fbmod to the newest version.")
+        {
+            GameArgument,
+            modArgument,
+            outputOption
+        };
+        
+        command.SetAction(parseResult => UpdateMod(
+            parseResult.GetResult(GameArgument) is not null ? parseResult.GetValue(GameArgument) : null,
+            parseResult.GetValue(PidOption),
+            parseResult.GetValue(InitFsKeyOption),
+            parseResult.GetValue(BundleKeyOption),
+            parseResult.GetValue(CasKeyOption),
+            parseResult.GetValue(modArgument),
+            parseResult.GetValue(outputOption)));
+
+        return command;
     }
 
-    private static void AddCreateModCommand(RootCommand rootCommand)
+    private static Command CreateCreateModCommand()
     {
-        Argument<DirectoryInfo> projectArg = new(
-            name: "project-path",
-            description: "The path to the project directory that should get updated.");
-
-        Option<string?> outputOption = new(
-            name: "--output",
-            description: "The path where the created mod should be saved to, defaults to the project path with the fbmod extension.");
-
-        Command updateModCommand = new("create-mod", "Creates a mod from a project.")
+        Argument<DirectoryInfo?> projectArgument = new("project-path")
         {
-            gameArg,
-            projectArg,
-            outputOption,
-            pidOption,
-            key1Option,
-            key2Option,
-            key3Option
+            Description = "The path to the project directory that should get updated."
         };
-        rootCommand.AddCommand(updateModCommand);
 
-        updateModCommand.SetHandler(CreateMod, gameArg, pidOption, key1Option, key2Option, key3Option, projectArg,
-            outputOption);
+        Option<string?> outputOption = new("--output")
+        {
+            Description = "The path where the created mod should be saved to, defaults to the project path with the .fbmod extension."
+        };
+
+        Command command = new("create-mod", "Creates a mod from a project.")
+        {
+            GameArgument,
+            projectArgument,
+            outputOption
+        };
+
+        command.SetAction(parseResult => CreateMod(
+            parseResult.GetResult(GameArgument) is not null ? parseResult.GetValue(GameArgument) : null,
+            parseResult.GetValue(PidOption),
+            parseResult.GetValue(InitFsKeyOption),
+            parseResult.GetValue(BundleKeyOption),
+            parseResult.GetValue(CasKeyOption),
+            parseResult.GetValue(projectArgument),
+            parseResult.GetValue(outputOption)));
+
+        return command;
     }
 }

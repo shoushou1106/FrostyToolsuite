@@ -8,6 +8,7 @@ using Frosty.Sdk.DbObjectElements;
 using Frosty.Sdk.IO;
 using Frosty.Sdk.Managers.Infos;
 using Frosty.Sdk.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace Frosty.Sdk.Managers;
 
@@ -51,13 +52,13 @@ public static class FileSystemManager
 
         if (!ProfilesLibrary.IsInitialized)
         {
-            FrostyLogger.Logger?.LogError("ProfilesLibrary not initialized yet");
+            FrostyLogger.Logger.LogError("ProfilesLibrary isn't initialized.");
             return false;
         }
 
         if (!Directory.Exists(basePath))
         {
-            FrostyLogger.Logger?.LogError($"No directory \"{basePath}\" exists");
+            FrostyLogger.Logger.LogError($"Directory \"{basePath}\" does not exist.");
             return false;
         }
 

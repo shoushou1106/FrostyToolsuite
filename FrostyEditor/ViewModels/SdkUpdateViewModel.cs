@@ -47,14 +47,14 @@ public partial class SdkUpdateViewModel : WindowViewModel
 
         await Task.Run(() =>
         {
-            TypeSdkGenerator typeSdkGenerator = new();
+            TypeSdkBuilder typeSdkBuilder = new();
 
-            if (!typeSdkGenerator.DumpTypes(SelectedProcess))
+            if (!typeSdkBuilder.DumpTypes(SelectedProcess))
             {
                 return;
             }
 
-            if (!typeSdkGenerator.CreateSdk(ProfilesLibrary.SdkPath))
+            if (!typeSdkBuilder.CreateSdk(ProfilesLibrary.SdkPath))
             {
                 return;
             }

@@ -8,20 +8,23 @@
 
   <!-- GlobalPackageReference applies to ALL projects automatically -->
   <ItemGroup>
-    <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
+    <!-- SourceLink is built in .NET 8+ -->
+    <!--<GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>-->
   </ItemGroup>
 
   <!-- PackageVersion applies to projects with manual reference
        With TransitivePinning enabled, manage sub-package/transitive packages here, instead in project -->
   <ItemGroup>
-    <PackageVersion Include="Pastel" Version="5.1.0"/>
-    <PackageVersion Include="Sharprompt" Version="2.4.5"/>
-    <PackageVersion Include="System.CommandLine" Version="2.0.0-beta4.22272.1"/>
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.7.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.7.0"/>
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.11"/>
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11"/>
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.11"/>
+    <PackageVersion Include="Sharprompt" Version="3.1.2"/>
+    <PackageVersion Include="System.CommandLine" Version="2.0.11"/>
     <PackageVersion Include="Octokit" Version="13.0.1"/>
   </ItemGroup>
 
-  <!-- Planned Deprecation -->
+  <!-- Planned for Deprecation -->
   <ItemGroup>
     <PackageVersion Include="IsExternalInit" Version="1.0.3">
       <PrivateAssets>all</PrivateAssets>
@@ -30,17 +33,18 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all"/>
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.7.0" PrivateAssets="all"/>
 
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.7.2" />
-    <PackageVersion Include="NUnit" Version="3.13.3" />
-    <PackageVersion Include="NUnit3TestAdapter" Version="4.5.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.7.2"/>
+    <PackageVersion Include="NUnit" Version="3.13.3"/>
+    <PackageVersion Include="NUnit3TestAdapter" Version="4.5.0"/>
 
-    <PackageVersion Include="Avalonia" Version="11.0.10" />
-    <PackageVersion Include="Avalonia.Controls.TreeDataGrid" Version="11.0.2" />
-    <PackageVersion Include="Avalonia.Desktop" Version="11.0.10" />
-    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.0.10" />
-    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.0.10" />
-    <PackageVersion Include="Avalonia.Diagnostics" Version="11.0.10" />
-    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.2.2" />
-    <PackageVersion Include="MessageBox.Avalonia" Version="3.1.5.1" />
+    <PackageVersion Include="Avalonia" Version="11.0.10"/>
+    <PackageVersion Include="Avalonia.Controls.TreeDataGrid" Version="11.0.2"/>
+    <PackageVersion Include="Avalonia.Desktop" Version="11.0.10"/>
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.0.10"/>
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.0.10"/>
+    <PackageVersion Include="Avalonia.Diagnostics" Version="11.0.10"/>
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.2.2"/>
+    <PackageVersion Include="MessageBox.Avalonia" Version="3.1.5.1"/>
+    <PackageVersion Include="Pastel" Version="5.1.0"/>
   </ItemGroup>
 </Project>

@@ -3,6 +3,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 
+using Frosty.Sdk;
+
+using Microsoft.Extensions.Logging;
+
 namespace Frosty.Cli;
 
 public static class AnthemDemo
@@ -80,7 +84,7 @@ public static class AnthemDemo
                             }
                             else
                             {
-                                Logger.LogErrorInternal(arr2[0]);
+                                FrostyLogger.Logger.LogError(arr2[0]);
                                 continue;
                             }
                         }

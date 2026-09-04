@@ -1,12 +1,12 @@
-using System;
 using System.Globalization;
-using System.IO;
 using Frosty.Sdk.Ebx;
 using Frosty.Sdk.IO;
 using Frosty.Sdk.Managers;
 using Frosty.Sdk.Managers.Entries;
 using Frosty.Sdk.Utils;
 using Sharprompt;
+using Microsoft.Extensions.Logging;
+using Frosty.Sdk;
 
 namespace Frosty.Cli;
 
@@ -41,7 +41,7 @@ internal static partial class Program
 
         if (entry is null)
         {
-            Logger.LogErrorInternal($"Ebx with name \"{name}\" does not exist.");
+            FrostyLogger.Logger.LogError($"Ebx with name \"{name}\" does not exist.");
             return;
         }
 
@@ -119,7 +119,7 @@ internal static partial class Program
         }
         if (entry is null)
         {
-            Logger.LogErrorInternal("Asset does not exist.");
+            FrostyLogger.Logger.LogError("Asset does not exist.");
             return;
         }
 
@@ -179,7 +179,7 @@ internal static partial class Program
 
         if (entry is null)
         {
-            Logger.LogErrorInternal("Asset does not exist.");
+            FrostyLogger.Logger.LogError("Asset does not exist.");
             return;
         }
 

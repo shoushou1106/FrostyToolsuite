@@ -10,6 +10,7 @@ using Frosty.Sdk.Managers.CatResources;
 using Frosty.Sdk.Managers.Infos;
 using Frosty.Sdk.Managers.Infos.FileInfos;
 using Octokit;
+using Microsoft.Extensions.Logging;
 
 namespace Frosty.Sdk.Managers;
 
@@ -46,7 +47,7 @@ public static class ResourceManager
 
         if (!FileSystemManager.IsInitialized)
         {
-            FrostyLogger.Logger?.LogError("FileSystemManager not initialized yet");
+            FrostyLogger.Logger.LogError("FileSystemManager isn't initialized.");
             return false;
         }
 
@@ -93,8 +94,8 @@ public static class ResourceManager
 
                 if (release is null)
                 {
-                    FrostyLogger.Logger?.LogError(
-                        "Failed to get oodle release, grab oodle 2.9.13 or equivalent from unreal engine");
+                    FrostyLogger.Logger.LogError(
+                        "Failed to download Oodle release. Please install Oodle 2.9.13 or equivalent from Unreal Engine manually.");
                     return false;
                 }
 
@@ -103,7 +104,7 @@ public static class ResourceManager
 
                 if (msvc is null || gcc is null)
                 {
-                    FrostyLogger.Logger?.LogError("Failed to find oodle");
+                    FrostyLogger.Logger.LogError("Failed to find Oodle");
                     return false;
                 }
 
@@ -117,7 +118,7 @@ public static class ResourceManager
                 ZipArchiveEntry? so = gccArchive.GetEntry("lib/Release/liboodle-data-shared.so");
                 if (dll is null || so is null)
                 {
-                    FrostyLogger.Logger?.LogError("Failed to get extract oodle");
+                    FrostyLogger.Logger?.LogError("Failed to extract Oodle");
                     return false;
                 }
 

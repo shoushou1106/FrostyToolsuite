@@ -2,6 +2,7 @@
 
 using Frosty.Sdk.IO;
 using Frosty.Sdk.TypeSdk.TypeInfoDatas;
+using Microsoft.Extensions.Logging;
 
 namespace Frosty.Sdk.TypeSdk.TypeInfos;
 
@@ -36,7 +37,7 @@ internal class ArrayInfo : TypeInfo
         int count = reader.ReadInt();
         if (count != 0)
         {
-            FrostyLogger.Logger?.LogInfo("Default value for array not an empty array");
+            FrostyLogger.Logger.LogInformation("The default value for the array is not an empty array");
         }
         return "new()";
     }

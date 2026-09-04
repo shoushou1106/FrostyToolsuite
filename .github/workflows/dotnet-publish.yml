@@ -50,9 +50,12 @@ jobs:
           --os ${{ matrix.os }}
           --arch ${{ matrix.arch }}
           --configuration Release
-          -p:Nightly=true
-          -p:DebugType=None
-          -p:DebugSymbols=false
+          -p:ContinuousIntegrationBuild=true
+          -p:EmbedUntrackedSources=true
+          -p:DebugType=embedded
+          -p:DebugSymbols=true
+        # -p:EmbedAllSources=true
+        # Enable EmbedAllSources will embed all source files into the executable
       - uses: actions/upload-artifact@v7
         with:
           name: FrostyCli-${{ matrix.os }}-${{ matrix.arch }}

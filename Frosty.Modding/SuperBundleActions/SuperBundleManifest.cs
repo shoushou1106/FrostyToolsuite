@@ -10,7 +10,7 @@ internal class SuperBundleManifest : IDisposable
 {
     public void Dispose()
     {
-        // TODO release managed resources here
+        // TODO: release managed resources here
     }
 }
 

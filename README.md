@@ -46,16 +46,6 @@ Unit tests for the sdk.
 ### Frosty.Modding
 A library that is used to create modified data which the game can read. Formerly `FrostyModSupport`.
 
-## Data Location
-Game profiles, type sdk strings shipped next to the executable and are read-only.
-Settings, anything Frosty generates, or the user creates are inside a per-user directory.
-
-| Platform | Location                                        |
-|----------|-------------------------------------------------|
-| Windows  | `%APPDATA%\FrostyToolsuite`                     |
-| macOS    | `~/Library/Application Support/FrostyToolsuite` |
-| Linux    | `~/.config/FrostyToolsuite`                     |
-
 # Getting Started
 
 ## Release

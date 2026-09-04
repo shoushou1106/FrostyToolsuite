@@ -33,20 +33,26 @@ chmod +x FrostyCli
 > Mods made with Frosty 1.0.x must be converted using the UpdateMod option in interactive mode or with the update-mod argument before use with FrostyCLI.
 ```
 Description:
-  CLI app to load and mod games made with the Frostbite Engine.
+  ❄ Frosty CLI, a command line app to create, update and apply mods for Frostbite Engine games.
 
 Usage:
-  FrostyCli [command] [options]
+  Frosty.Cli [command] [options]
 
 Options:
-  --version       Show version information
-  -?, -h, --help  Show help and usage information
+  --pid <pid>                The pid of the game if a sdk should get generated for the game.
+  --initfs-key <initfs-key>  The path to a file containing a key for the InitFs if needed.
+  --bundle-key <bundle-key>  The path to a file containing a key for Bundles if needed.
+  --cas-key <cas-key>        The path to a file containing a key for CAS files if needed.
+  -?, -h, --help             Show help and usage information
+  --version                  Show version information
 
 Commands:
-  load <game-path>                                  Load a games data from the cache or create it.
-  mod <game-path> <mods-dir>                        Generates a ModData folder, which can be used to mod the game.
-  update-mod <game-path> <mod-path>                 Updates a fbmod to the newest version.
-  create-mod <game-path> <project-path> <--output>  Creates a mod from a project.
+  load <game-path>                       Load a games data from the cache or create it.
+  mod <game-path> <mods-dir>             Generates a ModData folder, which can 
+  <mod-data-dir>                         be used to mod the game.
+  update-mod <game-path> <mod-path>      Updates a .fbmod to the newest version.
+  create-mod <game-path> <project-path>  Creates a mod from a project.
+
 ```
 
 ### Interactive mode

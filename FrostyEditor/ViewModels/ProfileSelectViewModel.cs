@@ -13,6 +13,10 @@ using Frosty.Sdk.IO;
 using Frosty.Sdk.Managers;
 using FrostyEditor.Utils;
 using FrostyEditor.Windows;
+
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
 using MsBox.Avalonia;
 
 namespace FrostyEditor.ViewModels;
@@ -117,7 +121,10 @@ public partial class ProfileSelectViewModel : WindowViewModel
         {
             // TODO: add some kind of task window which shows a loading screen or sth
 
-            FrostyLogger.Logger = new LoggerViewModel();
+            //FrostyLogger.Logger = new LoggerViewModel();
+            // Using a null logger factory as a placeholder
+            using NullLoggerFactory factory = NullLoggerFactory.Instance;
+            FrostyLogger.Logger = factory.CreateLogger("Frosty");
 
             // set base directory to the directory containing the executable
             Frosty.Sdk.Utils.Utils.BaseDirectory = Path.GetDirectoryName(AppContext.BaseDirectory) ?? string.Empty;

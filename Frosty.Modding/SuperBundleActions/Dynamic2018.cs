@@ -12,6 +12,7 @@ using Frosty.Sdk.IO;
 using Frosty.Sdk.Managers;
 using Frosty.Sdk.Managers.Infos;
 using Frosty.Sdk.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace Frosty.Modding;
 
@@ -247,7 +248,7 @@ internal class Dynamic2018 : IDisposable
 
         foreach (BundleModInfo bundleModInfo in inModInfo.Added.Bundles.Values)
         {
-            FrostyLogger.Logger?.LogError("Adding bundles not yet implemented.");
+            FrostyLogger.Logger.LogError("Adding bundles not yet implemented.");
         }
 
         if (toc.ContainsKey("chunks"))
@@ -383,7 +384,7 @@ internal class Dynamic2018 : IDisposable
 
         if (bundle is null)
         {
-            FrostyLogger.Logger?.LogError("Trying to mod bundle that is not valid.");
+            FrostyLogger.Logger.LogError("Trying to mod bundle that is not valid.");
             return;
         }
 
@@ -631,7 +632,7 @@ internal class Dynamic2018 : IDisposable
             {
                 if (list.Count != 1 && modEntry.FirstMip != -1)
                 {
-                    FrostyLogger.Logger?.LogWarning($"More than 1 chunk for texture with h32 {modEntry.H32}");
+                    FrostyLogger.Logger.LogWarning($"More than 1 chunk for texture with h32 {modEntry.H32}");
                 }
                 chunkMeta = list[0];
             }
@@ -653,7 +654,7 @@ internal class Dynamic2018 : IDisposable
                 if (meta?.Remove("firstMip") == true)
                 {
                     // non 2d texture chunk, since frosty v1 didn't modify it correctly, log a warning
-                    FrostyLogger.Logger?.LogWarning($"Mod does not correctly modify a texture chunk ({chunkId}).");
+                    FrostyLogger.Logger.LogWarning($"Mod does not correctly modify a texture chunk ({chunkId}).");
                 }
             }
 
@@ -722,7 +723,7 @@ internal class Dynamic2018 : IDisposable
             {
                 if (list.Count != 1 && modEntry.FirstMip != -1)
                 {
-                    FrostyLogger.Logger?.LogWarning($"More than 1 chunk for texture with h32 {modEntry.H32}");
+                    FrostyLogger.Logger.LogWarning($"More than 1 chunk for texture with h32 {modEntry.H32}");
                 }
                 chunkMeta = list[0];
             }
@@ -744,7 +745,7 @@ internal class Dynamic2018 : IDisposable
                 if (meta?.Remove("firstMip") == true)
                 {
                     // non 2d texture chunk, since frosty v1 didn't modify it correctly, log a warning
-                    FrostyLogger.Logger?.LogWarning($"Mod does not correctly modify a texture chunk ({chunkId}).");
+                    FrostyLogger.Logger.LogWarning($"Mod does not correctly modify a texture chunk ({chunkId}).");
                 }
             }
 
@@ -777,7 +778,7 @@ internal class Dynamic2018 : IDisposable
     private void ModifyAndWriteNonCasBundle(BlockStream inStream, long inOffset, BlockStream inModifiedStream, bool isDelta, BundleModInfo inModInfo)
     {
         inStream.Position = inOffset;
-        FrostyLogger.Logger?.LogWarning("Non cas superbundle, there might be some issues.");
+        FrostyLogger.Logger.LogWarning("Non CAS superbundle, there might be some issues.");
 
         uint baseBundleSize;
         Block<byte> bundleMeta;
@@ -862,7 +863,7 @@ public partial class FrostyModExecutor
         {
             if (!FileSystemManager.TryResolvePath(false, $"{inSbIc.Name}.toc", out tocPath))
             {
-                FrostyLogger.Logger?.LogError("Trying to mod SuperBundle that doesnt exist");
+                FrostyLogger.Logger.LogError("Trying to mod SuperBundle that doesnt exist");
                 return;
             }
 

@@ -9,12 +9,13 @@
     <File Path="Directory.Packages.props" />
     <File Path="global.json" />
     <File Path="LICENSE" />
-    <File Path="NOTICE.md" />
-    <File Path="README.md" />
+    <File Path="NOTICE.md" />≈
   </Folder>
+  
   <Project Path="Frosty.Cli/Frosty.Cli.csproj" />
   <Project Path="Frosty.Modding/Frosty.Modding.csproj" />
   <Project Path="Frosty.Sdk/Frosty.Sdk.csproj" />
   <Project Path="Frosty.Sdk.Tests/Frosty.Sdk.Tests.csproj" />
+  
   <Project Path="FrostyEditor/FrostyEditor.csproj" />
 </Solution>

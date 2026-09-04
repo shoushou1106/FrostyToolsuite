@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using Frosty.Sdk.Ebx;
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO;
@@ -12,6 +8,7 @@ using Frosty.Sdk.Managers.Loaders;
 using Frosty.Sdk.Managers.Patch;
 using Frosty.Sdk.Resources;
 using Frosty.Sdk.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace Frosty.Sdk.Managers;
 
@@ -55,13 +52,13 @@ public static class AssetManager
 
         if (!FileSystemManager.IsInitialized)
         {
-            FrostyLogger.Logger?.LogError("FileSystemManager not initialized yet");
+            FrostyLogger.Logger.LogError("FileSystemManager isn’t initialized.");
             return false;
         }
 
         if (!ResourceManager.IsInitialized)
         {
-            FrostyLogger.Logger?.LogError("ResourceManager not initialized yet");
+            FrostyLogger.Logger.LogError("ResourceManager isn’t initialized.");
             return false;
         }
 
@@ -72,34 +69,34 @@ public static class AssetManager
 
             if (FileSystemManager.BundleFormat == BundleFormat.Dynamic2018 || FileSystemManager.BundleFormat == BundleFormat.SuperBundleManifest)
             {
-                FrostyLogger.Logger?.LogInfo("Loading FileInfos from catalogs");
+                FrostyLogger.Logger.LogInformation("Loading FileInfos from catalogs");
 
                 timer.Start();
                 ResourceManager.LoadInstallChunks();
                 timer.Stop();
 
-                FrostyLogger.Logger?.LogInfo($"Loaded FileInfos from catalogs in {timer.Elapsed.TotalSeconds} seconds");
+                FrostyLogger.Logger.LogInformation($"Loaded FileInfos from catalogs in {timer.Elapsed.TotalSeconds} seconds");
             }
 
             IAssetLoader assetLoader = GetAssetLoader();
 
-            FrostyLogger.Logger?.LogInfo("Loading Assets from SuperBundles");
+            FrostyLogger.Logger.LogInformation("Loading Assets from SuperBundles");
 
             timer.Restart();
             assetLoader.Load();
             timer.Stop();
 
-            FrostyLogger.Logger?.LogInfo($"Loaded Assets from SuperBundles in {timer.Elapsed.TotalSeconds} seconds");
+            FrostyLogger.Logger.LogInformation($"Loaded Assets from SuperBundles in {timer.Elapsed.TotalSeconds} seconds");
 
             ResourceManager.CLearInstallChunks();
 
-            FrostyLogger.Logger?.LogInfo("Indexing Ebx");
+            FrostyLogger.Logger.LogInformation("Indexing EBX");
 
             timer.Restart();
             DoEbxIndexing();
             timer.Stop();
 
-            FrostyLogger.Logger?.LogInfo($"Indexed ebx in {timer.Elapsed.TotalSeconds} seconds");
+            FrostyLogger.Logger.LogInformation($"Indexed EBX in {timer.Elapsed.TotalSeconds} seconds");
 
             WriteCache();
 
@@ -189,7 +186,7 @@ public static class AssetManager
             }
         }
 
-        FrostyLogger.Logger?.LogInfo("Finished initializing");
+        FrostyLogger.Logger.LogInformation("Initializing finished");
 
         IsInitialized = true;
         return true;
@@ -425,7 +422,7 @@ public static class AssetManager
             {
                 if (!s_resRidMapping.TryAdd(entry.ResRid, entry))
                 {
-                    FrostyLogger.Logger?.LogWarning($"Duplicate ResRid using {s_resRidMapping[entry.ResRid].Name} instead of {entry.Name}");
+                    FrostyLogger.Logger.LogWarning($"Duplicate ResRid using {s_resRidMapping[entry.ResRid].Name} instead of {entry.Name}");
                     return;
                 }
             }
@@ -517,7 +514,7 @@ public static class AssetManager
             if (entry.FileInfo is null)
             {
                 s_ebxNameMapping.Remove(entry.Name);
-                FrostyLogger.Logger?.LogWarning($"Skipping ebx \"{entry.Name}\", bc it has no FileInfo!");
+                FrostyLogger.Logger.LogWarning($"Skipping EBX \"{entry.Name}\" due to no FileInfo.");
                 continue;
             }
 
@@ -534,7 +531,7 @@ public static class AssetManager
                     // happens when they changed the name when patching it
 
                     // since we load patch superbundles first the first one should be correct most of the time, hopefully not too many issues arise bc of this
-                    FrostyLogger.Logger?.LogWarning($"Removing ebx \"{entry.Name}\" with same guid as \"{other.Name}\"");
+                    FrostyLogger.Logger.LogWarning($"Removing EBX \"{entry.Name}\" with same GUID as \"{other.Name}\"");
 
                     s_ebxNameMapping.Remove(entry.Name);
                 }
@@ -571,7 +568,7 @@ public static class AssetManager
             if (entry.FileInfo is null)
             {
                 s_resNameMapping.Remove(entry.Name);
-                FrostyLogger.Logger?.LogWarning($"Skipping res \"{entry.Name}\", bc it has no FileInfo!");
+                FrostyLogger.Logger.LogWarning($"Skipping res \"{entry.Name}\", bc it has no FileInfo!");
             }
         }
 
@@ -581,7 +578,7 @@ public static class AssetManager
             if (entry.FileInfo is null)
             {
                 s_chunkGuidMapping.Remove(entry.Id);
-                FrostyLogger.Logger?.LogWarning($"Skipping chunk {entry.Id}, bc it has no FileInfo!");
+                FrostyLogger.Logger.LogWarning($"Skipping chunk {entry.Id}, bc it has no FileInfo!");
             }
             else if (entry.LogicalSize == 0)
             {
@@ -590,7 +587,7 @@ public static class AssetManager
                 entry.LogicalSize = (uint)entry.OriginalSize;
             }
         }
-        FrostyLogger.Logger?.LogInfo($"Had to resolve OriginalSize for {a} chunks");
+        FrostyLogger.Logger.LogInformation($"Had to resolve OriginalSize for {a} chunks");
     }
 
     private static bool ReadCache(out List<EbxAssetEntry> prePatchEbx, out List<ResAssetEntry> prePatchRes, out List<ChunkAssetEntry> prePatchChunks)
@@ -644,11 +641,11 @@ public static class AssetManager
                 }
             }
 
-            FrostyLogger.Logger?.LogInfo("Loading ebx from cache");
+            FrostyLogger.Logger.LogInformation("Loading EBX from cache");
             int ebxCount = stream.ReadInt32();
             for (int i = 0; i < ebxCount; i++)
             {
-                FrostyLogger.Logger?.LogProgress(i / (double)ebxCount);
+                FrostyLogger.Progress?.Report(i / (double)ebxCount);
                 string name = stream.ReadNullTerminatedString();
 
                 EbxAssetEntry entry = new(name, stream.ReadSha1(), stream.ReadInt64())
@@ -676,11 +673,11 @@ public static class AssetManager
                 }
             }
 
-            FrostyLogger.Logger?.LogInfo("Loading res from cache");
+            FrostyLogger.Logger.LogInformation("Loading RES from cache");
             int resCount = stream.ReadInt32();
             for (int i = 0; i < resCount; i++)
             {
-                FrostyLogger.Logger?.LogProgress(i / (double)resCount);
+                FrostyLogger.Progress?.Report(i / (double)resCount);
                 string name = stream.ReadNullTerminatedString();
 
                 ResAssetEntry entry = new(name, stream.ReadSha1(), stream.ReadInt64(),
@@ -708,11 +705,11 @@ public static class AssetManager
                 }
             }
 
-            FrostyLogger.Logger?.LogInfo("Loading chunks from cache");
+            FrostyLogger.Logger.LogInformation("Loading chunks from cache");
             int chunkCount = stream.ReadInt32();
             for (int i = 0; i < chunkCount; i++)
             {
-                FrostyLogger.Logger?.LogProgress(i / (double)chunkCount);
+                FrostyLogger.Progress?.Report(i / (double)chunkCount);
                 ChunkAssetEntry entry = new(stream.ReadGuid(), stream.ReadSha1(),
                     stream.ReadUInt32(), stream.ReadUInt32());
 

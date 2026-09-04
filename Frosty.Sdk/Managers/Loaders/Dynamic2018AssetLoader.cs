@@ -8,6 +8,7 @@ using Frosty.Sdk.IO;
 using Frosty.Sdk.Managers.Entries;
 using Frosty.Sdk.Managers.Infos;
 using Frosty.Sdk.Managers.Infos.FileInfos;
+using Microsoft.Extensions.Logging;
 
 namespace Frosty.Sdk.Managers.Loaders;
 
@@ -34,7 +35,7 @@ public class Dynamic2018AssetLoader : IAssetLoader
                 if (!FileSystemManager.TryResolvePath(sbIc.InstallChunk.InstallBundle, out _))
                 {
                     // InstallBundle does not exist, so skip it
-                    FrostyLogger.Logger?.LogWarning($"Skipping SuperBundle \"{sbIc.Name}\", InstallBundle \"{sbIc.InstallChunk.InstallBundle}\" does not exist");
+                    FrostyLogger.Logger.LogWarning($"Skipping SuperBundle \"{sbIc.Name}\", InstallBundle \"{sbIc.InstallChunk.InstallBundle}\" does not exist");
 
                     continue;
                 }
@@ -59,7 +60,7 @@ public class Dynamic2018AssetLoader : IAssetLoader
 
                 if (!found)
                 {
-                    FrostyLogger.Logger?.LogWarning($"Couldn't find SuperBundle \"{sbIc.Name}\"");
+                    FrostyLogger.Logger.LogWarning($"Couldn't find SuperBundle \"{sbIc.Name}\"");
                 }
             }
         }
@@ -582,7 +583,7 @@ public class Dynamic2018AssetLoader : IAssetLoader
 
         if (extraSize != 0)
         {
-            FrostyLogger.Logger?.LogInfo($"{extraSize} decompressed bytes ignored at the end of bundle {inBundle.Name}");
+            FrostyLogger.Logger.LogInformation($"Ignored {extraSize} decompressed bytes at the end of bundle {inBundle.Name}");
         }
     }
 
@@ -670,7 +671,7 @@ public class Dynamic2018AssetLoader : IAssetLoader
         DbObjectDict? bundleObj = DbObject.Deserialize(stream)?.AsDict();
         if (bundleObj is null)
         {
-            FrostyLogger.Logger?.LogError($"Invalid bundle {bundle.Name} in SuperBundle {bundle.Parent.Name}");
+            FrostyLogger.Logger.LogError($"Invalid bundle {bundle.Name} in SuperBundle {bundle.Parent.Name}");
             return;
         }
 

@@ -16,6 +16,7 @@ using Frosty.Sdk.Managers;
 using Frosty.Sdk.Managers.Infos;
 using Frosty.Sdk.Managers.Loaders;
 using Frosty.Sdk.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace Frosty.Modding;
 
@@ -451,7 +452,7 @@ internal class Manifest2019 : IDisposable
 
             foreach (BundleModInfo bundleModInfo in inModInfo.Added.Bundles.Values)
             {
-                FrostyLogger.Logger?.LogError("Adding bundles not yet implemented.");
+                FrostyLogger.Logger.LogError("Adding bundles not yet implemented.");
             }
 
             if (chunksCount != 0)
@@ -764,7 +765,7 @@ public partial class FrostyModExecutor
         {
             if (!FileSystemManager.TryResolvePath(false, $"{inSbIc.Name}.toc", out tocPath))
             {
-                FrostyLogger.Logger?.LogError("Trying to mod SuperBundle that doesnt exist");
+                FrostyLogger.Logger.LogError("Trying to mod SuperBundle that doesnt exist");
                 return;
             }
 

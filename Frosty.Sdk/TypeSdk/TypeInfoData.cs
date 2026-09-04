@@ -4,6 +4,7 @@ using Frosty.Sdk.Attributes;
 using Frosty.Sdk.IO;
 using Frosty.Sdk.TypeSdk.TypeInfoDatas;
 using Frosty.Sdk.TypeSdk.TypeInfos;
+using Microsoft.Extensions.Logging;
 
 namespace Frosty.Sdk.TypeSdk;
 
@@ -98,7 +99,7 @@ internal class TypeInfoData
 
             default:
                 retVal = new TypeInfoData();
-                FrostyLogger.Logger?.LogWarning($"Not implemented type: {flags.GetTypeEnum()}");
+                FrostyLogger.Logger.LogWarning($"Type not implemented: {flags.GetTypeEnum()}");
                 break;
         }
 

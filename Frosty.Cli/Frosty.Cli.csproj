@@ -1,5 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <Title>Frosty CLI</Title>
+    <Description>A command line application to create, update and apply mods.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
     <PublishSingleFile>true</PublishSingleFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
@@ -15,8 +21,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Pastel"/>
+    <!-- The CopyToOutputDirectory will put appsettings.json aside the executable,
+         user can manipulate it to change logger settings without rebuilding -->
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest"/>
+    <!-- Use this to embed logger settings into the executable -->
+    <!--<EmbeddedResource Include="appsettings.json"/>-->
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Sharprompt"/>
     <PackageReference Include="System.CommandLine"/>
+    <PackageReference Include="Microsoft.Extensions.Logging"/>
+    <PackageReference Include="Microsoft.Extensions.Logging.Console"/>
   </ItemGroup>
 </Project>

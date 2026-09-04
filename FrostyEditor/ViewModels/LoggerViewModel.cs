@@ -5,7 +5,8 @@ using Pastel;
 
 namespace FrostyEditor.ViewModels;
 
-public partial class LoggerViewModel : ViewModelBase, ILogger
+//public partial class LoggerViewModel : ViewModelBase, ILogger
+public partial class LoggerViewModel : ViewModelBase
 {
     private static readonly string s_info = "INFO";
     private static readonly string s_warn = "WARN";
