@@ -21,34 +21,42 @@ internal static partial class Program
 
     private static int Main(string[] args)
     {
-        // Logger settings are configured in appsettings.json, applies dynamically.
-        using ILoggerFactory factory = LoggerFactory.Create(builder => builder.AddConsole());
+        try
+        {
+            // Logger settings are configured in appsettings.json, applies dynamically.
+            using ILoggerFactory factory = LoggerFactory.Create(builder => builder.AddConsole());
 
-        RootCommand rootCommand =
-            new("❄ Frosty CLI, a command line app to create, update and apply mods for Frostbite Engine games.");
+            RootCommand rootCommand =
+                new("❄ Frosty CLI, a command line app to create, update and apply mods for Frostbite Engine games.");
 
-        FrostyLogger.Logger = factory.CreateLogger("Frosty.Cli");
-        //FrostyLogger.Progress =;
-        // Implement progress logging if needed
-        
-        // rootCommand.Arguments.Add(GameArgument);
+            FrostyLogger.Logger = factory.CreateLogger("Frosty.Cli");
+            //FrostyLogger.Progress =;
+            // Implement progress logging if needed
 
-        rootCommand.Options.Add(PidOption);
-        rootCommand.Options.Add(InitFsKeyOption);
-        rootCommand.Options.Add(BundleKeyOption);
-        rootCommand.Options.Add(CasKeyOption);
+            // rootCommand.Arguments.Add(GameArgument);
 
-        rootCommand.Subcommands.Add(CreateLoadCommand());
-        rootCommand.Subcommands.Add(CreateModCommand());
-        rootCommand.Subcommands.Add(CreateUpdateModCommand());
-        rootCommand.Subcommands.Add(CreateCreateModCommand());
+            rootCommand.Options.Add(PidOption);
+            rootCommand.Options.Add(InitFsKeyOption);
+            rootCommand.Options.Add(BundleKeyOption);
+            rootCommand.Options.Add(CasKeyOption);
 
-        rootCommand.SetAction(parseResult => InteractiveMode(
-            parseResult.GetValue(InitFsKeyOption),
-            parseResult.GetValue(BundleKeyOption),
-            parseResult.GetValue(CasKeyOption)));
+            rootCommand.Subcommands.Add(CreateLoadCommand());
+            rootCommand.Subcommands.Add(CreateModCommand());
+            rootCommand.Subcommands.Add(CreateUpdateModCommand());
+            rootCommand.Subcommands.Add(CreateCreateModCommand());
 
-        return rootCommand.Parse(args).Invoke();
+            rootCommand.SetAction(parseResult => InteractiveMode(
+                parseResult.GetValue(InitFsKeyOption),
+                parseResult.GetValue(BundleKeyOption),
+                parseResult.GetValue(CasKeyOption)));
+
+            return rootCommand.Parse(args).Invoke();
+        }
+        catch (Exception ex)
+        {
+            FrostyLogger.Logger.LogError(ex, "An unexcepted error occurred.");
+            return 1;
+        }
     }
 
     private static void InteractiveMode(FileInfo? initFsKey, FileInfo? bundleKey, FileInfo? casKey)
@@ -129,7 +137,7 @@ internal static partial class Program
         FileInfo? inInitFsKeyFileInfo = null, FileInfo? inBundleKeyFileInfo = null, FileInfo? inCasKeyFileInfo = null)
     {
         FileInfo? game = inGameFileInfo ?? RequestFile("Input the path to the games executable");
-        
+
         if (game?.Exists != true)
         {
             FrostyLogger.Logger.LogError("Game does not exist.");
