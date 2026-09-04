@@ -287,7 +287,7 @@ public partial class {classContext.Name} : IEbxInstance
     [IsReadOnlyAttribute]
     [DisplayNameAttribute(""Guid"")]
     [CategoryAttribute(""Annotations"")]
-    [EbxFieldMetaAttribute(Frosty.Sdk.Sdk.TypeFlags.TypeEnum.Guid, 1u)]
+    [EbxFieldMetaAttribute(Frosty.Sdk.TypeSdk.TypeFlags.TypeEnum.Guid, 1u)]
     [FieldIndexAttribute(-1)]
     public global::Frosty.Sdk.Ebx.AssetClassGuid __InstanceGuid  => __Guid;
 
@@ -316,7 +316,7 @@ public partial class {classContext.Name}
     [IsHiddenAttribute]
     [DisplayNameAttribute(""TransientId"")]
     [CategoryAttribute(""Annotations"")]
-    [EbxFieldMetaAttribute(Frosty.Sdk.Sdk.TypeFlags.TypeEnum.CString, 8u)]
+    [EbxFieldMetaAttribute(Frosty.Sdk.TypeSdk.TypeFlags.TypeEnum.CString, 8u)]
     [FieldIndexAttribute(-2)]
     public string __Id
     {{
@@ -439,7 +439,7 @@ public partial class {classContext.Name}
 #nullable enable
 
 using Frosty.Sdk.Attributes;
-using Frosty.Sdk.Sdk;
+using Frosty.Sdk.TypeSdk;
 
 {(typeContext.Namespace is null ? string.Empty : $"namespace {typeContext.Namespace}; \n")}
 {string.Join("\n", GetContainingTypes(typeContext).Reverse())}
