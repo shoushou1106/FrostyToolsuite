@@ -44,6 +44,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: code-coverage-${{ matrix.runs-on }}
-          path: ./TestResults/coverage.xml
+          path: ./TestResults/
           if-no-files-found: warn
-          archive: false
