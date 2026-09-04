@@ -3,7 +3,7 @@
 public partial class DataBusData
 {
     [OverrideAttribute]
-    [IsHidden()]
+    [IsHiddenAttribute()]
     public ushort Flags { get; set; }
 
     [IsTransientAttribute()]
