@@ -50,6 +50,7 @@ jobs:
           --os ${{ matrix.os }}
           --arch ${{ matrix.arch }}
           --configuration Release
+          -p:AssemblyMetadata="Nightly=true"
           -p:ContinuousIntegrationBuild=true
           -p:EmbedUntrackedSources=true
           -p:DebugType=embedded
