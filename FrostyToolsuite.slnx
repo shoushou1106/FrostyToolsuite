@@ -10,6 +10,7 @@
     <File Path="global.json" />
     <File Path="LICENSE" />
     <File Path="NOTICE.md" />
+    <File Path="README.md" />
   </Folder>
   
   <Project Path="Frosty.Cli/Frosty.Cli.csproj" />
