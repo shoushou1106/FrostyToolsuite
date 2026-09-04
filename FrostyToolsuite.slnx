@@ -9,7 +9,7 @@
     <File Path="Directory.Packages.props" />
     <File Path="global.json" />
     <File Path="LICENSE" />
-    <File Path="NOTICE.md" />≈
+    <File Path="NOTICE.md" />
   </Folder>
   
   <Project Path="Frosty.Cli/Frosty.Cli.csproj" />
