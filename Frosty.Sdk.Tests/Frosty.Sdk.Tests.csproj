@@ -26,4 +26,8 @@
     <EmbeddedResource Include="TestData\new_huffman" LogicalName="Frosty.Sdk.Tests.TestData.new_huffman"/>
   </ItemGroup>
 
+  <ItemGroup>
+    <Using Include="NUnit.Framework"/>
+  </ItemGroup>
+
 </Project>
