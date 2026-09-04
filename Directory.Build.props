@@ -19,8 +19,8 @@
   <!-- Package Settings -->
   <PropertyGroup>
     <Version>2.0.0</Version>
-    <Authors>The FrostyToolsuite Team</Authors>
-    <Company>The FrostyToolsuite Team</Company>
+    <Authors>The Frosty Toolsuite Team</Authors>
+    <Company>The Frosty Toolsuite Team</Company>
     <PackageTags>Frostbite;EA;ElectronicArts;FrostyToolsuite;Frosty;Game;Development;Modding;Modification</PackageTags>
     <Copyright>Copyright (c) 2026 The FrostyToolsuite Team</Copyright>
     <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
