@@ -61,7 +61,7 @@ public class DbObjectInt : DbObject
         _value = stream.ReadInt32();
     }
 
-    public override string? ToString()
+    public override string ToString()
     {
         return _value.ToString(CultureInfo.InvariantCulture);
     }

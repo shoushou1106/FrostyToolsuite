@@ -59,7 +59,7 @@ public class DbObjectDict : DbObject
         return _items.TryGetValue(name, out DbObject? item) ? item.AsList() : defaultValue;
     }
 
-    public bool AsBoolean(string name, bool defaultValue = default)
+    public bool AsBoolean(string name, bool defaultValue = false)
     {
         return _items.TryGetValue(name, out DbObject? item) ? item.AsBoolean() : defaultValue;
     }
@@ -69,32 +69,32 @@ public class DbObjectDict : DbObject
         return _items.TryGetValue(name, out DbObject? item) ? item.AsString() : defaultValue;
     }
 
-    public int AsInt(string name, int defaultValue = default)
+    public int AsInt(string name, int defaultValue = 0)
     {
         return _items.TryGetValue(name, out DbObject? item) ? item.AsInt() : defaultValue;
     }
 
-    public uint AsUInt(string name, uint defaultValue = default)
+    public uint AsUInt(string name, uint defaultValue = 0)
     {
         return _items.TryGetValue(name, out DbObject? item) ? item.AsUInt() : defaultValue;
     }
 
-    public long AsLong(string name, long defaultValue = default)
+    public long AsLong(string name, long defaultValue = 0)
     {
         return _items.TryGetValue(name, out DbObject? item) ? item.AsLong() : defaultValue;
     }
 
-    public ulong AsULong(string name, ulong defaultValue = default)
+    public ulong AsULong(string name, ulong defaultValue = 0)
     {
         return _items.TryGetValue(name, out DbObject? item) ? item.AsULong() : defaultValue;
     }
 
-    public float AsFloat(string name, float defaultValue = default)
+    public float AsFloat(string name, float defaultValue = 0)
     {
         return _items.TryGetValue(name, out DbObject? item) ? item.AsFloat() : defaultValue;
     }
 
-    public double AsDouble(string name, double defaultValue = default)
+    public double AsDouble(string name, double defaultValue = 0)
     {
         return _items.TryGetValue(name, out DbObject? item) ? item.AsDouble() : defaultValue;
     }
