@@ -1,5 +1,3 @@
-// Never Compiled
-
 public partial class EntityBusData
 {
     [IsTransientAttribute()]

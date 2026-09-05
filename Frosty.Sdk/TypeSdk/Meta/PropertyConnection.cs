@@ -1,5 +1,3 @@
-// Never Compiled
-
 public partial struct PropertyConnection
 {
     [OverrideAttribute]

@@ -1,7 +1,4 @@
 <Solution>
-  <Folder Name="/FrostyTypeSdkGenerator/">
-    <Project Path="FrostyTypeSdkGenerator/FrostyTypeSdkGenerator.Example/FrostyTypeSdkGenerator.Example.csproj" />
-  </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
     <File Path="Directory.Build.props" />
