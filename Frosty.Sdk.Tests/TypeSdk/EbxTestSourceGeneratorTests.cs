@@ -4,7 +4,7 @@ using Frosty.Sdk.TypeSdk.Generation;
 namespace Frosty.Sdk.Tests.TypeSdk;
 
 /// <summary>
-/// Replace FrostyTypeSdkGenerator.Example. Directly debug on this test instead.
+/// TODO: Replace FrostyTypeSdkGenerator.Example. Directly debug on this test instead.
 /// </summary>
 internal sealed class EbxTestSourceGeneratorTests
 {
