@@ -1,6 +1,3 @@
-using Frosty.Sdk.TypeSdk;
-using Frosty.Sdk.TypeSdk.Generation;
-
 namespace Frosty.Sdk.Tests.TypeSdk;
 
 /// <summary>
