@@ -1,13 +1,7 @@
-using System;
-
 namespace Frosty.Sdk.Attributes;
 
-public class ArrayNameAttribute : Attribute
+[AttributeUsage(FrostyAttributeTargets.Type)]
+public sealed class ArrayNameAttribute(string name) : Attribute
 {
-    public string Name { get; }
-
-    public ArrayNameAttribute(string inName)
-    {
-        Name = inName;
-    }
+    public string Name { get; } = name;
 }

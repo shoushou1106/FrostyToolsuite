@@ -1,10 +1,7 @@
-﻿using System;
-
-namespace Frosty.Sdk.Attributes;
+﻿namespace Frosty.Sdk.Attributes;
 
 [AttributeUsage(FrostyAttributeTargets.Type | FrostyAttributeTargets.Field, Inherited = false)]
-public class NameHashAttribute : Attribute
+public sealed class NameHashAttribute(uint hash) : Attribute
 {
-    public uint Hash { get; }
-    public NameHashAttribute(uint inHash) { Hash = inHash; }
+    public uint Hash { get; } = hash;
 }

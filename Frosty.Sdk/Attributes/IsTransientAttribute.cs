@@ -1,11 +1,9 @@
-﻿using System;
-
-namespace Frosty.Sdk.Attributes;
+﻿namespace Frosty.Sdk.Attributes;
 
 /// <summary>
-/// Specifies that this property should not be saved
+///     Specifies that this property should not be saved
 /// </summary>
 [AttributeUsage(FrostyAttributeTargets.Field)]
-public class IsTransientAttribute : Attribute
+public sealed class IsTransientAttribute : Attribute
 {
 }

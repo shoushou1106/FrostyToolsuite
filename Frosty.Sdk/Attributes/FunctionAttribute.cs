@@ -1,28 +1,18 @@
-using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 
 namespace Frosty.Sdk.Attributes;
 
+/// <remarks>
+///     TODO: This file is likely not finished. Suggest adding sealed, dropping protected, and use IEquatable.
+/// </remarks>
 [AttributeUsage(AttributeTargets.Struct)]
-public class FunctionAttribute : Attribute
+public class FunctionAttribute(params string[] argumentTypes) : Attribute
 {
-    public string[] ArgumentTypes { get; }
-
-    public FunctionAttribute(params string[] inArgumentTypes)
-    {
-        ArgumentTypes = inArgumentTypes;
-    }
+    public string[] ArgumentTypes { get; } = argumentTypes;
 
     public override bool Equals([NotNullWhen(true)] object? obj)
     {
-        if (obj is not FunctionAttribute other)
-        {
-            return false;
-        }
-
-        return other.ArgumentTypes.SequenceEqual(ArgumentTypes);
-
+        return obj is FunctionAttribute other && other.ArgumentTypes.SequenceEqual(ArgumentTypes);
     }
 
     protected bool Equals(FunctionAttribute other)

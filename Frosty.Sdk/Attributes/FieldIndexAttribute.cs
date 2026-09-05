@@ -1,16 +1,10 @@
-﻿using System;
-
-namespace Frosty.Sdk.Attributes;
+﻿namespace Frosty.Sdk.Attributes;
 
 /// <summary>
-/// Specifies the fields index, which may differ from its offset
+///     Specifies the field's index, which may differ from its offset
 /// </summary>
 [AttributeUsage(FrostyAttributeTargets.Field)]
-public class FieldIndexAttribute : Attribute
+public sealed class FieldIndexAttribute(int index) : Attribute
 {
-    public int Index { get; set; }
-    public FieldIndexAttribute(int inIndex)
-    {
-        Index = inIndex;
-    }
+    public int Index { get; internal set; } = index;
 }

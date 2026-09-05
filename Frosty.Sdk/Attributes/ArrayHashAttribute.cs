@@ -1,14 +1,7 @@
-﻿using System;
-
-namespace Frosty.Sdk.Attributes;
+﻿namespace Frosty.Sdk.Attributes;
 
 [AttributeUsage(FrostyAttributeTargets.Type, Inherited = false)]
-public class ArrayHashAttribute : Attribute
+public sealed class ArrayHashAttribute(uint hash) : Attribute
 {
-    public uint Hash { get; set; }
-
-    public ArrayHashAttribute(uint inHash)
-    {
-        Hash = inHash;
-    }
+    public uint Hash { get; internal set; } = hash;
 }

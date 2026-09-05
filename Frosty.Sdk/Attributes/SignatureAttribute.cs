@@ -1,14 +1,7 @@
-﻿using System;
-
-namespace Frosty.Sdk.Attributes;
+﻿namespace Frosty.Sdk.Attributes;
 
 [AttributeUsage(FrostyAttributeTargets.Type)]
-public class SignatureAttribute : Attribute
+public sealed class SignatureAttribute(uint signature) : Attribute
 {
-    public uint Signature { get; }
-
-    public SignatureAttribute(uint inSignature)
-    {
-        Signature = inSignature;
-    }
+    public uint Signature { get; } = signature;
 }

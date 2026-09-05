@@ -1,0 +1,5 @@
+[*.cs]
+# CA1720: Identifiers should not contain type names
+dotnet_diagnostic.CA1720.severity = none
+# ReSharper Code inspection: Class is never instantiated (non-private accessibility)
+resharper_class_never_instantiated_global_highlighting = hint

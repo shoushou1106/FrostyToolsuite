@@ -1,16 +1,9 @@
-﻿using System;
-
-using Frosty.Sdk.TypeSdk;
+﻿using Frosty.Sdk.TypeSdk;
 
 namespace Frosty.Sdk.Attributes;
 
 [AttributeUsage(FrostyAttributeTargets.Type | FrostyAttributeTargets.Field)]
-public class EbxArrayMetaAttribute : Attribute
+public sealed class EbxArrayMetaAttribute(ushort flags) : Attribute
 {
-    public TypeFlags Flags { get; set; }
-
-    public EbxArrayMetaAttribute(ushort flags)
-    {
-        Flags = flags;
-    }
+    public TypeFlags Flags { get; internal set; } = flags;
 }

@@ -1,14 +1,7 @@
-using System;
-
 namespace Frosty.Sdk.Attributes;
 
 [AttributeUsage(FrostyAttributeTargets.Type, Inherited = false)]
-public class TypeOffsetAttribute : Attribute
+public sealed class TypeOffsetAttribute(long offset) : Attribute
 {
-    public long Offset { get; }
-
-    public TypeOffsetAttribute(long inOffset)
-    {
-        Offset = inOffset;
-    }
+    public long Offset { get; } = offset;
 }

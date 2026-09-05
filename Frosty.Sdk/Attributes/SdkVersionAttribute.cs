@@ -1,15 +1,7 @@
-﻿using System;
-
-namespace Frosty.Sdk.Attributes;
-
+﻿namespace Frosty.Sdk.Attributes;
 
 [AttributeUsage(AttributeTargets.Assembly)]
-public class SdkVersionAttribute : Attribute
+public sealed class SdkVersionAttribute(uint head) : Attribute
 {
-    public uint Head { get; }
-
-    public SdkVersionAttribute(uint inHead)
-    {
-        Head = inHead;
-    }
+    public uint Head { get; } = head;
 }

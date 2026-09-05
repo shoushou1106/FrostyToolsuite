@@ -1,28 +1,30 @@
-﻿using System;
-
-using Frosty.Sdk.TypeSdk;
+﻿using Frosty.Sdk.TypeSdk;
 
 namespace Frosty.Sdk.Attributes;
 
 /// <summary>
-/// Mandatory attribute for all Ebx based classes
+///     Mandatory attribute for all Ebx based classes
 /// </summary>
 [AttributeUsage(FrostyAttributeTargets.Type)]
-public class EbxTypeMetaAttribute : Attribute
+public sealed class EbxTypeMetaAttribute : Attribute
 {
-    public TypeFlags Flags { get; set; }
-    public byte Alignment { get; set; }
-    public ushort Size { get; set; }
-
-    public EbxTypeMetaAttribute(ushort inFlags, byte inAlignment, ushort inSize)
+    public EbxTypeMetaAttribute(ushort flags, byte alignment, ushort size)
     {
-        Flags = inFlags;
-        Alignment = inAlignment;
-        Size = inSize;
+        Flags = flags;
+        Alignment = alignment;
+        Size = size;
     }
 
-    public EbxTypeMetaAttribute(TypeFlags.TypeEnum type, TypeFlags.CategoryEnum category = TypeFlags.CategoryEnum.None)
+    public EbxTypeMetaAttribute(
+        TypeFlags.TypeEnum typeEnum,
+        TypeFlags.CategoryEnum categoryEnum = TypeFlags.CategoryEnum.None)
     {
-        Flags = new TypeFlags(type, category);
+        Flags = new TypeFlags(typeEnum, categoryEnum);
     }
+
+    public TypeFlags.TypeEnum TypeEnum => Flags.GetTypeEnum();
+    public TypeFlags.CategoryEnum CategoryEnum => Flags.GetCategoryEnum();
+    public TypeFlags Flags { get; internal set; }
+    public byte Alignment { get; internal set; }
+    public ushort Size { get; internal set; }
 }

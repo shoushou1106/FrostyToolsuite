@@ -1,14 +1,9 @@
-﻿using System;
-
-namespace Frosty.Sdk.Attributes;
+﻿namespace Frosty.Sdk.Attributes;
 
 [AttributeUsage(FrostyAttributeTargets.Type, Inherited = false)]
-public class ArrayGuidAttribute : Attribute
+#pragma warning disable CA1019
+public sealed class ArrayGuidAttribute(string inGuid) : Attribute
+#pragma warning restore CA1019
 {
-    public Guid Guid { get; }
-
-    public ArrayGuidAttribute(string guid)
-    {
-        Guid = Guid.Parse(guid);
-    }
+    public Guid Guid { get; } = Guid.Parse(inGuid);
 }
