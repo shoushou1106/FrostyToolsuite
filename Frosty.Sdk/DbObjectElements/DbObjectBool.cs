@@ -4,7 +4,7 @@ namespace Frosty.Sdk.DbObjectElements;
 
 public class DbObjectBool : DbObject
 {
-    private bool m_value;
+    private bool _value;
 
     protected internal DbObjectBool(Type inType)
         : base(inType)
@@ -14,32 +14,32 @@ public class DbObjectBool : DbObject
     public DbObjectBool(bool inValue)
         : base(Type.Boolean | Type.Anonymous)
     {
-        m_value = inValue;
+        _value = inValue;
     }
 
     public DbObjectBool(string inName, bool inValue)
         : base(Type.Boolean, inName)
     {
-        m_value = inValue;
+        _value = inValue;
     }
 
     public override bool AsBoolean()
     {
-        return m_value;
+        return _value;
     }
 
-    protected override void InternalSerialize(DataStream stream)
+    protected override void InternalSerialize(DataStream? stream)
     {
-        stream.WriteByte((byte)(m_value ? 1 : 0));
+        stream?.WriteByte((byte)(_value ? 1 : 0));
     }
 
-    protected override void InternalDeserialize(DataStream stream)
+    protected override void InternalDeserialize(DataStream? stream)
     {
-        m_value = stream.ReadByte() != 0;
+        _value = stream?.ReadByte() != 0;
     }
 
-    public override string? ToString()
+    public override string ToString()
     {
-        return m_value.ToString();
+        return _value.ToString();
     }
 }

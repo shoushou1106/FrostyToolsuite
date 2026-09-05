@@ -4,7 +4,7 @@ namespace Frosty.Sdk.DbObjectElements;
 
 public class DbObjectSha1 : DbObject
 {
-    private Sha1 m_value;
+    private Sha1 _value;
 
     protected internal DbObjectSha1(Type inType)
         : base(inType)
@@ -14,32 +14,37 @@ public class DbObjectSha1 : DbObject
     public DbObjectSha1(Sha1 inValue)
         : base(Type.Sha1 | Type.Anonymous)
     {
-        m_value = inValue;
+        _value = inValue;
     }
 
     public DbObjectSha1(string inName, Sha1 inValue)
         : base(Type.Sha1, inName)
     {
-        m_value = inValue;
+        _value = inValue;
     }
 
     public override Sha1 AsSha1()
     {
-        return m_value;
+        return _value;
     }
 
-    protected override void InternalSerialize(DataStream stream)
+    protected override void InternalSerialize(DataStream? stream)
     {
-        stream.WriteSha1(m_value);
+        stream?.WriteSha1(_value);
     }
 
-    protected override void InternalDeserialize(DataStream stream)
+    protected override void InternalDeserialize(DataStream? stream)
     {
-        m_value = stream.ReadSha1();
+        if (stream is null)
+        {
+            return;
+        }
+
+        _value = stream.ReadSha1();
     }
 
-    public override string? ToString()
+    public override string ToString()
     {
-        return m_value.ToString();
+        return _value.ToString();
     }
 }
