@@ -1,15 +1,18 @@
-using System;
-
 namespace Frosty.Sdk.Exceptions;
 
 public class MissingEncryptionKeyException : Exception
 {
-    public override string Message => $"Missing encryption key for {m_key}";
-    
-    private string m_key;
+    public MissingEncryptionKeyException()
+    {
+    }
 
     public MissingEncryptionKeyException(string inKey)
+        : base($"Missing encryption key for {inKey}")
     {
-        m_key = inKey;
+    }
+
+    public MissingEncryptionKeyException(string inKey, Exception innerException)
+        : base($"Missing encryption key for {inKey}", innerException)
+    {
     }
 }

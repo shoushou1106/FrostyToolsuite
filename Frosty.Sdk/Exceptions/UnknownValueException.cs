@@ -1,17 +1,23 @@
-using System;
-
 namespace Frosty.Sdk.Exceptions;
 
 public class UnknownValueException<T> : Exception
 {
-    public override string Message => $"Unknown value of {m_name}: {m_value}.";
-
-    private readonly string m_name;
-    private readonly T m_value;
-    
-    public UnknownValueException(string inName, T inValue)
+    public UnknownValueException()
     {
-        m_name = inName;
-        m_value = inValue;
+    }
+
+    public UnknownValueException(string message)
+        : base(message)
+    {
+    }
+
+    public UnknownValueException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    public UnknownValueException(string inName, T inValue)
+        : base($"Unknown value of {inName}: {inValue}.")
+    {
     }
 }
