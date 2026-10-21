@@ -5,17 +5,19 @@ namespace Frosty.Sdk.Interfaces;
 
 public interface ICompressionFormat
 {
-    public string Identifier { get; }
+    string Identifier { get; }
 
     /// <summary>
-    /// Decompresses <see cref="inData"/> and writes it to <see cref="outData"/>.
+    ///     Decompresses <paramref name="inData" /> and writes it to <paramref name="outData" />.
     /// </summary>
-    public void Decompress<T>(Block<T> inData, ref Block<T> outData, CompressionFlags inFlags = CompressionFlags.None) where T : unmanaged;
+    void Decompress<T>(Block<T> inData, ref Block<T> outData, CompressionFlags inFlags = CompressionFlags.None)
+        where T : unmanaged;
 
     /// <summary>
-    /// Compresses <see cref="inData"/> and writes it to <see cref="outData"/>.
+    ///     Compresses <paramref name="inData" /> and writes it to <paramref name="outData" />.
     /// </summary>
-    public int Compress<T>(Block<T> inData, ref Block<T> outData, CompressionFlags inFlags = CompressionFlags.None) where T : unmanaged;
+    int Compress<T>(Block<T> inData, ref Block<T> outData, CompressionFlags inFlags = CompressionFlags.None)
+        where T : unmanaged;
 
-    public int GetCompressBounds(int inRawSize, CompressionFlags inFlags = CompressionFlags.None);
+    int GetCompressBounds(int inRawSize, CompressionFlags inFlags = CompressionFlags.None);
 }

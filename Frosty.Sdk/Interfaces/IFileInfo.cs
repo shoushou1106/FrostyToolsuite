@@ -1,5 +1,3 @@
-﻿using System;
-using System.IO;
 using Frosty.Sdk.IO;
 using Frosty.Sdk.Managers.Infos.FileInfos;
 using Frosty.Sdk.Utils;
@@ -8,22 +6,28 @@ namespace Frosty.Sdk.Interfaces;
 
 public interface IFileInfo
 {
-    public bool IsDelta();
+    bool IsDelta();
 
-    public bool IsComplete();
+    bool IsComplete();
 
-    public bool FileExists();
+    bool FileExists();
 
-    public long GetOriginalSize();
+    long GetOriginalSize();
 
-    public Block<byte> GetRawData();
+    Block<byte> GetRawData();
 
-    public Block<byte> GetData(int inOriginalSize);
+    Block<byte> GetData(int inOriginalSize);
 
     protected void SerializeInternal(DataStream stream);
 
-    public static void Serialize(DataStream stream, IFileInfo fileInfo)
+    static void Serialize(DataStream stream, IFileInfo fileInfo)
     {
+        // TODO: Null check decision pending on throw or ignore.
+        if (stream is null || fileInfo is null)
+        {
+            throw new NotImplementedException("TODO: Null check decision pending on throw or ignore.");
+        }
+
         switch (fileInfo)
         {
             case CasFileInfo:
@@ -38,23 +42,26 @@ public interface IFileInfo
             default:
                 throw new NotImplementedException();
         }
+
         fileInfo.SerializeInternal(stream);
     }
 
-    public static IFileInfo Deserialize(DataStream stream)
+    static IFileInfo Deserialize(DataStream stream)
     {
+        // TODO: Null check decision pending on throw or ignore.
+        if (stream is null)
+        {
+            throw new NotImplementedException("TODO: Null check decision pending on throw or ignore.");
+        }
+
         byte type = stream.ReadByte();
 
-        switch (type)
+        return type switch
         {
-            case 0:
-                return CasFileInfo.DeserializeInternal(stream);
-            case 1:
-                return KelvinFileInfo.DeserializeInternal(stream);
-            case 2:
-                return NonCasFileInfo.DeserializeInternal(stream);
-            default:
-                throw new InvalidDataException();
-        }
+            0 => CasFileInfo.DeserializeInternal(stream),
+            1 => KelvinFileInfo.DeserializeInternal(stream),
+            2 => NonCasFileInfo.DeserializeInternal(stream),
+            _ => throw new InvalidDataException()
+        };
     }
 }

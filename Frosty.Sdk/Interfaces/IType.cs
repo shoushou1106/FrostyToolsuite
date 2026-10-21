@@ -1,18 +1,21 @@
-using System;
-
 using Frosty.Sdk.TypeSdk;
 
 namespace Frosty.Sdk.Interfaces;
 
 public interface IType
 {
-    public string Name { get; }
-    public uint NameHash { get; }
-    public Guid Guid { get; }
-    public uint Signature { get; }
-    public Type Type { get; }
+    string Name { get; }
+    uint NameHash { get; }
 
-    public bool IsSubClassOf(IType inType);
+    // CA1720: Identifiers should not contain type names
+#pragma warning disable CA1720
+    Guid Guid { get; }
+#pragma warning restore CA1720
 
-    public TypeFlags GetFlags();
+    uint Signature { get; }
+    Type Type { get; }
+
+    bool IsSubClassOf(IType inType);
+
+    TypeFlags GetFlags();
 }

@@ -1,8 +1,10 @@
+using Frosty.Sdk.Ebx;
+
 namespace Frosty.Sdk.Interfaces;
 
 public interface IEbxInstance
 {
-    public Ebx.AssetClassGuid GetInstanceGuid();
+    AssetClassGuid GetInstanceGuid();
 
-    public void SetInstanceGuid(Ebx.AssetClassGuid newGuid);
+    void SetInstanceGuid(AssetClassGuid newGuid);
 }
