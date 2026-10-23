@@ -5,30 +5,26 @@
     <!-- Enable transitive pinning-->
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
-
   <!-- GlobalPackageReference applies to ALL projects automatically -->
   <ItemGroup>
     <!-- SourceLink is built in .NET 8+ -->
     <!--<GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>-->
   </ItemGroup>
-
   <!-- PackageVersion applies to projects with manual reference
        With TransitivePinning enabled, manage sub-package/transitive packages here, instead in project -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.7.0"/>
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.11"/>
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11"/>
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.11"/>
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0"/>
-    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.0"/>
-    <PackageVersion Include="NUnit" Version="4.6.1"/>
-    <PackageVersion Include="NUnit.Analyzers" Version="4.14.0"/>
-    <PackageVersion Include="NUnit3TestAdapter" Version="6.3.0"/>
-    <PackageVersion Include="Sharprompt" Version="3.1.2"/>
-    <PackageVersion Include="System.CommandLine" Version="2.0.11"/>
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0"/>
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.13"/>
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.13"/>
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0"/>
+    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0"/>
+    <PackageVersion Include="NUnit" Version="5.0.0"/>
+    <PackageVersion Include="NUnit.Analyzers" Version="4.15.0"/>
+    <PackageVersion Include="NUnit3TestAdapter" Version="6.3.1"/>
+    <PackageVersion Include="Sharprompt" Version="3.2.0"/>
+    <PackageVersion Include="System.CommandLine" Version="2.0.13"/>
     <PackageVersion Include="Octokit" Version="13.0.1"/>
   </ItemGroup>
-
   <!-- FrostyEditor. Planned for Deprecation -->
   <ItemGroup>
     <PackageVersion Include="Avalonia" Version="11.0.10"/>
