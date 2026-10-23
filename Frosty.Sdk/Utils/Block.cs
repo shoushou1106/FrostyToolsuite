@@ -1,455 +1,412 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Frosty.Sdk.Utils;
 
 /// <summary>
-/// Manages a sequential area of memory like <see cref="Span{T}"/>, but on the unmanaged heap.
-/// When used on managed or stack memory, make sure to call <see cref="MarkMemoryAsFragile"/>.
+///     Manages a sequential area of memory like <see cref="Span{T}" /> on the managed heap.
 /// </summary>
 /// <typeparam name="T">Underlying type.</typeparam>
-public unsafe class Block<T> : IDisposable where T : unmanaged
+public sealed class Block<T> : IDisposable where T : unmanaged
 {
-    /// <summary>
-    /// The absolute start of the block.
-    /// </summary>
-    public T* BasePtr { get; private set; }
+    private int _baseByteOffset;
+
+    private byte[] _buffer;
+    private bool _disposed;
 
     /// <summary>
-    /// The current, potentially shifted start of the block.
+    ///     Allocates a new block of memory. Like the unmanaged allocation it replaces, the contents are not cleared.
     /// </summary>
-    public T* Ptr { get; private set; }
+    /// <param name="inSize">The total number of items to allocate.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="inSize" /> is invalid.</exception>
+    public Block(int inSize)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(inSize);
+
+        // Allocate array without zeroing
+        _buffer = GC.AllocateUninitializedArray<byte>(inSize * ElementSize);
+        BaseSize = inSize;
+    }
 
     /// <summary>
-    /// Absolute size of the block.
+    ///     Creates a <see cref="Block{T}" /> view around a shifted existing <see cref="Block{T}" />.
+    /// </summary>
+    /// <param name="inBlock">The source block.</param>
+    /// <param name="inSize">The number of elements (not bytes!) in the region.</param>
+    /// <exception cref="ObjectDisposedException"><paramref name="inBlock" /> is disposed.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="inBlock" /> is invalid.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="inSize" /> is invalid.</exception>
+    public Block(Block<T> inBlock, int inSize)
+    {
+        ArgumentNullException.ThrowIfNull(inBlock);
+
+        ObjectDisposedException.ThrowIf(inBlock._disposed, inBlock);
+        ArgumentOutOfRangeException.ThrowIfNegative(inSize);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(inSize, inBlock.Size);
+
+        _buffer = inBlock._buffer;
+        _baseByteOffset = inBlock.CurrentByteOffset;
+        BaseSize = inSize;
+    }
+
+    /// <summary>
+    ///     Creates a <see cref="Block{T}" /> view around a region of an existing <see cref="Block{T}" /> relative to its base.
+    /// </summary>
+    /// <param name="inBlock">The source block.</param>
+    /// <param name="inStartOffset">The element offset from the base of <paramref name="inBlock" />.</param>
+    /// <param name="inSize">The number of elements (not bytes!) in the region.</param>
+    /// <exception cref="ObjectDisposedException"><paramref name="inBlock" /> is disposed.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="inBlock" /> is invalid.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="inSize" /> is invalid.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="inStartOffset" /> is invalid.</exception>
+    public Block(Block<T> inBlock, int inStartOffset, int inSize)
+    {
+        ArgumentNullException.ThrowIfNull(inBlock);
+
+        ObjectDisposedException.ThrowIf(inBlock._disposed, inBlock);
+        ArgumentOutOfRangeException.ThrowIfNegative(inStartOffset);
+        ArgumentOutOfRangeException.ThrowIfNegative(inSize);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(inStartOffset + inSize, inBlock.BaseSize);
+
+        _buffer = inBlock._buffer;
+        _baseByteOffset = inBlock._baseByteOffset + (inStartOffset * ElementSize);
+        BaseSize = inSize;
+    }
+
+    /// <summary>
+    ///     Creates a <see cref="Block{T}" /> from a <see cref="ReadOnlySpan{T}" /> by copying its data.
+    /// </summary>
+    /// <param name="inSpan">Source data.</param>
+    public Block(ReadOnlySpan<T> inSpan)
+    {
+        // Copy as byte[] instead of the original pointer.
+        // Because "fixed" only protects the memory when inside {}.
+        // https://learn.microsoft.com/dotnet/standard/unsafe-code/best-practices#2-exposing-pointers-outside-of-the-fixed-scope
+        // fixed (T* ptr = inSpan)
+        // {
+        //     // Pointer was saved and lived outside
+        //     BasePtr = ptr;
+        //     Ptr = BasePtr;
+        //     BaseSize = inSpan.Length;
+        //     m_fragileMemory = true;
+        // }
+
+        _buffer = [.. MemoryMarshal.AsBytes(inSpan)];
+        BaseSize = inSpan.Length;
+    }
+
+    /// <summary>
+    ///     Creates a <see cref="Block{T}" /> around a <typeparamref name="T" />[] and copies the data.
+    /// </summary>
+    /// <param name="inArray">Source data.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="inArray" /> is invalid.</exception>
+    public Block(T[] inArray)
+    {
+        ArgumentNullException.ThrowIfNull(inArray);
+
+        _buffer = [.. MemoryMarshal.AsBytes(inArray.AsSpan())];
+        BaseSize = inArray.Length;
+    }
+
+    /// <summary>
+    ///     Privately used in ToBlock
+    /// </summary>
+    private Block(byte[] inBuffer, int inByteOffset, int inSize)
+    {
+        _buffer = inBuffer;
+        _baseByteOffset = inByteOffset;
+        BaseSize = inSize;
+    }
+
+    /// <remarks>
+    ///     Unsafe.SizeOf is safe.
+    /// </remarks>
+    private static int ElementSize => Unsafe.SizeOf<T>();
+
+    /// <summary>
+    ///     Absolute size of the block in elements.
     /// </summary>
     public int BaseSize { get; private set; }
 
     /// <summary>
-    /// Shifted size of the block. <see cref="BaseSize"/> - <see cref="ShiftAmount"/> gets the current Size.
+    ///     Shifted offset of the block in elements.
+    ///     <see cref="BaseSize" /> - <see cref="ShiftAmount" /> gets the current <see cref="Size" />.
     /// </summary>
-    public int ShiftAmount => (int)(Ptr - BasePtr);
+    public int ShiftAmount { get; private set; }
 
     public int Size => BaseSize - ShiftAmount;
 
-    /// <summary>
-    /// Indicates if the underlying memory is assumed to be already disposed before <see cref="Block{T}.Dispose()"/> is called.
-    /// This is the case with stack allocated memory, pointers from <see langword="fixed"/> scopes and Spans.
-    /// </summary>
-    private bool m_fragileMemory = false;
+    private int CurrentByteOffset => _baseByteOffset + (ShiftAmount * ElementSize);
 
     /// <summary>
-    /// Indicates if the underlying memory is usable. Any operation with this disabled will cause the <see cref="Block{T}"/> to destroy itself.
-    /// </summary>
-    private bool m_usable = true;
-
-    /// <summary>
-    /// Allocates a new block of memory on the heap.
-    /// </summary>
-    /// <param name="inSize">The total amount of items to allocate.</param>
-    public Block(int inSize)
-    {
-        BasePtr = (T*)Marshal.AllocHGlobal(inSize * sizeof(T));
-        if (inSize > 0)
-        {
-            GC.AddMemoryPressure(inSize * sizeof(T));
-        }
-        Ptr = BasePtr;
-        BaseSize = inSize;
-    }
-
-    /// <summary>
-    /// Creates a <see cref="Block{T}"/> around a pre-allocated memory region.
-    /// </summary>
-    /// <param name="inPtr">The pointer to the start of the region.</param>
-    /// <param name="inSize">The amount of elements (not bytes!) in the region.</param>
-    public Block(T* inPtr, int inSize)
-    {
-        BasePtr = inPtr;
-        Ptr = BasePtr;
-        BaseSize = inSize;
-    }
-
-    /// <summary>
-    /// Creates a <see cref="Block{T}"/> around a pre-allocated memory region.
-    /// </summary>
-    /// <param name="inStartPtr">The pointer to the start of the region.</param>
-    /// <param name="inEndPtr">The pointer to the end of the region.</param>
-    public Block(T* inStartPtr, T* inEndPtr)
-    {
-        BasePtr = inStartPtr;
-        Ptr = BasePtr;
-        // If the diff between end and start pointers is 0, then the size is 1.
-        // => size = diff + 1
-        BaseSize = ((int)(inEndPtr - inStartPtr) / sizeof(T)) + 1;
-    }
-
-    /// <summary>
-    /// Creates a <see cref="Block{T}"/> around a <see cref="Span{T}"/>.
-    /// Automatically marks memory as fragile since <see cref="Span{T}"/> is stack allocated.
-    /// </summary>
-    /// <param name="inSpan">Source data.</param>
-    public Block(Span<T> inSpan)
-    {
-        // Note: According to the .NET 7 source code the pointer to a Span should not change over its lifetime.
-        //       While it's not guaranteed to be like this on every platform, once a span goes out of scope,
-        //       its associated memory will too and will be automatically freed. Attempting to access data through a
-        //       Block in this state will cause a segmentation fault.
-        //       If you want to avoid this, convert the Span to an Array first and use that constructor, which will copy
-        //       all elements to a newly allocated region in memory (which might be slower).
-        fixed (T* ptr = inSpan)
-        {
-            BasePtr = ptr;
-            Ptr = BasePtr;
-            BaseSize = inSpan.Length;
-            m_fragileMemory = true;
-        }
-    }
-
-    /// <summary>
-    /// Creates a <see cref="Block{T}"/> around an <see cref="T"/>[] and copies the data to a new address.
-    /// </summary>
-    /// <param name="inArray">Source data.</param>
-    public Block(T[] inArray)
-    {
-        fixed (T* ptr = inArray)
-        {
-            int size = inArray.Length * sizeof(T);
-            BasePtr = (T*)Marshal.AllocHGlobal(size);
-            if (size > 0)
-            {
-                GC.AddMemoryPressure(size);
-            }
-            Ptr = BasePtr;
-            BaseSize = inArray.Length;
-            Buffer.MemoryCopy(ptr, BasePtr, size, size);
-        }
-    }
-
-    /// <summary>
-    /// Attempts to set or get the element at the specified index.
+    ///     Attempts to set or get the element at the specified index.
     /// </summary>
     /// <param name="index">The zero-based index of the element.</param>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown if the index is negative or larger than the size of this <see cref="Block{T}"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    ///     Thrown if the index is negative or larger than the size of this <see cref="Block{T}" />.
+    /// </exception>
     public T this[int index]
     {
         get
         {
-            if (!m_usable)
-            {
-                throw new ObjectDisposedException(ToString());
-            }
-            if (index >= 0 && index < Size)
-            {
-                return Ptr[index];
-            }
-            throw new ArgumentOutOfRangeException(nameof(index));
+            ArgumentOutOfRangeException.ThrowIfNegative(index);
+            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Size);
+            return ToReadOnlySpan()[index];
         }
         set
         {
-            if (!m_usable)
-            {
-                throw new ObjectDisposedException(ToString());
-            }
-            if (index >= 0 && index < Size)
-            {
-                Ptr[index] = value;
-            }
-            else
-            {
-                throw new ArgumentOutOfRangeException(nameof(index));
-            }
+            ArgumentOutOfRangeException.ThrowIfNegative(index);
+            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Size);
+            ToSpan()[index] = value;
         }
     }
 
     /// <summary>
-    /// Clears the whole block.
+    ///     Dispose the block and drops its reference to the memory, the memory stays alive only as long as views of it do.
+    /// </summary>
+    public void Dispose()
+    {
+        _disposed = true;
+        _buffer = [];
+        _baseByteOffset = 0;
+    }
+
+    /// <summary>
+    ///     Clears the whole Block.
     /// </summary>
     public void Clear()
     {
-        NativeMemory.Clear(BasePtr, (nuint)BaseSize);
+        BaseBytes().Clear();
     }
 
     /// <summary>
-    /// Resizes the block to the specified size.
+    ///     Resizes the block to the specified size.
+    ///     The block gets its own memory, elements added to grow the block are zero.
     /// </summary>
-    /// <param name="inNewSize">The new size of the block. Must be at least 1.</param>
+    /// <param name="inNewSize">The new size of the block.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="inNewSize" /> must be at least 1.</exception>
     public void Resize(int inNewSize)
     {
-        if (!m_usable)
-        {
-            throw new ObjectDisposedException(ToString());
-        }
-        if (inNewSize < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(inNewSize));
-        }
+        ArgumentOutOfRangeException.ThrowIfLessThan(inNewSize, 1);
 
-        // Get the old offset.
-        int currentOffset = ShiftAmount;
-        int newSize = inNewSize * sizeof(T);
-        BasePtr = (T*)Marshal.ReAllocHGlobal((IntPtr)BasePtr, newSize);
-        if (BaseSize > 0)
-        {
-            GC.RemoveMemoryPressure(BaseSize * sizeof(T));
-        }
-        BaseSize = newSize;
-        GC.AddMemoryPressure(BaseSize * sizeof(T));
-        // Adjust Ptr since BasePtr has changed.
-        Ptr = BasePtr + currentOffset;
+        Span<byte> oldBytes = BaseBytes();
+        // ReAlloc may move the data
+        byte[] newBuffer = GC.AllocateUninitializedArray<byte>(inNewSize * ElementSize);
+
+        int copied = Math.Min(oldBytes.Length, newBuffer.Length);
+        oldBytes[..copied].CopyTo(newBuffer);
+        newBuffer.AsSpan(copied).Clear();
+
+        _buffer = newBuffer;
+        _baseByteOffset = 0;
+        BaseSize = inNewSize;
     }
 
     /// <summary>
-    /// Shifts the beginning of the Block by the specified amount.
+    ///     Shifts the beginning of the Block by the specified amount.
     /// </summary>
-    /// <param name="inAmount">Amount of elements to shift the <see cref="Block{T}"/> start by.
-    /// Can be negative, but attempting to shift before the beginning of the block will result in an exception.</param>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown if attempting to shift before the beginning of the block (e.g. BasePtr[-1]) or after the end of the block.</exception>
+    /// <param name="inAmount">
+    ///     Number of elements to shift the <see cref="Block{T}" /> start by.
+    ///     Can be negative, but attempting to shift before the beginning of the block will result in an exception.
+    /// </param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    ///     Thrown if attempting to shift before the beginning of the block or after the end of the block.
+    /// </exception>
     public void Shift(int inAmount)
     {
-        if (!m_usable)
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (ShiftAmount + inAmount < 0)
         {
-            throw new ObjectDisposedException(ToString());
+            throw new ArgumentOutOfRangeException(nameof(inAmount),
+                "Attempted to shift before the beginning of the block!");
         }
-        if (Ptr + inAmount < BasePtr)
-        {
-            throw new ArgumentOutOfRangeException(nameof(inAmount), $"Attempted to shift before the beginning of the block!");
-        }
+
         if (inAmount > Size)
         {
-            throw new ArgumentOutOfRangeException(nameof(inAmount), $"Attempted to shift after the end of the block!");
+            throw new ArgumentOutOfRangeException(nameof(inAmount), "Attempted to shift after the end of the block!");
         }
-        Ptr += inAmount;
+
+        // Instead of playing with two pointers, save the shift amount instead.
+        ShiftAmount += inAmount;
     }
 
     /// <summary>
-    /// Resets the Shift back to 0.
+    ///     Resets the Shift back to 0.
     /// </summary>
+    /// <exception cref="ObjectDisposedException">Block disposed.</exception>
     public void ResetShift()
     {
-        if (!m_usable)
-        {
-            throw new ObjectDisposedException(ToString());
-        }
-        Ptr = BasePtr;
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ShiftAmount = 0;
     }
 
     public T[] ToArray()
     {
-        if (!m_usable)
-        {
-            throw new ObjectDisposedException(ToString());
-        }
-        T[] buf = new T[Size];
-        for (int i = 0; i < Size; i++)
-        {
-            buf[i] = this[i];
-        }
-
-        return buf;
+        return [.. ToReadOnlySpan()];
     }
 
     public Span<T> ToSpan()
     {
-        if (!m_usable)
-        {
-            throw new ObjectDisposedException(ToString());
-        }
-        return new Span<T>(Ptr, Size);
+        return ToSpan(0, Size);
     }
 
     public ReadOnlySpan<T> ToReadOnlySpan()
     {
-        if (!m_usable)
-        {
-            throw new ObjectDisposedException(ToString());
-        }
-        return new ReadOnlySpan<T>(Ptr, Size);
+        return ToSpan(0, Size);
     }
 
+    public ReadOnlySpan<T> ToReadOnlySpan(int inStart)
+    {
+        return ToSpan(inStart);
+    }
+
+    public ReadOnlySpan<T> ToReadOnlySpan(int inStart, int inLength)
+    {
+        return ToSpan(inStart, inLength);
+    }
+
+    /// <summary>
+    ///     Reinterprets the current window as a <see cref="Block{TOther}" /> sharing the same memory.
+    /// </summary>
     public Block<TOther> ToBlock<TOther>() where TOther : unmanaged
     {
-        if (!m_usable)
-        {
-            throw new ObjectDisposedException(ToString());
-        }
-        return new Block<TOther>((TOther*)Ptr, (Size * sizeof(T)) / sizeof(TOther));
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        // The original forgot to mark it as fragile. The new one was not fragile.
+        // Unsafe.SizeOf is safe.
+        return new Block<TOther>(_buffer, CurrentByteOffset, Size * ElementSize / Unsafe.SizeOf<TOther>());
     }
 
+    /// <summary>
+    ///     Gets a span starting <paramref name="inStart" /> elements after the shifted start until the end of the block.
+    ///     <paramref name="inStart" /> may be negative to reach back the shifted part.
+    /// </summary>
     public Span<T> ToSpan(int inStart)
     {
-        if (!m_usable)
-        {
-            throw new ObjectDisposedException(ToString());
-        }
-        if (Ptr + inStart < BasePtr)
-        {
-            throw new ArgumentOutOfRangeException(nameof(inStart), $"Attempted to slice before the beginning of the block!");
-        }
-        if (Ptr + inStart > BasePtr + BaseSize)
-        {
-            throw new ArgumentOutOfRangeException(nameof(inStart), $"Attempted to slice after the end of the block!");
-        }
-        return new Span<T>(Ptr + inStart, Size - inStart);
+        return ToSpan(inStart, Size - inStart);
     }
 
+    /// <summary>
+    ///     Gets a span starting <paramref name="inStart" /> elements after the shifted start.
+    ///     <paramref name="inStart" /> may be negative to reach back the shifted part.
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">Block disposed.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="inStart" /> is out of range.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="inLength" /> is invalid.</exception>
     public Span<T> ToSpan(int inStart, int inLength)
     {
-        if (!m_usable)
+        // Keep all the checks here
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (ShiftAmount + inStart < 0)
         {
-            throw new ObjectDisposedException(ToString());
+            throw new ArgumentOutOfRangeException(nameof(inStart),
+                "Attempted to slice before the beginning of the block!");
         }
-        if (Ptr + inStart < BasePtr)
+
+        ArgumentOutOfRangeException.ThrowIfNegative(inLength);
+        if (inStart + inLength > Size)
         {
-            throw new ArgumentOutOfRangeException(nameof(inStart), $"Attempted to slice before the beginning of the block!");
+            throw new ArgumentOutOfRangeException(nameof(inLength), "Attempted to slice after the end of the block!");
         }
-        if (Ptr + inStart + inLength > BasePtr + BaseSize)
-        {
-            throw new ArgumentOutOfRangeException(nameof(inLength), $"Attempted to slice after the end of the block!");
-        }
-        return new Span<T>(Ptr + inStart, inLength);
+
+        return MemoryMarshal.Cast<byte, T>(
+            _buffer.AsSpan(CurrentByteOffset + (inStart * ElementSize), inLength * ElementSize));
     }
 
+    // CA1002: Do not expose generic lists
+#pragma warning disable CA1002
     public List<T> ToList()
+#pragma warning restore CA1002
     {
-        if (!m_usable)
-        {
-            throw new ObjectDisposedException(ToString());
-        }
-        List<T> buf = new(Size);
-        for (int i = 0; i < Size; i++)
-        {
-            buf.Add(this[i]);
-        }
-
-        return buf;
+        return [.. ToReadOnlySpan()];
     }
 
+    /// <summary>
+    ///     Creates a fixed capacity stream over the whole block, positioned at the shifted start.
+    ///     Writes through the stream change the block.
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">Block disposed.</exception>
     public Stream ToStream()
     {
-        if (!m_usable)
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return new MemoryStream(_buffer, _baseByteOffset, BaseSize * ElementSize, true, true)
         {
-            throw new ObjectDisposedException(ToString());
-        }
-        UnmanagedMemoryStream s = new((byte*)BasePtr, BaseSize, BaseSize, FileAccess.ReadWrite);
-        s.Position += ShiftAmount * sizeof(T);
-        return s;
+            Position = ShiftAmount * ElementSize
+        };
     }
 
     /// <summary>
-    /// Interprets the block as a UTF-8 null terminated string.
+    ///     Interprets the block as a UTF-8 null-terminated string.
     /// </summary>
     /// <returns>A string instance from the data of the block.</returns>
-    public static explicit operator string?(Block<T> inBlock)
+    public static explicit operator string(Block<T> inBlock)
     {
-        if (!inBlock.m_usable)
-        {
-            throw new ObjectDisposedException(inBlock.ToString());
-        }
-        return Marshal.PtrToStringUTF8((IntPtr)inBlock.Ptr);
+        ArgumentNullException.ThrowIfNull(inBlock);
+
+        ReadOnlySpan<byte> bytes = MemoryMarshal.AsBytes(inBlock.ToReadOnlySpan());
+        int nullIndex = bytes.IndexOf((byte)0);
+        return Encoding.UTF8.GetString(nullIndex >= 0 ? bytes[..nullIndex] : bytes);
     }
 
-    public static implicit operator Span<T>(Block<T> inBlock)
+    public static implicit operator Span<T>(Block<T>? inBlock)
     {
-        return inBlock.ToSpan();
+        return inBlock is null ? [] : inBlock.ToSpan();
     }
 
-    public static implicit operator ReadOnlySpan<T>(Block<T> inBlock)
+    public static implicit operator ReadOnlySpan<T>(Block<T>? inBlock)
     {
-        return inBlock.ToReadOnlySpan();
+        return inBlock is null ? [] : inBlock.ToReadOnlySpan();
     }
 
     /// <summary>
-    /// Copies the data of this <see cref="Block{T}"/> to the specified destination.
+    ///     Copies the data of this <see cref="Block{T}" /> to the specified destination.
     /// </summary>
     /// <param name="inDest">The block to copy to.</param>
     public void CopyTo(Block<T> inDest)
     {
-        if (!m_usable)
-        {
-            throw new ObjectDisposedException(ToString());
-        }
+        ArgumentNullException.ThrowIfNull(inDest);
+
         if (inDest.BaseSize < BaseSize)
         {
-            throw new ArgumentOutOfRangeException(nameof(inDest), "The target block must be at least as big as the source block!");
+            throw new ArgumentOutOfRangeException(nameof(inDest),
+                "The target block must be at least as big as the source block!");
         }
-        Buffer.MemoryCopy(BasePtr, inDest.BasePtr, inDest.BaseSize, BaseSize);
+
+        BaseBytes().CopyTo(inDest.BaseBytes());
     }
 
     /// <summary>
-    /// Copies part of the data of this <see cref="Block{T}"/> to the specified destination.
+    ///     Copies part of the data of this <see cref="Block{T}" /> to the specified destination.
     /// </summary>
     /// <param name="inDest">The block to copy to.</param>
-    /// <param name="inSize">The number of bytes to copy.</param>
+    /// <param name="inSize">The number of elements (not bytes!) to copy.</param>
     public void CopyTo(Block<T> inDest, int inSize)
     {
-        if (!m_usable)
-        {
-            throw new ObjectDisposedException(ToString());
-        }
+        ArgumentNullException.ThrowIfNull(inDest);
 
         if (inSize > Size)
         {
             throw new ArgumentOutOfRangeException(nameof(inSize), "The source block is not big enough!");
         }
+
         if (inDest.Size < inSize)
         {
             throw new ArgumentOutOfRangeException(nameof(inDest), "The target block is not big enough!");
         }
-        Buffer.MemoryCopy(Ptr, inDest.Ptr, Size, inSize);
-    }
 
-    /// <summary>
-    /// Signals to the <see cref="Block{T}"/> that its underlying memory might already not exist anymore when <see cref="Dispose"/> is called.
-    /// </summary>
-    public void MarkMemoryAsFragile()
-    {
-        m_fragileMemory = true;
-    }
-
-    /// <summary>
-    /// Signals to the <see cref="Block{T}"/> that its underlying memory has been destroyed.
-    /// </summary>
-    public void MarkMemoryAsUnusable()
-    {
-        m_usable = false;
-    }
-
-    private static class EmptyArray<T2> where T2 : unmanaged
-    {
-        internal static readonly Block<T2> Value = new(0);
-    }
-
-    /// <summary>
-    /// Returns an empty Block.
-    /// </summary>
-    /// <returns>An empty Block.</returns>
-    public static Block<T> Empty()
-    {
-        return EmptyArray<T>.Value;
-    }
-
-    public void Dispose()
-    {
-        if (m_usable)
-        {
-            if (!m_fragileMemory)
-            {
-                Marshal.FreeHGlobal((IntPtr)BasePtr);
-                if (BaseSize > 0)
-                {
-                    GC.RemoveMemoryPressure(BaseSize * sizeof(T));
-                }
-            }
-            m_usable = false;
-        }
-        GC.SuppressFinalize(this);
+        ToReadOnlySpan(0, inSize).CopyTo(inDest.ToSpan(0, inSize));
     }
 
     public override string ToString()
     {
         return $"Block<{typeof(T).Name}>[{Size}]";
+    }
+
+    /// <exception cref="ObjectDisposedException">Block disposed.</exception>
+    private Span<byte> BaseBytes()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return _buffer.AsSpan(_baseByteOffset, BaseSize * ElementSize);
     }
 }
