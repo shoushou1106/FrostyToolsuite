@@ -22,11 +22,8 @@ public interface IFileInfo
 
     static void Serialize(DataStream stream, IFileInfo fileInfo)
     {
-        // TODO: Null check decision pending on throw or ignore.
-        if (stream is null || fileInfo is null)
-        {
-            throw new NotImplementedException("TODO: Null check decision pending on throw or ignore.");
-        }
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(fileInfo);
 
         switch (fileInfo)
         {
@@ -48,11 +45,7 @@ public interface IFileInfo
 
     static IFileInfo Deserialize(DataStream stream)
     {
-        // TODO: Null check decision pending on throw or ignore.
-        if (stream is null)
-        {
-            throw new NotImplementedException("TODO: Null check decision pending on throw or ignore.");
-        }
+        ArgumentNullException.ThrowIfNull(stream);
 
         byte type = stream.ReadByte();
 

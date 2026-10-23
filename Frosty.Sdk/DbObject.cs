@@ -33,13 +33,10 @@ public abstract class DbObject(DbObject.Type inType)
     /// </summary>
     /// <param name="stream">The <see cref="DataStream" /> to serialize the <see cref="DbObject" /> to.</param>
     /// <param name="value">The <see cref="DbObject" /> to serialize.</param>
-    public static void Serialize(DataStream? stream, DbObject? value)
+    public static void Serialize(DataStream stream, DbObject value)
     {
-        // TODO: Null check decision pending on throw or ignore.
-        if (stream is null || value is null)
-        {
-            throw new NotImplementedException("TODO: Null check decision pending on throw or ignore.");
-        }
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(value);
 
         stream.WriteByte((byte)value._type);
 
@@ -67,13 +64,9 @@ public abstract class DbObject(DbObject.Type inType)
     /// </summary>
     /// <param name="stream">The <see cref="DataStream" /> to deserialize the <see cref="DbObject" /> from.</param>
     /// <returns>The deserialized <see cref="DbObject" />.</returns>
-    public static DbObject? Deserialize(DataStream? stream)
+    public static DbObject? Deserialize(DataStream stream)
     {
-        // TODO: Null check decision pending on throw or ignore.
-        if (stream is null)
-        {
-            throw new NotImplementedException("TODO: Null check decision pending on throw or ignore.");
-        }
+        ArgumentNullException.ThrowIfNull(stream);
 
         Type type = (Type)stream.ReadByte();
 
@@ -189,9 +182,9 @@ public abstract class DbObject(DbObject.Type inType)
         return new DbObjectList(name, capacity);
     }
 
-    protected abstract void InternalSerialize(DataStream? stream);
+    protected abstract void InternalSerialize(DataStream stream);
 
-    protected abstract void InternalDeserialize(DataStream? stream);
+    protected abstract void InternalDeserialize(DataStream stream);
 
     private static DbObject? CreateDbObject(Type type)
     {

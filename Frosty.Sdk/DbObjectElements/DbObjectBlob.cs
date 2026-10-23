@@ -29,25 +29,17 @@ public class DbObjectBlob : DbObject
         return _value;
     }
 
-    protected override void InternalSerialize(DataStream? stream)
+    protected override void InternalSerialize(DataStream stream)
     {
-        // TODO: Null check decision pending on throw or ignore.
-        if (stream is null)
-        {
-            throw new NotImplementedException("TODO: Null check decision pending on throw or ignore.");
-        }
+        ArgumentNullException.ThrowIfNull(stream);
 
         stream.Write7BitEncodedInt32(_value.Length);
         stream.Write(_value);
     }
 
-    protected override void InternalDeserialize(DataStream? stream)
+    protected override void InternalDeserialize(DataStream stream)
     {
-        // TODO: Null check decision pending on throw or ignore.
-        if (stream is null)
-        {
-            return;
-        }
+        ArgumentNullException.ThrowIfNull(stream);
 
         _value = new byte[stream.Read7BitEncodedInt32()];
         stream.ReadExactly(_value);

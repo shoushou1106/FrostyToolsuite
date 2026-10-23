@@ -28,24 +28,16 @@ public class DbObjectGuid : DbObject
         return _value;
     }
 
-    protected override void InternalSerialize(DataStream? stream)
+    protected override void InternalSerialize(DataStream stream)
     {
-        // TODO: Null check decision pending on throw or ignore.
-        if (stream is null)
-        {
-            throw new NotImplementedException("TODO: Null check decision pending on throw or ignore.");
-        }
+        ArgumentNullException.ThrowIfNull(stream);
 
         stream.WriteGuid(_value);
     }
 
-    protected override void InternalDeserialize(DataStream? stream)
+    protected override void InternalDeserialize(DataStream stream)
     {
-        // TODO: Null check decision pending on throw or ignore.
-        if (stream is null)
-        {
-            throw new NotImplementedException("TODO: Null check decision pending on throw or ignore.");
-        }
+        ArgumentNullException.ThrowIfNull(stream);
 
         _value = stream.ReadGuid();
     }

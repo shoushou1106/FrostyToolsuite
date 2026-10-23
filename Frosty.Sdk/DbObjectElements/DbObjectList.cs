@@ -120,13 +120,9 @@ public class DbObjectList : DbObject, IEnumerable<DbObject>
         _items.Add(new DbObjectBlob(value));
     }
 
-    protected override void InternalSerialize(DataStream? stream)
+    protected override void InternalSerialize(DataStream stream)
     {
-        // TODO: Null check decision pending on throw or ignore.
-        if (stream is null)
-        {
-            throw new NotImplementedException("TODO: Null check decision pending on throw or ignore.");
-        }
+        ArgumentNullException.ThrowIfNull(stream);
 
         Block<byte> sub = new(0);
         using (BlockStream subStream = new(sub, true))
@@ -145,13 +141,9 @@ public class DbObjectList : DbObject, IEnumerable<DbObject>
         sub.Dispose();
     }
 
-    protected override void InternalDeserialize(DataStream? stream)
+    protected override void InternalDeserialize(DataStream stream)
     {
-        // TODO: Null check decision pending on throw or ignore.
-        if (stream is null)
-        {
-            throw new NotImplementedException("TODO: Null check decision pending on throw or ignore.");
-        }
+        ArgumentNullException.ThrowIfNull(stream);
 
         stream.Read7BitEncodedInt64();
         while (true)

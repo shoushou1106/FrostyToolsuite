@@ -12,11 +12,7 @@ public class EbxPartition
 
     public EbxPartition(params IEbxInstance[] rootObjects)
     {
-        // TODO: Null check decision pending on throw or ignore.
-        if (rootObjects is null)
-        {
-            throw new NotImplementedException("TODO: Null check decision pending on throw or ignore.");
-        }
+        ArgumentNullException.ThrowIfNull(rootObjects);
 
         PartitionGuid = Guid.NewGuid();
 
@@ -88,11 +84,7 @@ public class EbxPartition
 
     public void AddObject(IEbxInstance obj)
     {
-        // TODO: Null check decision pending on throw or ignore.
-        if (obj is null)
-        {
-            throw new NotImplementedException("TODO: Null check decision pending on throw or ignore.");
-        }
+        ArgumentNullException.ThrowIfNull(obj);
 
         AssetClassGuid guid = obj.GetInstanceGuid();
         if (guid.InternalId == -1)
