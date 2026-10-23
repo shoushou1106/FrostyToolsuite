@@ -1,7 +1,8 @@
 namespace Frosty.Sdk.Utils;
 
 /// <summary>
-///     A <see cref="HuffmanNode" /> with additional integer for how many times this node was encountered in the data to encode.
+///     A <see cref="HuffmanNode" /> with additional integer for how many times this node was encountered in the data to
+///     encode.
 ///     This is used to construct the huffman tree.
 /// </summary>
 internal sealed class HuffManConstructionNode : HuffmanNode, IComparable<HuffManConstructionNode>

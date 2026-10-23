@@ -134,7 +134,7 @@ public class HuffmanEncoder
             uint reverseNumber = BinaryPrimitives.ReverseEndianness(number);
             BitConverter.TryWriteBytes(slice, reverseNumber);
         }
-        
+
         // This should no longer be necessary, when calling padding before
         // if (index < littleEndianByteArray.Length)
         // {
@@ -531,8 +531,8 @@ public class HuffmanEncoder
     }
 
     /// <summary>
-    /// Returns the byte array for the given bool list. Does not take encoding into account!
-    /// According to the BitArray docs the result is always in little endian.
+    ///     Returns the byte array for the given bool list. Does not take encoding into account!
+    ///     According to the BitArray docs the result is always in little endian.
     /// </summary>
     private static byte[] GetByteArrayForBoolList0(IList<bool> encodedTestsAsBools, bool usePadding)
     {
