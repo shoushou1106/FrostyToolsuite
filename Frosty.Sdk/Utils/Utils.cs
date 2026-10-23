@@ -1,25 +1,29 @@
-using System;
 using System.Buffers.Binary;
-using System.Collections.Generic;
 using System.Security.Cryptography;
+
 using Frosty.Sdk.Ebx;
-using Frosty.Sdk.IO;
 
 namespace Frosty.Sdk.Utils;
 
+// CA1724: Type names should not match namespaces
+#pragma warning disable CA1724
 public static class Utils
 {
     public static string BaseDirectory { get; set; } = string.Empty;
 
     public static int HashString(string value, bool toLower = false)
     {
+        ArgumentNullException.ThrowIfNull(value);
+
         const uint kOffset = 5381;
         const uint kPrime = 33;
 
         uint hash = kOffset;
-        for (int i = 0; i < value.Length; i++)
+        // Hot path, keep it a plain loop instead of LINQ
+        // ReSharper disable once ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
+        foreach (char c in value)
         {
-            hash = (hash * kPrime) ^ (byte)(toLower ? char.ToLower(value[i]) : value[i]);
+            hash = (hash * kPrime) ^ (byte)(toLower ? char.ToLowerInvariant(c) : c);
         }
 
         return (int)hash;
@@ -27,13 +31,15 @@ public static class Utils
 
     public static int HashStringA(string value, bool toLower = false)
     {
+        ArgumentNullException.ThrowIfNull(value);
+
         const uint kOffset = 5381;
         const uint kPrime = 33;
 
         uint hash = kOffset;
-        for (int i = 0; i < value.Length; i++)
+        foreach (char c in value)
         {
-            hash ^= (byte)(toLower ? char.ToLower(value[i]) : value[i]);
+            hash ^= (byte)(toLower ? char.ToLowerInvariant(c) : c);
             hash *= kPrime;
         }
 
@@ -42,10 +48,12 @@ public static class Utils
 
     public static Guid GenerateDeterministicGuid(IEnumerable<object> objects, Guid fileGuid)
     {
+        ArgumentNullException.ThrowIfNull(objects);
+
         Guid outGuid;
 
         int createCount = 0;
-        HashSet<Guid> existingGuids = new();
+        HashSet<Guid> existingGuids = [];
         foreach (dynamic obj in objects)
         {
             AssetClassGuid objGuid = obj.GetInstanceGuid();
@@ -53,19 +61,19 @@ public static class Utils
             createCount++;
         }
 
-        Block<byte> buffer = new(stackalloc byte[20]);
+        Span<byte> buffer = stackalloc byte[20];
+        fileGuid.TryWriteBytes(buffer);
 
         Span<byte> result = stackalloc byte[16];
         while (true)
         {
-            // generate a deterministic unique guid
-            using (DataStream writer = new(buffer.ToStream()))
-            {
-                writer.WriteGuid(fileGuid);
-                writer.WriteInt32(++createCount);
-            }
+            // Generate a deterministic unique guid
+            BinaryPrimitives.WriteInt32LittleEndian(buffer[16..], ++createCount);
 
-            MD5.HashData(buffer.ToSpan(), result);
+            // CA5351: Do Not Use Broken Cryptographic Algorithms
+#pragma warning disable CA5351
+            MD5.HashData(buffer, result);
+#pragma warning restore CA5351
             outGuid = new Guid(result);
 
             if (!existingGuids.Contains(outGuid))
@@ -74,38 +82,26 @@ public static class Utils
             }
         }
 
-        buffer.Dispose();
-
         return outGuid;
     }
 
     public static Sha1 GenerateSha1(ReadOnlySpan<byte> buffer)
     {
         Span<byte> hashed = stackalloc byte[20];
+        // CA5350: Do Not Use Weak Cryptographic Algorithms
+#pragma warning disable CA5350
         SHA1.HashData(buffer, hashed);
+#pragma warning restore CA5350
         Sha1 newSha1 = new(hashed);
         return newSha1;
     }
 
     public static ulong GenerateResourceId()
     {
-        Random random = new();
-
-        const ulong min = ulong.MinValue;
-        const ulong max = ulong.MaxValue;
-
-        const ulong uRange = max - min;
-        ulong ulongRand;
-
-        Span<byte> buf = stackalloc byte[8];
-        do
-        {
-            random.NextBytes(buf);
-            ulongRand = BinaryPrimitives.ReadUInt64LittleEndian(buf);
-
-        } while (ulongRand > max - (max % uRange + 1) % uRange);
-
-        return (ulongRand % uRange + min) | 1;
+        // Any random odd value
+        Span<byte> buf = stackalloc byte[sizeof(ulong)];
+        RandomNumberGenerator.Fill(buf);
+        return BinaryPrimitives.ReadUInt64LittleEndian(buf) | 1;
     }
 
     public static int CompareToBigEndian(this Guid a, Guid b)
@@ -127,3 +123,4 @@ public static class Utils
         return 0;
     }
 }
+#pragma warning restore CA1724

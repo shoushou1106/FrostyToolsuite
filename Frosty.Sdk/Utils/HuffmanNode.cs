@@ -3,19 +3,10 @@ using Frosty.Sdk.IO;
 namespace Frosty.Sdk.Utils;
 
 /// <summary>
-/// A node in the huffman coding scheme
+///     A node in the huffman coding scheme
 /// </summary>
 internal class HuffmanNode : IComparable<HuffmanNode>
 {
-    public bool IsLeaf => Left == null && Right == null;
-    public char Letter => (char)(~Value);
-
-    public uint Value;
-    public HuffmanNode? Left { get; private set; }
-    public HuffmanNode? Right { get; private set; }
-
-    public HuffmanNode? Parent { get; private set; }
-
     public HuffmanNode()
     {
     }
@@ -30,6 +21,20 @@ internal class HuffmanNode : IComparable<HuffmanNode>
     public HuffmanNode(DataStream stream, Endian endian)
     {
         Value = stream.ReadUInt32(endian);
+    }
+
+    public bool IsLeaf => Left is null && Right is null;
+    public char Letter => (char)~Value;
+
+    public uint Value { get; set; }
+    public HuffmanNode? Left { get; private set; }
+    public HuffmanNode? Right { get; private set; }
+
+    public HuffmanNode? Parent { get; private set; }
+
+    public int CompareTo(HuffmanNode? other)
+    {
+        return other is null ? 1 : Value.CompareTo(other.Value);
     }
 
     public void SetLeftNode(HuffmanNode leftNode)
@@ -50,40 +55,27 @@ internal class HuffmanNode : IComparable<HuffmanNode>
         {
             uint.MaxValue => "endDelimiter",
             4294967285 => "newLine",
-            _ => Letter.ToString(),
+            _ => Letter.ToString()
         };
         return $"[Value = <{Value}> | Letter = <{printLetter}>]";
     }
 
     /// <summary>
-    /// Returns the bit representation of this node, to be used in tests.
+    ///     Returns the bit representation of this node, to be used in tests.
     /// </summary>
     /// <returns>The bit representation of this node.</returns>
     public string GetBitRepresentation()
     {
-        if (Parent == null)
+        if (Parent is null)
         {
-            return "";
+            return string.Empty;
         }
 
-        string bitVal;
-        if (this == Parent.Left)
-        {
-            bitVal = "0";
-        }
-        else if (this == Parent.Right)
-        {
-            bitVal = "1";
-        }
-        else
-        {
-            bitVal = "ERROR!";
-        }
+        string bitVal = this == Parent.Left
+            ? "0"
+            : this == Parent.Right
+                ? "1"
+                : "ERROR!";
         return Parent.GetBitRepresentation() + bitVal;
-    }
-
-    public int CompareTo(HuffmanNode? other)
-    {
-        return Value.CompareTo(other?.Value);
     }
 }

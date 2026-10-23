@@ -18,16 +18,24 @@ public partial class CompressionZLib : ICompressionFormat
     public unsafe void Decompress<T>(Block<T> inData, ref Block<T> outData, CompressionFlags inFlags = CompressionFlags.None) where T : unmanaged
     {
         int destCapacity = outData.Size;
-        int err = uncompress((nuint)outData.Ptr, (nuint)(&destCapacity), (nuint)inData.Ptr, (nuint)inData.Size);
-        Error(err);
+        fixed (T* inPtr = inData.ToReadOnlySpan())
+        fixed (T* outPtr = outData.ToSpan())
+        {
+            int err = uncompress((nuint)outPtr, (nuint)(&destCapacity), (nuint)inPtr, (nuint)inData.Size);
+            Error(err);
+        }
     }
 
     public unsafe int Compress<T>(Block<T> inData, ref Block<T> outData, CompressionFlags inFlags = CompressionFlags.None) where T : unmanaged
     {
         int destSize = outData.Size;
-        int err = compress((nuint)outData.Ptr, (nuint)(&destSize), (nuint)inData.Ptr, (nuint)inData.Size);
-        Error(err);
-        return destSize;
+        fixed (T* inPtr = inData.ToReadOnlySpan())
+        fixed (T* outPtr = outData.ToSpan())
+        {
+            int err = compress((nuint)outPtr, (nuint)(&destSize), (nuint)inPtr, (nuint)inData.Size);
+            Error(err);
+            return destSize;
+        }
     }
 
     public int GetCompressBounds(int inRawSize, CompressionFlags inFlags = CompressionFlags.None)

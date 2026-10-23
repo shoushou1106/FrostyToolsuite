@@ -40,23 +40,30 @@ public partial class CompressionZStd : ICompressionFormat
     public unsafe void Decompress<T>(Block<T> inData, ref Block<T> outData, CompressionFlags inFlags = CompressionFlags.None) where T : unmanaged
     {
         nuint code;
-        if (inFlags.HasFlag(CompressionFlags.ZStdUseDicts))
+        fixed (T* inPtr = inData.ToReadOnlySpan())
+        fixed (T* outPtr = outData.ToSpan())
         {
-            if (s_DDict == nuint.Zero)
+            if (inFlags.HasFlag(CompressionFlags.ZStdUseDicts))
             {
-                using (Block<byte> ebxDict = FileSystemManager.GetFileFromMemoryFs("Dictionaries/ebx.dict"))
+                if (s_DDict == nuint.Zero)
                 {
-                    s_DDict = ZSTD_createDDict((nuint)ebxDict.Ptr, (nuint)ebxDict.Size);
+                    using (Block<byte> ebxDict = FileSystemManager.GetFileFromMemoryFs("Dictionaries/ebx.dict"))
+                    {
+                        fixed (byte* dictPtr = ebxDict.ToReadOnlySpan())
+                        {
+                            s_DDict = ZSTD_createDDict((nuint)dictPtr, (nuint)ebxDict.Size);
+                        }
+                    }
                 }
-            }
 
-            nuint dctx = ZSTD_createDCtx();
-            code = ZSTD_decompress_usingDDict(dctx, (nuint)outData.Ptr, (nuint)outData.Size, (nuint)inData.Ptr, (nuint)inData.Size, s_DDict);
-            ZSTD_freeDCtx(dctx);
-        }
-        else
-        {
-            code = ZSTD_decompress((nuint)outData.Ptr, (nuint)outData.Size, (nuint)inData.Ptr, (nuint)inData.Size);
+                nuint dctx = ZSTD_createDCtx();
+                code = ZSTD_decompress_usingDDict(dctx, (nuint)outPtr, (nuint)outData.Size, (nuint)inPtr, (nuint)inData.Size, s_DDict);
+                ZSTD_freeDCtx(dctx);
+            }
+            else
+            {
+                code = ZSTD_decompress((nuint)outPtr, (nuint)outData.Size, (nuint)inPtr, (nuint)inData.Size);
+            }
         }
         GetError(code);
     }
@@ -64,9 +71,13 @@ public partial class CompressionZStd : ICompressionFormat
     /// <inheritdoc/>
     public unsafe int Compress<T>(Block<T> inData, ref Block<T> outData, CompressionFlags inFlags = CompressionFlags.None) where T : unmanaged
     {
-        nuint code = ZSTD_compress((nuint)outData.Ptr, (nuint)outData.Size, (nuint)inData.Ptr, (nuint)inData.Size);
-        GetError(code);
-        return (int)code;
+        fixed (T* inPtr = inData.ToReadOnlySpan())
+        fixed (T* outPtr = outData.ToSpan())
+        {
+            nuint code = ZSTD_compress((nuint)outPtr, (nuint)outData.Size, (nuint)inPtr, (nuint)inData.Size);
+            GetError(code);
+            return (int)code;
+        }
     }
 
     /// <inheritdoc/>

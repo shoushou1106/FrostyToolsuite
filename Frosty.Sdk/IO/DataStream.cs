@@ -9,7 +9,7 @@ using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.IO;
 
-public unsafe class DataStream : IDisposable
+public class DataStream : IDisposable
 {
     /// <inheritdoc cref="Stream.Position"/>
     public long Position
@@ -157,7 +157,7 @@ public unsafe class DataStream : IDisposable
 
     public Half ReadHalf(Endian endian = Endian.Little)
     {
-        Span<byte> buffer = stackalloc byte[sizeof(Half)];
+        Span<byte> buffer = stackalloc byte[Unsafe.SizeOf<Half>()];
         m_stream.ReadExactly(buffer);
 
         if (endian == Endian.Big)
@@ -207,7 +207,7 @@ public unsafe class DataStream : IDisposable
             byte c = ReadByte();
             if (c == 0)
             {
-                return (inEncoding ?? Encoding.UTF8).GetString(m_buffer.Ptr, i);
+                return (inEncoding ?? Encoding.UTF8).GetString(m_buffer.ToReadOnlySpan(0, i));
             }
 
             if (i >= m_buffer.Size)
@@ -279,7 +279,7 @@ public unsafe class DataStream : IDisposable
 
     public Guid ReadGuid(Endian endian = Endian.Little)
     {
-        Span<byte> span = stackalloc byte[sizeof(Guid)];
+        Span<byte> span = stackalloc byte[Unsafe.SizeOf<Guid>()];
         m_stream.ReadExactly(span);
 
         if (endian == Endian.Big)
@@ -294,7 +294,7 @@ public unsafe class DataStream : IDisposable
 
     public Sha1 ReadSha1()
     {
-        Span<byte> span = stackalloc byte[sizeof(Sha1)];
+        Span<byte> span = stackalloc byte[Unsafe.SizeOf<Sha1>()];
         m_stream.ReadExactly(span);
 
         return new Sha1(span);
@@ -392,7 +392,7 @@ public unsafe class DataStream : IDisposable
 
     public void WriteHalf(Half value, Endian endian = Endian.Little)
     {
-        Span<byte> buffer = stackalloc byte[sizeof(Half)];
+        Span<byte> buffer = stackalloc byte[Unsafe.SizeOf<Half>()];
 
         if (endian == Endian.Big)
         {
@@ -476,7 +476,7 @@ public unsafe class DataStream : IDisposable
 
     public void WriteGuid(Guid value, Endian endian = Endian.Little)
     {
-        Span<byte> buffer = stackalloc byte[sizeof(Guid)];
+        Span<byte> buffer = stackalloc byte[Unsafe.SizeOf<Guid>()];
 
         value.TryWriteBytes(buffer);
 
@@ -492,7 +492,7 @@ public unsafe class DataStream : IDisposable
 
     public void WriteSha1(Sha1 value)
     {
-        Span<byte> buffer = stackalloc byte[sizeof(Sha1)];
+        Span<byte> buffer = stackalloc byte[Unsafe.SizeOf<Sha1>()];
 
         value.TryWriteBytes(buffer);
 

@@ -111,10 +111,14 @@ public partial class CompressionOodle : ICompressionFormat
 
     public unsafe void Decompress<T>(Block<T> inData, ref Block<T> outData, CompressionFlags inFlags = CompressionFlags.None) where T : unmanaged
     {
-        nuint retCode = OodleLZ_Decompress((nuint)inData.Ptr, (nuint)inData.Size, (nuint)outData.Ptr, (nuint)outData.Size);
-        if (retCode == 0)
+        fixed (T* inPtr = inData.ToReadOnlySpan())
+        fixed (T* outPtr = outData.ToSpan())
         {
-            throw new Exception("An Oodle operation failed.");
+            nuint retCode = OodleLZ_Decompress((nuint)inPtr, (nuint)inData.Size, (nuint)outPtr, (nuint)outData.Size);
+            if (retCode == 0)
+            {
+                throw new Exception("An Oodle operation failed.");
+            }
         }
     }
 
@@ -122,14 +126,18 @@ public partial class CompressionOodle : ICompressionFormat
     {
         // 2.6.0 - add scratchMem and scratchSize
 
-        nuint retCode = OodleLZ_Compress(m_compressors[inFlags], (nuint)inData.Ptr, (nuint)inData.Size,
-            (nuint)outData.Ptr, OodleLZ_CompressionLevel.OodleLZ_CompressionLevel_Optimal5);
-        if (retCode == 0)
+        fixed (T* inPtr = inData.ToReadOnlySpan())
+        fixed (T* outPtr = outData.ToSpan())
         {
-            throw new Exception("An Oodle operation failed.");
-        }
+            nuint retCode = OodleLZ_Compress(m_compressors[inFlags], (nuint)inPtr, (nuint)inData.Size,
+                (nuint)outPtr, OodleLZ_CompressionLevel.OodleLZ_CompressionLevel_Optimal5);
+            if (retCode == 0)
+            {
+                throw new Exception("An Oodle operation failed.");
+            }
 
-        return (int)retCode;
+            return (int)retCode;
+        }
     }
 
     public int GetCompressBounds(int inRawSize, CompressionFlags inFlags = CompressionFlags.None)

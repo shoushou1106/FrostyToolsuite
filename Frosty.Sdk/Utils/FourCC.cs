@@ -1,68 +1,106 @@
-using System;
-
 namespace Frosty.Sdk.Utils;
 
-public struct FourCC
+public readonly struct FourCc(uint value) : IEquatable<FourCc>
 {
-    private uint m_value;
+    private readonly uint _value = value;
 
-    public static implicit operator uint(FourCC value) => value.m_value;
-    public static implicit operator FourCC(uint value) => new(){m_value = value};
+    public static implicit operator uint(FourCc value)
+    {
+        return value._value;
+    }
 
-    public static implicit operator string(FourCC value) => FromFourCC(value);
-    public static implicit operator FourCC(string value) => ToFourCC(value);
+    public static implicit operator FourCc(uint value)
+    {
+        return new FourCc(value);
+    }
 
-    public static bool operator ==(FourCC a, object b) => a.Equals(b);
+    public static implicit operator string(FourCc value)
+    {
+        return FromFourCc(value);
+    }
 
-    public static bool operator !=(FourCC a, object b) => !a.Equals(b);
+    public static implicit operator FourCc(string value)
+    {
+        return ToFourCc(value);
+    }
+
+    public static FourCc FromUInt32(uint value)
+    {
+        return new FourCc(value);
+    }
+
+    public uint ToUInt32()
+    {
+        return _value;
+    }
+
+    public static bool operator ==(FourCc a, FourCc b)
+    {
+        return a.Equals(b);
+    }
+
+    public static bool operator !=(FourCc a, FourCc b)
+    {
+        return !a.Equals(b);
+    }
+
+    public static bool operator ==(FourCc a, object? b)
+    {
+        return a.Equals(b);
+    }
+
+    public static bool operator !=(FourCc a, object? b)
+    {
+        return !a.Equals(b);
+    }
 
     public override bool Equals(object? obj)
     {
-        if (obj is uint b)
+        return obj switch
         {
-            return b == m_value;
-        }
-
-        if (obj is string s)
-        {
-            return Equals(ToFourCC(s));
-        }
-
-        return obj is FourCC other && Equals(other);
+            uint b => b == _value,
+            string s => Equals(ToFourCc(s)),
+            FourCc other => Equals(other),
+            _ => false
+        };
     }
 
-    public bool Equals(FourCC other)
+    public bool Equals(FourCc other)
     {
-        return m_value == other.m_value;
+        return _value == other._value;
     }
 
     public override int GetHashCode()
     {
-        return (int)m_value;
+        return (int)_value;
     }
 
-    public static string FromFourCC(FourCC value)
+    public static string FromFourCc(FourCc value)
     {
-        char[] result = new char[4];
-        result[0] = (char)(value.m_value & 0xFF);
-        result[1] = (char)((value.m_value >> 8) & 0xFF);
-        result[2] = (char)((value.m_value >> 16) & 0xFF);
-        result[3] = (char)((value.m_value >> 24) & 0xFF);
+        ReadOnlySpan<char> result =
+        [
+            (char)(value._value & 0xFF),
+            (char)((value._value >> 8) & 0xFF),
+            (char)((value._value >> 16) & 0xFF),
+            (char)((value._value >> 24) & 0xFF)
+        ];
         return new string(result);
     }
 
-    public static FourCC ToFourCC(string value)
+    public static FourCc ToFourCc(string value)
     {
+        ArgumentNullException.ThrowIfNull(value);
+
         if (value.Length != 4)
         {
-            throw new Exception();
+            throw new ArgumentException("FourCC string must be exactly 4 characters long.", nameof(value));
         }
 
-        uint result = (uint)((byte)value[3] << 24
-                             | (byte)value[2] << 16
-                             | (byte)value[1] << 8
+        uint result = (uint)(((byte)value[3] << 24)
+                             | ((byte)value[2] << 16)
+                             | ((byte)value[1] << 8)
                              | (byte)value[0]);
 
-        return new FourCC { m_value = result };
+        return new FourCc(result);
     }
 }

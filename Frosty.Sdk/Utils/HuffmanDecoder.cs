@@ -1,34 +1,37 @@
-using Frosty.Sdk.IO;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+using System.Buffers.Binary;
 using System.Text;
+
+using Frosty.Sdk.IO;
 
 namespace Frosty.Sdk.Utils;
 
 public class HuffmanDecoder
 {
-    /// <summary>
-    /// Root Node of the Huffman Table.
-    /// </summary>
-    private HuffmanNode? m_rootNode;
-
-    private int[]? m_data;
+    private int[]? _data;
 
     /// <summary>
-    /// Parses a Huffman Table.
+    ///     Root Node of the Huffman Table.
     /// </summary>
-    /// <param name="stream">The <see cref="DataStream"/> the Huffman Table gets read from.</param>
-    /// <param name="count">The number of Huffman Nodes the Table contains. This is the number of 32 bit Integers contained in the table or tree.</param>
+    private HuffmanNode? _rootNode;
+
+    /// <summary>
+    ///     Parses a Huffman Table.
+    /// </summary>
+    /// <param name="stream">The <see cref="DataStream" /> the Huffman Table gets read from.</param>
+    /// <param name="count">
+    ///     The number of Huffman Nodes the Table contains.
+    ///     This is the number of 32 bit Integers contained in the table or tree.
+    /// </param>
     /// <param name="endian">The Endianess in which the Huffman Table gets read.</param>
     public void ReadHuffmanTable(DataStream stream, uint count, Endian endian = Endian.Little)
     {
-        m_rootNode = null;
+        ArgumentNullException.ThrowIfNull(stream);
+
+        _rootNode = null;
         HuffmanNode? leftNode = null;
         HuffmanNode? rightNode = null;
 
-        List<HuffmanNode> nodes = new();
+        List<HuffmanNode> nodes = [];
         uint nodeValue = 0;
 
         for (int i = 0; i < count; i++)
@@ -40,11 +43,11 @@ public class HuffmanDecoder
                 n = nodes[idx];
             }
 
-            if (leftNode == null)
+            if (leftNode is null)
             {
                 leftNode = n;
             }
-            else if (rightNode == null)
+            else if (rightNode is null)
             {
                 rightNode = n;
                 if (idx == -1)
@@ -53,7 +56,7 @@ public class HuffmanDecoder
                 }
 
                 n = new HuffmanNode(nodeValue++, leftNode, rightNode);
-                m_rootNode = n;
+                _rootNode = n;
 
                 leftNode = null;
                 rightNode = null;
@@ -68,89 +71,87 @@ public class HuffmanDecoder
     }
 
     /// <summary>
-    /// Reads in the encoded data.
+    ///     Reads in the encoded data.
     /// </summary>
-    /// <param name="stream">The <see cref="DataStream"/> the encoded data gets read from.</param>
-    /// <param name="integerCount">The number of <see cref="int"/>s the data contains.</param>
-    /// <param name="endian">The <see cref="Endian"/> in which the encoded data gets read.</param>
+    /// <param name="stream">The <see cref="DataStream" /> the encoded data gets read from.</param>
+    /// <param name="integerCount">The number of <see cref="int" />s the data contains.</param>
+    /// <param name="endian">The <see cref="Endian" /> in which the encoded data gets read.</param>
     public void ReadEncodedData(DataStream stream, uint integerCount, Endian endian = Endian.Little)
     {
-        m_data = new int[integerCount];
+        ArgumentNullException.ThrowIfNull(stream);
+
+        _data = new int[integerCount];
 
         for (int i = 0; i < integerCount; i++)
         {
-            m_data[i] = stream.ReadInt32(endian);
+            _data[i] = stream.ReadInt32(endian);
         }
     }
 
     /// <summary>
-    /// Reads in the encoded data of the given byte length, for cases that the data to read does not match integer sizes.
+    ///     Reads in the encoded data of the given byte length, for cases that the data to read does not match integer sizes.
     /// </summary>
-    /// <param name="stream">The <see cref="DataStream"/> the encoded data gets read from.</param>
-    /// <param name="byteCount">The number of <see cref="byte"/>s to read.</param>
-    /// <param name="endian">The <see cref="Endian"/> in which the encoded data gets read.</param>
+    /// <param name="stream">The <see cref="DataStream" /> the encoded data gets read from.</param>
+    /// <param name="byteCount">The number of <see cref="byte" />s to read.</param>
+    /// <param name="endian">The <see cref="Endian" /> in which the encoded data gets read.</param>
     public void ReadOddSizedEncodedData(DataStream stream, uint byteCount, Endian endian = Endian.Little)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+
         uint intLength = byteCount / 4;
 
-        m_data = new int[intLength + 1];
+        _data = new int[intLength + 1];
 
         for (int i = 0; i < intLength; i++)
         {
-            m_data[i] = stream.ReadInt32(endian);
+            _data[i] = stream.ReadInt32(endian);
         }
 
-        // read remaining bytes as full int
-        byte[] remaining = new byte[4];
-        stream.ReadBytes((int)byteCount % 4).CopyTo(remaining, 0);
+        // Read remaining bytes as full int
+        Span<byte> remaining = stackalloc byte[sizeof(int)];
+        stream.ReadExactly(remaining[..((int)byteCount % 4)]);
 
-        bool switchBytes = (endian == Endian.Little && !BitConverter.IsLittleEndian) || (endian == Endian.Big && BitConverter.IsLittleEndian);
-        if (switchBytes)
-        {
-            remaining = remaining.Reverse().ToArray();
-        }
-        // might be better to replace this with the same method used in the DataStream readInt method
-        m_data[intLength] = BitConverter.ToInt32(remaining);
+        _data[intLength] = endian == Endian.Big
+            ? BinaryPrimitives.ReadInt32BigEndian(remaining)
+            : BinaryPrimitives.ReadInt32LittleEndian(remaining);
     }
 
     /// <summary>
-    /// Reads a Huffman encoded string.
+    ///     Reads a Huffman encoded string.
     /// </summary>
     /// <param name="bitIndex">The index of the bit at which the encoded string starts.</param>
     /// <returns>The Huffman decoded string.</returns>
     /// <exception cref="InvalidDataException">Is thrown when the root node or encoded data were not read in before.</exception>
     public string ReadHuffmanEncodedString(int bitIndex)
     {
-        if (m_rootNode == null || m_data == null)
+        if (_rootNode is null || _data is null)
         {
-            string rootNodeMissingErrorPart = m_rootNode != null ? "" : " The root node was not established by calling 'ReadHuffmanTable'!";
-            string dataMissingErrorPart = m_data != null ? "" : " No huffman encoded data was read with 'ReadEncodedData'!";
-            throw new InvalidDataException(string.Format("HuffmanDecoder state is not initialized!{0}{1}", rootNodeMissingErrorPart, dataMissingErrorPart));
+            string rootNodeMissingErrorPart = _rootNode is not null
+                ? string.Empty
+                : " The root node was not established by calling 'ReadHuffmanTable'!";
+            string dataMissingErrorPart = _data is not null
+                ? string.Empty
+                : " No huffman encoded data was read with 'ReadEncodedData'!";
+            throw new InvalidDataException(
+                $"HuffmanDecoder state is not initialized!{rootNodeMissingErrorPart}{dataMissingErrorPart}");
         }
 
-        int dataLengthInBits = m_data.Length * 32;
+        int dataLengthInBits = _data.Length * 32;
 
         StringBuilder sb = new();
         while (true)
         {
-            HuffmanNode node = m_rootNode;
+            HuffmanNode node = _rootNode;
 
             while (!node.IsLeaf && bitIndex < dataLengthInBits)
             {
-                int bit = (m_data[bitIndex / 32] >> (bitIndex % 32)) & 1;
-                if (bit == 0)
-                {
-                    node = node.Left!;
-                }
-                else
-                {
-                    node = node.Right!;
-                }
+                int bit = (_data[bitIndex / 32] >> (bitIndex % 32)) & 1;
+                node = bit == 0 ? node.Left! : node.Right!;
                 bitIndex++;
             }
 
             if (node.Letter == 0x00
-                // should probably throw an exception instead or at least print a warning when the bit index is outside the read data array
+                // TODO: Should probably throw an exception instead or at least print a warning when the bit index is outside the read data array
                 || bitIndex >= dataLengthInBits)
             {
                 return sb.ToString();
@@ -162,7 +163,7 @@ public class HuffmanDecoder
 
     public void Dispose()
     {
-        m_rootNode = null;
-        m_data = null;
+        _rootNode = null;
+        _data = null;
     }
 }

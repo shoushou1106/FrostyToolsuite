@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -338,23 +338,7 @@ public sealed unsafe partial class MemoryReader
 
     private void ReadMemory(nint inAddress, Block<byte> outData, out nint bytesRead)
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            if (!ReadProcessMemory(m_process.SafeHandle, inAddress, (nint)outData.Ptr, outData.Size, out bytesRead))
-            {
-                throw new Win32Exception();
-            }
-        }
-        else
-        {
-            iovec localIo = new() { iov_base = outData.Ptr, iov_len = (nuint)outData.Size };
-            iovec remoteIo = new() { iov_base = inAddress.ToPointer(), iov_len = (nuint)outData.Size };
-
-            if ((bytesRead = process_vm_readv(m_process.Id, &localIo, 1, &remoteIo, 1, 0)) == -1)
-            {
-                throw new Exception();
-            }
-        }
+        ReadMemory(inAddress, outData.ToSpan(), out bytesRead);
     }
 
     private void ReadMemory(nint inAddress, Span<byte> outData, out nint bytesRead)

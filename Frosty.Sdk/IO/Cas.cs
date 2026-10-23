@@ -1,4 +1,4 @@
-﻿using Frosty.Sdk.IO.Compression;
+using Frosty.Sdk.IO.Compression;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -12,7 +12,7 @@ namespace Frosty.Sdk.IO;
 
 public static class Cas
 {
-    public static unsafe Block<byte> CompressData(Block<byte> inData, CompressionType inType, CompressionFlags inFlags)
+    public static Block<byte> CompressData(Block<byte> inData, CompressionType inType, CompressionFlags inFlags)
     {
         int blockCount = (inData.Size + ProfilesLibrary.MaxBufferSize - 1) / ProfilesLibrary.MaxBufferSize;
 
@@ -22,8 +22,7 @@ public static class Cas
             for (int i = 0; i < blockCount; i++)
             {
                 int decompressedSize = Math.Min(ProfilesLibrary.MaxBufferSize, inData.Size);
-                Block<byte> data = new(inData.Ptr, decompressedSize);
-                data.MarkMemoryAsFragile();
+                Block<byte> data = new(inData, decompressedSize);
 
                 ICompressionFormat? compressor = null;
                 switch (inType)
@@ -560,7 +559,7 @@ public static class Cas
         return compressedSize;
     }
 
-    private static unsafe void ReadBlock(DataStream inStream, Block<byte>? outBuffer)
+    private static void ReadBlock(DataStream inStream, Block<byte>? outBuffer)
     {
         ulong packed = inStream.ReadUInt64(Endian.Big);
 
@@ -584,8 +583,7 @@ public static class Cas
         Block<byte> compressedBuffer;
         if ((compressionType & ~CompressionType.Obfuscated) == CompressionType.None && outBuffer is not null)
         {
-            compressedBuffer = new Block<byte>(outBuffer.Ptr, bufferSize);
-            compressedBuffer.MarkMemoryAsFragile();
+            compressedBuffer = new Block<byte>(outBuffer, bufferSize);
         }
         else
         {
@@ -641,7 +639,7 @@ public static class Cas
         return outBuffer;
     }
 
-    private static unsafe void Decompress(Block<byte> inCompressedBuffer, CompressionType inCompressionType, byte inFlags,
+    private static void Decompress(Block<byte> inCompressedBuffer, CompressionType inCompressionType, byte inFlags,
         int inDecompressedSize, Block<byte> outBuffer)
     {
         if (inCompressionType.HasFlag(CompressionType.Obfuscated))
@@ -682,8 +680,7 @@ public static class Cas
             {
                 CompressionOodle oodle = new();
                 // oodle being annoying, it throws an error when the buffer is bigger than the original size
-                Block<byte> actualSizedOutBuffer = new(outBuffer.Ptr, inDecompressedSize);
-                actualSizedOutBuffer.MarkMemoryAsFragile();
+                Block<byte> actualSizedOutBuffer = new(outBuffer, inDecompressedSize);
                 oodle.Decompress(inCompressedBuffer, ref actualSizedOutBuffer, CompressionFlags.OodleKraken);
                 actualSizedOutBuffer.Dispose();
                 return;

@@ -28,7 +28,7 @@ public class EbxReader : BaseEbxReader
         : base(inStream)
     {
         RiffStream riffStream = new(m_stream);
-        riffStream.ReadHeader(out FourCC fourCc, out uint size);
+        riffStream.ReadHeader(out FourCc fourCc, out uint size);
 
         if (fourCc != "EBX\x0" && fourCc != "EBXS")
         {
@@ -58,7 +58,7 @@ public class EbxReader : BaseEbxReader
 
     public override HashSet<Guid> GetDependencies() => m_fixup.Dependencies;
 
-    private void ProcessChunk(DataStream inStream, FourCC inFourCc, uint inSize)
+    private void ProcessChunk(DataStream inStream, FourCc inFourCc, uint inSize)
     {
         switch ((string)inFourCc)
         {

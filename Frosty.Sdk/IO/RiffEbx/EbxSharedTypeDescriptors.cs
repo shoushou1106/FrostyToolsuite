@@ -46,7 +46,7 @@ internal static class EbxSharedTypeDescriptors
         using (BlockStream stream = new(inFile, true))
         {
             RiffStream riffStream = new(stream);
-            riffStream.ReadHeader(out FourCC fourCc, out uint size);
+            riffStream.ReadHeader(out FourCc fourCc, out uint size);
 
             if (fourCc != "EBXT")
             {
@@ -60,7 +60,7 @@ internal static class EbxSharedTypeDescriptors
         }
     }
 
-    private static void ProcessChunk(DataStream inStream, FourCC inFourCc, uint inSize)
+    private static void ProcessChunk(DataStream inStream, FourCc inFourCc, uint inSize)
     {
         if (inFourCc != "REFL" && inFourCc != "RFL2")
         {

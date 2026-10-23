@@ -1,25 +1,41 @@
 namespace Frosty.Sdk.Utils;
 
 /// <summary>
-/// A <see cref="HuffmanNode"/> with additional integer for how many times this node was encountered in the data to encode. This is used to construct the huffman tree.
+///     A <see cref="HuffmanNode" /> with additional integer for how many times this node was encountered in the data to encode.
+///     This is used to construct the huffman tree.
 /// </summary>
-internal class HuffManConstructionNode : HuffmanNode, IComparable<HuffManConstructionNode>
+internal sealed class HuffManConstructionNode : HuffmanNode, IComparable<HuffManConstructionNode>
 {
-    public int Occurrences { get; set; }
-
-    public new HuffManConstructionNode? Left { get; private set; }
-
-    public new HuffManConstructionNode? Right { get; private set; }
-
     public HuffManConstructionNode()
     {
-        Occurrences = 0;
     }
 
     public HuffManConstructionNode(char inValueChar, int inOccurrences)
     {
         Value = ~(uint)inValueChar;
         Occurrences = inOccurrences;
+    }
+
+    public int Occurrences { get; private set; }
+
+    public new HuffManConstructionNode? Left { get; private set; }
+
+    public new HuffManConstructionNode? Right { get; private set; }
+
+    public int CompareTo(HuffManConstructionNode? other)
+    {
+        if (other is null)
+        {
+            return 1;
+        }
+
+        int cmp = Occurrences.CompareTo(other.Occurrences);
+        if (cmp == 0)
+        {
+            cmp = GetRemainingDepth().CompareTo(other.GetRemainingDepth());
+        }
+
+        return cmp;
     }
 
     public void SetLeftNode(HuffManConstructionNode leftNode)
@@ -34,16 +50,6 @@ internal class HuffManConstructionNode : HuffmanNode, IComparable<HuffManConstru
         base.SetRightNode(rightNode);
         Right = rightNode;
         Occurrences += rightNode.Occurrences;
-    }
-
-    public int CompareTo(HuffManConstructionNode? other)
-    {
-        int cmp = Occurrences.CompareTo(other?.Occurrences);
-        if (cmp == 0)
-        {
-            cmp = GetRemainingDepth().CompareTo(other?.GetRemainingDepth());
-        }
-        return cmp;
     }
 
     private int GetRemainingDepth()

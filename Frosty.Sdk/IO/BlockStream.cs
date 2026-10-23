@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -52,7 +52,7 @@ public class BlockStream : DataStream
         base.WriteByte(value);
     }
 
-    public override unsafe void CopyTo(DataStream destination, int bufferSize)
+    public override void CopyTo(DataStream destination, int bufferSize)
     {
         if (destination is not BlockStream stream)
         {
@@ -72,11 +72,9 @@ public class BlockStream : DataStream
             stream.m_stream.SetLength((int)stream.Position + bufferSize);
         }
 
-        using (Block<byte> a = new(m_block.BasePtr + Position, bufferSize))
-        using (Block<byte> b = new(stream.m_block.BasePtr + stream.Position, bufferSize))
+        using (Block<byte> a = new(m_block, (int)Position, bufferSize))
+        using (Block<byte> b = new(stream.m_block, (int)stream.Position, bufferSize))
         {
-            a.MarkMemoryAsFragile();
-            b.MarkMemoryAsFragile();
             a.CopyTo(b);
         }
 
@@ -85,21 +83,28 @@ public class BlockStream : DataStream
         Position += bufferSize;
     }
 
-    public override unsafe string ReadNullTerminatedString(Encoding? inEncoding = null)
+    public override string ReadNullTerminatedString(Encoding? inEncoding = null)
     {
         if (inEncoding is null || !inEncoding.Equals(Encoding.ASCII))
         {
             return base.ReadNullTerminatedString(inEncoding);
         }
-        string retVal = new((sbyte*)(m_block.Ptr + Position));
+
+        ReadOnlySpan<byte> span = m_block.ToReadOnlySpan((int)Position);
+        int length = span.IndexOf((byte)0);
+        if (length >= 0)
+        {
+            span = span[..length];
+        }
+
+        string retVal = Encoding.ASCII.GetString(span);
         Position += retVal.Length + 1;
         return retVal;
     }
 
-    public override unsafe DataStream CreateSubStream(long inStartOffset, int inSize)
+    public override DataStream CreateSubStream(long inStartOffset, int inSize)
     {
-        Block<byte> sub = new(m_block.BasePtr + inStartOffset, inSize);
-        sub.MarkMemoryAsFragile();
+        Block<byte> sub = new(m_block, (int)inStartOffset, inSize);
         return new BlockStream(sub);
     }
 
@@ -290,22 +295,14 @@ public class BlockStream : DataStream
         return true;
     }
 
-    private unsafe void ResizeStream(long inDesiredMinLength)
+    private void ResizeStream(long inDesiredMinLength)
     {
         if (inDesiredMinLength > m_block.Size)
         {
             long position = Position;
-            int oldSize = m_block.Size;
             int neededLength = (int)Math.Max(inDesiredMinLength, Environment.SystemPageSize + position);
-            neededLength = neededLength + 15 & ~15;
+            neededLength = (neededLength + 15) & ~15;
             m_block.Resize(neededLength);
-
-            // make sure resized memory is 0
-            uint size = (uint)(neededLength - oldSize);
-            if (size > 0)
-            {
-                NativeMemory.Clear(m_block.BasePtr + oldSize, size);
-            }
 
             m_stream = m_block.ToStream();
             m_stream.SetLength(inDesiredMinLength);

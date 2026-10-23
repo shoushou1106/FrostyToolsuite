@@ -21,15 +21,23 @@ public partial class CompressionLZ4 : ICompressionFormat
 
     public unsafe void Decompress<T>(Block<T> inData, ref Block<T> outData, CompressionFlags inFlags = CompressionFlags.None) where T : unmanaged
     {
-        int err = LZ4_decompress_safe((nuint)inData.Ptr, (nuint)outData.Ptr, inData.Size, outData.Size);
-        Error(err);
+        fixed (T* inPtr = inData.ToReadOnlySpan())
+        fixed (T* outPtr = outData.ToSpan())
+        {
+            int err = LZ4_decompress_safe((nuint)inPtr, (nuint)outPtr, inData.Size, outData.Size);
+            Error(err);
+        }
     }
 
     public unsafe int Compress<T>(Block<T> inData, ref Block<T> outData, CompressionFlags inFlags = CompressionFlags.None) where T : unmanaged
     {
-        int err = LZ4_compress_default((nuint)inData.Ptr, (nuint)outData.Ptr, inData.Size, outData.Size);
-        Error(err);
-        return err;
+        fixed (T* inPtr = inData.ToReadOnlySpan())
+        fixed (T* outPtr = outData.ToSpan())
+        {
+            int err = LZ4_compress_default((nuint)inPtr, (nuint)outPtr, inData.Size, outData.Size);
+            Error(err);
+            return err;
+        }
     }
 
     public int GetCompressBounds(int inRawSize, CompressionFlags inFlags = CompressionFlags.None)
