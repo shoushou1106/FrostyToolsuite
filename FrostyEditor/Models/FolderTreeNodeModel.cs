@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Frosty.Sdk.Managers;
 using Frosty.Sdk.Managers.Entries;
+using Frosty.Sdk.Utils;
 
 namespace FrostyEditor.Models;
 
@@ -48,7 +49,7 @@ public partial class FolderTreeNodeModel : ObservableObject
             {
                 FolderTreeNodeModel folder;
                 string name = folders[i];
-                int hash = Frosty.Sdk.Utils.Utils.HashString(name, true);
+                int hash = Fnv1.HashString(name, true);
                 if (!current.m_childrenMap.ContainsKey(hash))
                 {
                     current.m_childrenMap.Add(hash, current.m_children.Count);

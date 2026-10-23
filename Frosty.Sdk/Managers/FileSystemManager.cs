@@ -64,7 +64,7 @@ public static class FileSystemManager
 
         BasePath = Path.GetFullPath(basePath);
 
-        CacheName = Path.Combine(Utils.Utils.BaseDirectory, "Caches", $"{ProfilesLibrary.InternalName}");
+        CacheName = Path.Combine(AppContext.BaseDirectory, "Caches", $"{ProfilesLibrary.InternalName}");
 
         if (Directory.Exists($"{BasePath}/Update"))
         {
@@ -264,7 +264,7 @@ public static class FileSystemManager
 
     public static SuperBundleInstallChunk GetSuperBundleInstallChunk(string sbIcName)
     {
-        return s_sbIcMapping[Utils.Utils.HashString(sbIcName, true)];
+        return s_sbIcMapping[Fnv1.HashString(sbIcName, true)];
     }
 
     public static SuperBundleInstallChunk GetSuperBundleInstallChunk(int hash)

@@ -241,7 +241,7 @@ public class EbxWriter : BaseEbxWriter
 
             string name = inType.GetName();
 
-            uint nameHash = (uint)Utils.Utils.HashString(name);
+            uint nameHash = (uint)Fnv1.HashString(name);
 
             index = AddType(name,
                 nameHash,
@@ -256,7 +256,7 @@ public class EbxWriter : BaseEbxWriter
             {
                 ReserveFields(1);
                 int enumValue = (int)enumValues.GetValue(i)!;
-                AddField(enumNames[i], (uint)Utils.Utils.HashString(enumNames[i]), new TypeFlags(TypeEnum.Int32, unk: 0), 0, (uint)enumValue,
+                AddField(enumNames[i], (uint)Fnv1.HashString(enumNames[i]), new TypeFlags(TypeEnum.Int32, unk: 0), 0, (uint)enumValue,
                     (uint)enumValue, m_fieldDescriptors.Count - 1);
             }
         }
@@ -268,7 +268,7 @@ public class EbxWriter : BaseEbxWriter
 
             string name = inType.GetName();
 
-            uint nameHash = (uint)Utils.Utils.HashString(name);
+            uint nameHash = (uint)Fnv1.HashString(name);
 
             index = AddType(name, nameHash, m_fieldDescriptors.Count, 1, 4,
                 elementType.GetCustomAttribute<EbxArrayMetaAttribute>()!.Flags, 4, 0);
@@ -277,7 +277,7 @@ public class EbxWriter : BaseEbxWriter
 
             ushort arrayClassRef = (ushort)(typeof(IPrimitive).IsAssignableFrom(elementType) ? 0 : FindOrAddType(elementType));
 
-            AddField("member", (uint)Utils.Utils.HashString("member"),
+            AddField("member", (uint)Fnv1.HashString("member"),
                 elementType.GetCustomAttribute<EbxTypeMetaAttribute>()!.Flags,
                 arrayClassRef, 0, 0, m_typeDescriptors[index].FieldIndex);
         }
@@ -306,7 +306,7 @@ public class EbxWriter : BaseEbxWriter
             }
             string name = inType.GetName();
 
-            uint nameHash = (uint)Utils.Utils.HashString(name);
+            uint nameHash = (uint)Fnv1.HashString(name);
             index = AddType(name, nameHash, m_fieldDescriptors.Count, (byte)classProperties.Count, 4, typeMeta!.Flags,
                 8, 0);
 
@@ -328,7 +328,7 @@ public class EbxWriter : BaseEbxWriter
                     firstOffset = m_fieldDescriptors[m_typeDescriptors[superClassRef].FieldIndex].DataOffset;
                 }
 
-                AddField("$", (uint)Utils.Utils.HashString("$"), 0, superClassRef, firstOffset, 0, typeDesc.FieldIndex);
+                AddField("$", (uint)Fnv1.HashString("$"), 0, superClassRef, firstOffset, 0, typeDesc.FieldIndex);
 
                 typeDesc.SetFieldCount((ushort)(typeDesc.GetFieldCount() + 1));
                 typeDesc.Size = m_typeDescriptors[superClassRef].Size;
@@ -373,7 +373,7 @@ public class EbxWriter : BaseEbxWriter
 
             string name = inType.GetName();
 
-            uint nameHash = (uint)Utils.Utils.HashString(name);
+            uint nameHash = (uint)Fnv1.HashString(name);
 
             index = AddType(name, nameHash, m_fieldDescriptors.Count, (byte)objProperties.Count, 1, typeMeta!.Flags, 0,
                 0);
@@ -467,7 +467,7 @@ public class EbxWriter : BaseEbxWriter
         // TODO: classes seem to not use the in memory offset from the typeinfo
         // set to 0 and hope that not that many errors occur
         AddField(objField.Name,
-            (uint)Utils.Utils.HashString(objField.Name),
+            (uint)Fnv1.HashString(objField.Name),
             fieldMeta.Flags,
             classRef,
             typeDesc.Size,

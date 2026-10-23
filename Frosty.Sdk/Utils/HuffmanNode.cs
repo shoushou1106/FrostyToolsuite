@@ -7,7 +7,7 @@ namespace Frosty.Sdk.Utils;
 /// </summary>
 internal class HuffmanNode : IComparable<HuffmanNode>
 {
-    public HuffmanNode()
+    protected HuffmanNode()
     {
     }
 
@@ -26,7 +26,7 @@ internal class HuffmanNode : IComparable<HuffmanNode>
     public bool IsLeaf => Left is null && Right is null;
     public char Letter => (char)~Value;
 
-    public uint Value { get; set; }
+    public uint Value { get; init; }
     public HuffmanNode? Left { get; private set; }
     public HuffmanNode? Right { get; private set; }
 
@@ -37,13 +37,13 @@ internal class HuffmanNode : IComparable<HuffmanNode>
         return other is null ? 1 : Value.CompareTo(other.Value);
     }
 
-    public void SetLeftNode(HuffmanNode leftNode)
+    protected void SetLeftNode(HuffmanNode leftNode)
     {
         Left = leftNode;
         Left.Parent = this;
     }
 
-    public void SetRightNode(HuffmanNode rightNode)
+    protected void SetRightNode(HuffmanNode rightNode)
     {
         Right = rightNode;
         Right.Parent = this;

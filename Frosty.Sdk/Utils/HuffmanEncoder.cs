@@ -109,7 +109,8 @@ public class HuffmanEncoder
     /// <param name="encodedTestsAsBoolList">The list of bools to convert to a byte array.</param>
     /// <param name="endian">The endianness to apply to the (integer) representation of the bool array.</param>
     /// <param name="usePadding">
-    ///     Whether to pad the result to get to the next 4-byte length. If big endian is used, then the result is always padded.
+    ///     Whether to pad the result to get to the next 4-byte length. If big endian is used, then the result is always
+    ///     padded.
     /// </param>
     /// <returns>A byte array with the given boolean list as a byte representation.</returns>
     public static byte[] GetByteArrayForBoolList(IList<bool> encodedTestsAsBoolList,
@@ -134,6 +135,7 @@ public class HuffmanEncoder
             BitConverter.TryWriteBytes(slice, reverseNumber);
         }
 
+        // ReSharper disable once GrammarMistakeInComment
         // This should no longer be necessary when padding is applied beforehand
         // if (index < littleEndianByteArray.Length)
         // {
@@ -155,12 +157,13 @@ public class HuffmanEncoder
     }
 
     /// <summary>
-    ///     Uses the given input to construct the Huffman encoding table (or tree). The created encoding includes an end delimiter
+    ///     Uses the given input to construct the Huffman encoding table (or tree). The created encoding includes an end
+    ///     delimiter
     ///     character (char 0x0) with the number of occurrences equal to the number of given strings.
     ///     Also, temporarily stores the given texts to use them in other methods if the need arises.
     ///     Returns the uint representation of the Huffman encoding.
     ///     Note that this method is quite a bit slower than calling
-    ///     <see cref="EncodeTexts{T}(IEnumerable{Tuple{T, string}}, Endian?, bool, bool)" />, but is null- and duplicate-safe,
+    ///     <see cref="EncodeTexts{T}(IEnumerable{Tuple{T, string}}, Endian?, bool, bool)" />, but is null- and duplicate-safe
     ///     and pads the result data.
     /// </summary>
     /// <param name="texts">The texts to encode, or a suitable approximation of the characters' appearances.</param>
@@ -207,7 +210,7 @@ public class HuffmanEncoder
     ///     <seealso cref="GetByteArrayForBoolList(IList{bool}, Endian, bool)" />
     /// </summary>
     /// <typeparam name="T">
-    ///     The type of identifier to use for the texts. Might be a uint id/counter/hash value or complex type.
+    ///     The type of identifier to use for the texts. Might be an uint id/counter/hash value or complex type.
     ///     Must be unique per string and not null.
     /// </typeparam>
     /// <param name="textsPerIdentifier">The tuples of string identifiers and the strings to encode.</param>
@@ -218,7 +221,8 @@ public class HuffmanEncoder
     ///     desired settings later.
     ///     Note that the given endian overrides any behavior from <c>usePadding</c>. If the given endian is not null but
     ///     different from the system setting, then the result is always padded.
-    ///     Furthermore, note that big-endian settings might mean the returned bit offsets for texts in the result will no longer
+    ///     Furthermore, note that big-endian settings might mean the returned bit offsets for texts in the result will no
+    ///     longer
     ///     be valid on the target system!
     /// </param>
     /// <param name="compressResults">
@@ -227,7 +231,8 @@ public class HuffmanEncoder
     /// </param>
     /// <param name="usePadding">
     ///     Whether to use padding to increase the data byte array size so that it is a multiple of 4.
-    ///     I.e., multiples of 32 bits. This behavior is overridden by the given <c>endian</c>. An endianness different from the
+    ///     I.e., multiples of 32 bits. This behavior is overridden by the given <c>endian</c>. An endianness different from
+    ///     the
     ///     system default will always be padded.
     /// </param>
     /// <returns>
@@ -247,7 +252,8 @@ public class HuffmanEncoder
             return byteListResult;
         }
 
-        byte[] encodedToBytes = GetByteArrayForBoolList(byteListResult.EncodedTestsAsBoolList, endian.Value, usePadding);
+        byte[] encodedToBytes =
+            GetByteArrayForBoolList(byteListResult.EncodedTestsAsBoolList, endian.Value, usePadding);
         byteListResult.EncodedTexts = encodedToBytes;
 
         return byteListResult;
@@ -260,7 +266,7 @@ public class HuffmanEncoder
     ///     NOTE: The returned <see cref="HuffmanEncodedTextArray{T}" /> will not have the byte array set, only the bool list!
     /// </summary>
     /// <typeparam name="T">
-    ///     The type of identifier to use for the texts. Might be a uint id/counter/hash value or complex type.
+    ///     The type of identifier to use for the texts. Might be an uint id/counter/hash value or complex type.
     ///     Must be unique per string and not null.
     /// </typeparam>
     /// <param name="textsPerIdentifier">The tuples of string identifiers and the strings to encode.</param>

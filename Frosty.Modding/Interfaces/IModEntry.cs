@@ -1,4 +1,4 @@
-using Frosty.Sdk;
+using Frosty.Sdk.Utils;
 
 namespace Frosty.Modding.Interfaces;
 

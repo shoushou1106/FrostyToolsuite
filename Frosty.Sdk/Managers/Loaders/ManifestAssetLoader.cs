@@ -7,6 +7,7 @@ using Frosty.Sdk.IO;
 using Frosty.Sdk.Managers.Entries;
 using Frosty.Sdk.Managers.Infos;
 using Frosty.Sdk.Managers.Infos.FileInfos;
+using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.Managers.Loaders;
 
@@ -74,7 +75,7 @@ public class ManifestAssetLoader : IAssetLoader
                     {
                         // blueprint and sublevel bundles always have an ebx with the same name
                         string potentialName = ebx.Name.StartsWith(FileSystemManager.GamePlatform.ToString(), StringComparison.OrdinalIgnoreCase) ? ebx.Name : $"{FileSystemManager.GamePlatform}/{ebx.Name}";
-                        int hash = Utils.Utils.HashString(potentialName, true);
+                        int hash = Fnv1.HashString(potentialName, true);
                         if (nameHash == hash)
                         {
                             name = potentialName;

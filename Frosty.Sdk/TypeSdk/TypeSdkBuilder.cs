@@ -75,7 +75,7 @@ public class TypeSdkBuilder
 
         FrostyLogger.Logger.LogInformation($"Dumping types at offset {typeInfoOffset:X8}");
 
-        string stringsDir = Path.Combine(Utils.Utils.BaseDirectory, "Sdk", "Strings");
+        string stringsDir = Path.Combine(AppContext.BaseDirectory, "Sdk", "Strings");
         string typeNamesPath = Path.Combine(stringsDir, $"{ProfilesLibrary.InternalName}_types.json");
         string fieldNamesPath = Path.Combine(stringsDir, $"{ProfilesLibrary.InternalName}_fields.json");
         Strings.TypeNames = new HashSet<string>();

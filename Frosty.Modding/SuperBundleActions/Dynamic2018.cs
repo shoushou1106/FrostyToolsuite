@@ -159,7 +159,7 @@ internal class Dynamic2018 : IDisposable
                     DbObjectDict bundleObj = obj.AsDict();
 
                     string bundleName = bundleObj.AsString("id");
-                    int id = Frosty.Sdk.Utils.Utils.HashString(bundleName + inSbIc.Name, true);
+                    int id = Fnv1.HashString(bundleName + inSbIc.Name, true);
 
                     long offset = bundleObj.AsLong("offset");
                     long size = bundleObj.AsLong("size");

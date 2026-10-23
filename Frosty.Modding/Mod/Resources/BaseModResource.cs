@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 
 using Frosty.Modding.Interfaces;
-using Frosty.Sdk;
+using Frosty.Sdk.Utils;
 using Frosty.Sdk.IO;
 
 namespace Frosty.Modding.Mod.Resources;

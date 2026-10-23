@@ -3,7 +3,7 @@ using Frosty.Sdk.IO;
 namespace Frosty.Sdk.Utils;
 
 /// <summary>
-///     Return value of the encoding function. This contains the encoded texts as byte array, as well as the list of
+///     Return value of the encoding function. This contains the encoded texts as a byte array, as well as the list of
 ///     <see cref="IdentifierPositionTuple{T}" /> that detail which text is at what bit offset inside the array.
 ///     <list type="bullet">
 ///         <item>
@@ -14,14 +14,14 @@ namespace Frosty.Sdk.Utils;
 ///         </item>
 ///         <item>
 ///             <description>
-///                 <c>HuffmanEncodedTextArray.EncodedTextPositions</c> returns the text keys an their bit offsets
+///                 <c>HuffmanEncodedTextArray.EncodedTextPositions</c> returns the text keys and their bit offsets
 ///                 in the <c>EncodedTexts</c> in the form of a list of tuples for use in iterations.
 ///             </description>
 ///         </item>
 ///         <item>
 ///             <description>
-///                 <c>HuffmanEncodedTextArray.GetTextPositionsDictionary()</c> returns a dictionary with the the
-///                 same data as above.
+///                 <c>HuffmanEncodedTextArray.GetTextPositionsDictionary()</c> returns a dictionary with the same data as
+///                 above.
 ///             </description>
 ///         </item>
 ///     </list>
@@ -33,10 +33,10 @@ public class HuffmanEncodedTextArray<T> where T : notnull
     private Dictionary<T, int>? _positionsDictionary;
 
     public HuffmanEncodedTextArray(IList<IdentifierPositionTuple<T>> inEncodedTextPositions,
-        IList<bool> inEncodedTestsAsBools)
+        IList<bool> inEncodedTestsAsBoolList)
     {
         EncodedTextPositions = inEncodedTextPositions;
-        EncodedTestsAsBools = inEncodedTestsAsBools;
+        EncodedTestsAsBoolList = inEncodedTestsAsBoolList;
     }
 
     /// <summary>
@@ -48,26 +48,26 @@ public class HuffmanEncodedTextArray<T> where T : notnull
         ArgumentNullException.ThrowIfNull(inOriginal);
 
         EncodedTextPositions = inOriginal.EncodedTextPositions;
-        EncodedTestsAsBools = inOriginal.EncodedTestsAsBools;
+        EncodedTestsAsBoolList = inOriginal.EncodedTestsAsBoolList;
         EncodedTexts = inOriginal.EncodedTexts;
         _positionsDictionary = inOriginal._positionsDictionary;
     }
 
     /// <summary>
     ///     The list of string identifiers, and the bit position of the text for the identifier inside the
-    ///     <see cref="EncodedTexts" /> byte array or <see cref="EncodedTestsAsBools" /> list.
+    ///     <see cref="EncodedTexts" /> byte array or <see cref="EncodedTestsAsBoolList" /> list.
     /// </summary>
     public IList<IdentifierPositionTuple<T>> EncodedTextPositions { get; }
 
     /// <summary>
-    ///     Returns the string as encoded bools.
+    ///     Returns the string as an encoded bool list.
     /// </summary>
-    public IList<bool> EncodedTestsAsBools { get; }
+    public IList<bool> EncodedTestsAsBoolList { get; }
 
     /// <summary>
-    ///     All the encoded texts as single byte array. This only exists if the result was created with set encoding!
+    ///     All the encoded texts as a single byte array. This only exists if the result was created with set encoding!
     ///     <see cref="HuffmanEncoder.GetByteArrayForBoolList(IList{bool}, Endian, bool)" /> to get the wanted byte
-    ///     representation for <see cref="EncodedTestsAsBools" /> or call <see cref="CreateEncodedTexts(Endian, bool)" />
+    ///     representation for <see cref="EncodedTestsAsBoolList" /> or call <see cref="CreateEncodedTexts(Endian, bool)" />
     /// </summary>
     // CA1819: Properties should not return arrays
 #pragma warning disable CA1819
@@ -80,7 +80,7 @@ public class HuffmanEncodedTextArray<T> where T : notnull
     /// </summary>
     /// <returns>
     ///     Dictionary with string identifiers and their bit offset in the <see cref="EncodedTexts" /> or
-    ///     <see cref="EncodedTestsAsBools" />
+    ///     <see cref="EncodedTestsAsBoolList" />
     /// </returns>
     public Dictionary<T, int> GetTextPositionsDictionary()
     {
@@ -94,11 +94,11 @@ public class HuffmanEncodedTextArray<T> where T : notnull
     ///     <seealso cref="HuffmanEncoder.GetByteArrayForBoolList(IList{bool}, Endian, bool)" />
     /// </summary>
     /// <param name="endian">The endian to use</param>
-    /// <param name="usePadding">Whether or not to padd the byte array.</param>
-    /// <returns>The non null value of <see cref="EncodedTexts" /></returns>
+    /// <param name="usePadding">Whether to pad the byte array.</param>
+    /// <returns>The non-null value of <see cref="EncodedTexts" /></returns>
     public byte[] CreateEncodedTexts(Endian endian = Endian.Little, bool usePadding = true)
     {
-        EncodedTexts = HuffmanEncoder.GetByteArrayForBoolList(EncodedTestsAsBools, endian, usePadding);
+        EncodedTexts = HuffmanEncoder.GetByteArrayForBoolList(EncodedTestsAsBoolList, endian, usePadding);
         return EncodedTexts;
     }
 }

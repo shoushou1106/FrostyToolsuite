@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using Frosty.Sdk.Profiles;
 using Frosty.Sdk.IO.Compression;
+using Frosty.Sdk.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace Frosty.Sdk;
@@ -21,7 +22,7 @@ public static class ProfilesLibrary
     public static string TypeHashSeed => s_effectiveProfile?.TypeHashSeed ?? string.Empty;
     public static int DataVersion => s_effectiveProfile?.DataVersion ?? -1;
     public static FrostbiteVersion FrostbiteVersion => s_effectiveProfile?.FrostbiteVersion ?? "0.0.0";
-    public static string SdkPath => s_effectiveProfile is null ? string.Empty : Path.Combine(Utils.Utils.BaseDirectory, "Sdk", $"{s_effectiveProfile.InternalName}.dll");
+    public static string SdkPath => s_effectiveProfile is null ? string.Empty : Path.Combine(AppContext.BaseDirectory, "Sdk", $"{s_effectiveProfile.InternalName}.dll");
 
     public static int EbxVersion => s_effectiveProfile?.EbxVersion ?? -1;
     public static bool RequiresInitFsKey => s_effectiveProfile?.RequiresInitFsKey ?? false;
@@ -53,7 +54,7 @@ public static class ProfilesLibrary
 
     public static void Initialize()
     {
-        string profilesPath = Path.Combine(Utils.Utils.BaseDirectory, "Profiles");
+        string profilesPath = Path.Combine(AppContext.BaseDirectory, "Profiles");
         if (Directory.Exists(profilesPath))
         {
             foreach (string file in Directory.EnumerateFiles(profilesPath))
@@ -88,7 +89,7 @@ public static class ProfilesLibrary
         {
             foreach (string bundle in  s_effectiveProfile.SharedBundles)
             {
-                SharedBundles.Add(Utils.Utils.HashString(bundle, true), bundle);
+                SharedBundles.Add(Fnv1.HashString(bundle, true), bundle);
             }
 
             FrostyLogger.Logger.LogInformation($"Loading profile {s_effectiveProfile.DisplayName}");
@@ -98,7 +99,7 @@ public static class ProfilesLibrary
         }
 
         FrostyLogger.Logger.LogError(
-            $"No profile found for key {profileKey}, searched {Path.Combine(Utils.Utils.BaseDirectory, "Profiles")}");
+            $"No profile found for key {profileKey}, searched {Path.Combine(AppContext.BaseDirectory, "Profiles")}");
         return false;
     }
 

@@ -378,7 +378,7 @@ internal class Manifest2019 : IDisposable
                         stream.Position = curPos;
                     }
 
-                    int id = Frosty.Sdk.Utils.Utils.HashString(name + inSbIc.Name, true);
+                    int id = Fnv1.HashString(name + inSbIc.Name, true);
                     bundleLoadFlag = (byte)(bundleSize >> 30);
                     bundleSize &= 0x3FFFFFFFU;
 
@@ -566,7 +566,7 @@ internal class Manifest2019 : IDisposable
             else
             {
                 inBundle.Files[0] =
-                    inInstallChunkWriter.WriteData(Frosty.Sdk.Utils.Utils.GenerateSha1(inBundle.BundleMeta), inBundle.BundleMeta);
+                    inInstallChunkWriter.WriteData(Sha1.HashData(inBundle.BundleMeta), inBundle.BundleMeta);
             }
 
             inBundle.BundleMeta.Dispose();

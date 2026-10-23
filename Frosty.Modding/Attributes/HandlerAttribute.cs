@@ -13,6 +13,6 @@ public class HandlerAttribute : Attribute
 
     public HandlerAttribute(string inName)
     {
-        Hash = Sdk.Utils.Utils.HashString(inName, true);
+        Hash = Sdk.Utils.Fnv1.HashString(inName, true);
     }
 }

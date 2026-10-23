@@ -1,4 +1,5 @@
 using Frosty.Sdk.Managers.Entries;
+using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.Managers.Infos;
 
@@ -16,7 +17,7 @@ public class BundleInfo
     {
         Name = inName;
         Parent = inParent;
-        Id = Utils.Utils.HashString(Name + Parent.Name, true);
+        Id = Fnv1.HashString(Name + Parent.Name, true);
         Parent.BundleMapping.Add(Name, this);
     }
 }

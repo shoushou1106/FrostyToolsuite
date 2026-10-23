@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Frosty.Sdk;
 
 /// <remarks>
-///     A future instanced logger implementation is planned.
+///     A future instanced logger implementation is planned, at that point this file is not needed.
 /// </remarks>
 public static class FrostyLogger
 {

@@ -46,20 +46,20 @@ public class ModUpdater
         {
             foreach (BundleInfo bundle in AssetManager.EnumerateBundleInfos())
             {
-                int hash = Frosty.Sdk.Utils.Utils.HashString(bundle.Name, true);
+                int hash = Fnv1.HashString(bundle.Name, true);
                 s_bundleMapping.TryAdd(hash, new HashSet<int>());
                 s_bundleMapping[hash].Add(bundle.Id);
             }
 
             // v1 used a chunks bundle to add chunks to the superbundle we dont need that, so just add an empty collection
-            s_bundleMapping.Add(Frosty.Sdk.Utils.Utils.HashString("chunks"), new HashSet<int>());
+            s_bundleMapping.Add(Fnv1.HashString("chunks"), new HashSet<int>());
         }
 
         if (s_superBundleMapping.Count == 0)
         {
             if (FileSystemManager.BundleFormat == BundleFormat.SuperBundleManifest)
             {
-                s_superBundleMapping.Add(Frosty.Sdk.Utils.Utils.HashStringA("<none>"),
+                s_superBundleMapping.Add(Fnv1a.HashString("<none>"),
                     FileSystemManager.GetSuperBundle(FileSystemManager.DefaultInstallChunk!.SuperBundles.First())
                         .InstallChunks[0]);
             }
@@ -67,7 +67,7 @@ public class ModUpdater
             {
                 foreach (SuperBundleInfo superBundle in FileSystemManager.EnumerateSuperBundles())
                 {
-                    int hash = Frosty.Sdk.Utils.Utils.HashStringA(superBundle.Name, true);
+                    int hash = Fnv1a.HashString(superBundle.Name, true);
                     foreach (SuperBundleInstallChunk sbIc in superBundle.InstallChunks)
                     {
                         s_superBundleMapping.Add(hash, sbIc);
@@ -154,8 +154,8 @@ public class ModUpdater
                     inStream.ReadNullTerminatedString();
                     int superBundleHash = inStream.ReadInt32();
                     SuperBundleInstallChunk sbIc = s_superBundleMapping[superBundleHash];
-                    int bundleHash = Frosty.Sdk.Utils.Utils.HashString(baseResource.Name + sbIc.Name, true);
-                    s_bundleMapping.Add(Frosty.Sdk.Utils.Utils.HashString(baseResource.Name, true), new HashSet<int>
+                    int bundleHash = Fnv1.HashString(baseResource.Name + sbIc.Name, true);
+                    s_bundleMapping.Add(Fnv1.HashString(baseResource.Name, true), new HashSet<int>
                     {
                         bundleHash
                     });
@@ -285,7 +285,7 @@ public class ModUpdater
                 continue;
             }
 
-            int bundleHash = Frosty.Sdk.Utils.Utils.HashString(bundleName, true);
+            int bundleHash = Fnv1.HashString(bundleName, true);
             string type = action.AsString("type");
             int resourceId = action.AsInt("resourceId");
 
@@ -377,10 +377,10 @@ public class ModUpdater
                     break;
                 case "bundle":
                 {
-                    int superBundleHash = Frosty.Sdk.Utils.Utils.HashString(resource.AsString("sb"), true);
+                    int superBundleHash = Fnv1.HashString(resource.AsString("sb"), true);
                     SuperBundleInstallChunk sbIc = s_superBundleMapping[superBundleHash];
-                    int bundleHash = Frosty.Sdk.Utils.Utils.HashString(name + sbIc.Name, true);
-                    s_bundleMapping.Add(Frosty.Sdk.Utils.Utils.HashString(name, true), new HashSet<int>
+                    int bundleHash = Fnv1.HashString(name + sbIc.Name, true);
+                    s_bundleMapping.Add(Fnv1.HashString(name, true), new HashSet<int>
                     {
                         bundleHash
                     });
@@ -500,7 +500,7 @@ public class ModUpdater
             foreach (XmlElement bundle in bundlesElem)
             {
                 string bundleName = bundle.GetAttribute("name");
-                int bundleHash = Frosty.Sdk.Utils.Utils.HashString(bundleName, true);
+                int bundleHash = Fnv1.HashString(bundleName, true);
                 string action = bundle.GetAttribute("action");
 
                 XmlElement? entries = bundle["entries"];

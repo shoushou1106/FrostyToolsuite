@@ -553,7 +553,7 @@ public static class AssetManager
                  TypeLibrary.IsSubClassOf(entry.Type, "UIMetaDataAsset")))
             {
                 string name = $"{FileSystemManager.GamePlatform}/{entry.Name}_bundle";
-                string hash = Utils.Utils.HashString(name, true).ToString("X8");
+                string hash = Fnv1.HashString(name, true).ToString("X8");
 
                 BundleInfo? bundle = s_bundleMapping.Values.FirstOrDefault(b => b.Name == hash);
                 if (bundle is not null)
@@ -618,7 +618,7 @@ public static class AssetManager
             }
 
             int profileNameHash = stream.ReadInt32();
-            if (profileNameHash != Utils.Utils.HashString(ProfilesLibrary.ProfileName, true))
+            if (profileNameHash != Fnv1.HashString(ProfilesLibrary.ProfileName, true))
             {
                 return false;
             }
@@ -753,7 +753,7 @@ public static class AssetManager
             stream.WriteUInt64(c_cacheMagic);
             stream.WriteUInt32(c_cacheVersion);
 
-            stream.WriteInt32(Utils.Utils.HashString(ProfilesLibrary.ProfileName, true));
+            stream.WriteInt32(Fnv1.HashString(ProfilesLibrary.ProfileName, true));
             stream.WriteUInt32(FileSystemManager.Head);
 
             stream.WriteInt32(s_bundleMapping.Count);

@@ -1,5 +1,7 @@
 ﻿using Frosty.Sdk.IO;
 
+using Frosty.Sdk.Utils;
+
 namespace Frosty.Sdk.DbObjectElements;
 
 public class DbObjectSha1 : DbObject

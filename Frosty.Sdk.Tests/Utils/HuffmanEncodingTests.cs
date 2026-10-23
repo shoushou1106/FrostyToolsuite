@@ -71,7 +71,7 @@ internal sealed class HuffmanEncodingTests
         HuffmanEncodedTextArray<int> encodingResult = encoder.EncodeTexts(input, inEndian, inCompressResults, false);
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(encodingResult.EncodedTestsAsBools, Has.Count.EqualTo(inEncodedBitSize),
+            Assert.That(encodingResult.EncodedTestsAsBoolList, Has.Count.EqualTo(inEncodedBitSize),
                 "Encoded bit count does not match expected count");
             Assert.That(encodingResult.EncodedTexts, Is.Not.Null);
             Assert.That(encodingResult.EncodedTexts, Has.Length.EqualTo(inEncodedByteSize),

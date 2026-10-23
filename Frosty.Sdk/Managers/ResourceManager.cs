@@ -9,6 +9,7 @@ using Frosty.Sdk.IO;
 using Frosty.Sdk.Managers.CatResources;
 using Frosty.Sdk.Managers.Infos;
 using Frosty.Sdk.Managers.Infos.FileInfos;
+using Frosty.Sdk.Utils;
 using Octokit;
 using Microsoft.Extensions.Logging;
 
@@ -83,8 +84,8 @@ public static class ResourceManager
         // get oodle libs from unreal
         if (Directory.EnumerateFiles(FileSystemManager.BasePath, "oo2core_*").Any())
         {
-            string oodleSo = Path.Combine(Utils.Utils.BaseDirectory, "ThirdParty", "liboo2core.so");
-            string oodleDll = Path.Combine(Utils.Utils.BaseDirectory, "ThirdParty", "liboo2core.dll");
+            string oodleSo = Path.Combine(AppContext.BaseDirectory, "ThirdParty", "liboo2core.so");
+            string oodleDll = Path.Combine(AppContext.BaseDirectory, "ThirdParty", "liboo2core.dll");
             if (!File.Exists(oodleSo) || !File.Exists(oodleDll))
             {
                 GitHubClient client = new(new ProductHeaderValue("Frosty"));

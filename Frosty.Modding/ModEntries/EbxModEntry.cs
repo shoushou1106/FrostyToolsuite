@@ -1,6 +1,6 @@
 using Frosty.Modding.Interfaces;
 using Frosty.Modding.Mod.Resources;
-using Frosty.Sdk;
+using Frosty.Sdk.Utils;
 
 namespace Frosty.Modding.ModEntries;
 

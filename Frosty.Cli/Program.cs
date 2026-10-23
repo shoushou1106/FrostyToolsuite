@@ -6,7 +6,6 @@ using Frosty.Sdk;
 using Frosty.Sdk.Managers;
 using Frosty.Sdk.Managers.Entries;
 using Frosty.Sdk.TypeSdk;
-using Frosty.Sdk.Utils;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
@@ -143,9 +142,6 @@ internal static partial class Program
             FrostyLogger.Logger.LogError("Game does not exist.");
             return false;
         }
-
-        // set base directory to the directory containing the executable
-        Utils.BaseDirectory = Path.GetDirectoryName(AppContext.BaseDirectory) ?? string.Empty;
 
         // init profile
         if (!ProfilesLibrary.Initialize(Path.GetFileNameWithoutExtension(game.Name)))

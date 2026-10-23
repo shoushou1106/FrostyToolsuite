@@ -3,8 +3,9 @@ using System.Diagnostics.CodeAnalysis;
 namespace Frosty.Sdk.Managers.Entries;
 
 /// <summary>
-/// Types of the Resources. The value is a hash of the name to lower, calculated using <see cref="Utils.Utils.HashString"/>.
+/// Types of the Resources. The value is a hash of the name to lower, calculated using <see cref="Utils.Fnv1.HashString"/>.
 /// </summary>
+// TODO: Turn this attribute into comment
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 public enum ResourceType : uint
 {

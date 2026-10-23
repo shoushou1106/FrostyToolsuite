@@ -55,7 +55,7 @@ internal class PrimitiveInfoData : TypeInfoData
             case TypeFlags.TypeEnum.Guid:
                 return $"System.Guid.Parse(\"{reader.ReadGuid().ToString()}\")";
             case TypeFlags.TypeEnum.Sha1:
-                return $"new Frosty.Sdk.Sha1(\"{reader.ReadSha1().ToString()}\")";
+                return $"new Frosty.Sdk.Utils.Sha1(\"{reader.ReadSha1().ToString()}\")";
             case TypeFlags.TypeEnum.ResourceRef:
                 return $"new Frosty.Sdk.Ebx.ResourceRef({reader.ReadULong().ToString()})";
             case TypeFlags.TypeEnum.TypeRef:
@@ -144,7 +144,7 @@ internal class PrimitiveInfoData : TypeInfoData
                 actualType = "System.Guid";
                 break;
             case TypeFlags.TypeEnum.Sha1:
-                actualType = "Frosty.Sdk.Sha1";
+                actualType = "Frosty.Sdk.Utils.Sha1";
                 break;
             case TypeFlags.TypeEnum.ResourceRef:
                 actualType = "Frosty.Sdk.Ebx.ResourceRef";

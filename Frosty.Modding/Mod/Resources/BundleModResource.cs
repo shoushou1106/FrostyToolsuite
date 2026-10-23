@@ -1,5 +1,5 @@
 using System.Linq;
-using Frosty.Sdk;
+using Frosty.Sdk.Utils;
 using Frosty.Sdk.IO;
 
 namespace Frosty.Modding.Mod.Resources;

@@ -7,7 +7,7 @@ namespace Frosty.Sdk.Tests.Utils;
 // Assertion delegates run synchronously before disposing captured blocks.
 
 // CA1861: Avoid constant arrays as arguments
-#pragma disable CA1861
+#pragma warning disable CA1861
 // Code inspection: Access to disposed captured variable
 // ReSharper disable AccessToDisposedClosure
 /// <summary>
@@ -134,7 +134,6 @@ internal sealed class BlockTests
     public void ToStream_SpansWholeBlockFromShiftWithFixedCapacity()
     {
         using Block<ushort> block = new(4);
-        block.Clear();
         block.Shift(1);
 
         using Stream stream = block.ToStream();
@@ -165,7 +164,6 @@ internal sealed class BlockTests
     {
         using Block<int> source = CreateSequence(5);
         using Block<int> dest = new(3);
-        dest.Clear();
         source.Shift(2);
 
         source.CopyTo(dest, 2);

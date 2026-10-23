@@ -240,14 +240,14 @@ public abstract class BaseEbxWriter
 
     protected int FindExistingType(Type inType)
     {
-        uint hash = m_useSharedTypeDescriptors ? inType.GetNameHash() : (uint)Utils.Utils.HashString(inType.GetName());
+        uint hash = m_useSharedTypeDescriptors ? inType.GetNameHash() : (uint)Fnv1.HashString(inType.GetName());
 
         return m_typeToDescriptor.GetValueOrDefault(hash, -1);
     }
 
     protected int FindExistingType(IType inType)
     {
-        uint hash = m_useSharedTypeDescriptors ? inType.NameHash : (uint)Utils.Utils.HashString(inType.Name);
+        uint hash = m_useSharedTypeDescriptors ? inType.NameHash : (uint)Fnv1.HashString(inType.Name);
 
         return m_typeToDescriptor.GetValueOrDefault(hash, -1);
     }

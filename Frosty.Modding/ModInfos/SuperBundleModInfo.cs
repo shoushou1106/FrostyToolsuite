@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using Frosty.Sdk;
+using Frosty.Sdk.Utils;
 
 namespace Frosty.Modding.ModInfos;
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Frosty.Sdk.IO.Ebx;
+using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.IO.LegacyEbx;
 
@@ -96,7 +97,7 @@ internal struct EbxHeader
         while (inStream.Position - typeNamesOffset < header.TypeNameTableLength)
         {
             string typeName = inStream.ReadNullTerminatedString();
-            int hash = Utils.Utils.HashString(typeName);
+            int hash = Fnv1.HashString(typeName);
 
             typeNames.TryAdd(hash, typeName);
         }

@@ -38,7 +38,7 @@ public class FrostyProject
             }
 
             Block<byte> compressedData = Cas.CompressData(data, ProfilesLibrary.EbxCompression, 0);
-            Sha1 sha1 = Utils.GenerateSha1(compressedData);
+            Sha1 sha1 = Sha1.HashData(compressedData);
 
             resources.Add(new EbxModResource(datas.Count, ebx.Name, sha1, data.Size, 0, 0, string.Empty, [], []));
             datas.Add(compressedData);

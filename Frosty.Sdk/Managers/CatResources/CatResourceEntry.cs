@@ -1,4 +1,6 @@
-﻿namespace Frosty.Sdk.Managers.CatResources;
+﻿using Frosty.Sdk.Utils;
+
+namespace Frosty.Sdk.Managers.CatResources;
 
 public struct CatResourceEntry
 {

@@ -4,6 +4,7 @@ using System.Text;
 using Frosty.Sdk.Attributes;
 using Frosty.Sdk.IO;
 using Frosty.Sdk.TypeSdk.TypeInfos;
+using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.TypeSdk;
 
@@ -43,7 +44,7 @@ internal class FieldInfo : IComparable
         }
         else
         {
-            m_nameHash = (uint)Utils.Utils.HashString(m_name);
+            m_nameHash = (uint)Fnv1.HashString(m_name);
         }
 
         if (!ProfilesLibrary.HasStrippedTypeNames)

@@ -313,7 +313,7 @@ public partial class FrostyModExecutor
 
     private void LoadHandlers()
     {
-        string handlersDir = Path.Combine(Frosty.Sdk.Utils.Utils.BaseDirectory, "Handlers");
+        string handlersDir = Path.Combine(AppContext.BaseDirectory, "Handlers");
         Directory.CreateDirectory(handlersDir);
 
         foreach (string handler in Directory.EnumerateFiles(handlersDir))

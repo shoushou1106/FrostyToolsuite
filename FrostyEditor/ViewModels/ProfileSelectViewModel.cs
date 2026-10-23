@@ -126,9 +126,6 @@ public partial class ProfileSelectViewModel : WindowViewModel
             using NullLoggerFactory factory = NullLoggerFactory.Instance;
             FrostyLogger.Logger = factory.CreateLogger("Frosty");
 
-            // set base directory to the directory containing the executable
-            Frosty.Sdk.Utils.Utils.BaseDirectory = Path.GetDirectoryName(AppContext.BaseDirectory) ?? string.Empty;
-
             if (!ProfilesLibrary.Initialize(SelectedProfile.Key))
             {
                 goto failed;
@@ -154,7 +151,7 @@ public partial class ProfileSelectViewModel : WindowViewModel
                 else
                 {
                     MessageBoxManager.GetMessageBoxStandard("FrostyEditor",
-                        $"Missing initFs key file at {Path.Combine(Frosty.Sdk.Utils.Utils.BaseDirectory, "initFs.key")}");
+                        $"Missing initFs key file at {Path.Combine(AppContext.BaseDirectory, "initFs.key")}");
                     goto failed;
                 }
             }

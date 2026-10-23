@@ -8,6 +8,7 @@ using Frosty.Sdk.IO;
 using Frosty.Sdk.Managers.Entries;
 using Frosty.Sdk.Managers.Infos;
 using Frosty.Sdk.Managers.Infos.FileInfos;
+using Frosty.Sdk.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace Frosty.Sdk.Managers.Loaders;
@@ -157,7 +158,7 @@ public class Dynamic2018AssetLoader : IAssetLoader
                         // we need to load the base toc to get the corresponding base bundle
                         baseBundleMapping ??= LoadBaseBundles(FileSystemManager.ResolvePath(false, $"{inSbIc.Name}.toc"));
 
-                        if (baseBundleMapping.TryGetValue(Utils.Utils.HashString(bundle.Name, true), out BaseBundleHelper helper))
+                        if (baseBundleMapping.TryGetValue(Fnv1.HashString(bundle.Name, true), out BaseBundleHelper helper))
                         {
                             baseSbPath ??= FileSystemManager.ResolvePath(false, $"{inSbIc.Name}.sb");
                             relBaseSbPath ??= Path.GetRelativePath(FileSystemManager.BasePath, baseSbPath);
@@ -286,7 +287,7 @@ public class Dynamic2018AssetLoader : IAssetLoader
         foreach (DbObject obj in toc.AsList("bundles"))
         {
             string name = obj.AsDict().AsString("id");
-            retVal.Add(Utils.Utils.HashString(name, true), new BaseBundleHelper(obj.AsDict().AsLong("offset"), obj.AsDict().AsLong("size")));
+            retVal.Add(Fnv1.HashString(name, true), new BaseBundleHelper(obj.AsDict().AsLong("offset"), obj.AsDict().AsLong("size")));
         }
 
         return retVal;

@@ -9,7 +9,7 @@ namespace Frosty.Sdk.Utils;
 ///             </description>
 ///         </item>
 ///         <item>
-///             <description><c>EncodingResult.EncodedTexts</c> returns the given strings encoded to a byte array..</description>
+///             <description><c>EncodingResult.EncodedTexts</c> returns the given strings encoded to a byte array.</description>
 ///         </item>
 ///         <item>
 ///             <description>

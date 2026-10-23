@@ -252,7 +252,7 @@ public class FrostyMod : IResourceContainer
             stream.WriteNullTerminatedString(inModDetails.Description);
             stream.WriteNullTerminatedString(inModDetails.ModPageLink);
 
-            stream.WriteSha1(Frosty.Sdk.Utils.Utils.GenerateSha1(resources));
+            stream.WriteSha1(Sha1.HashData(resources));
 
             stream.Write(resources);
             resources.Dispose();

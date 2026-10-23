@@ -1,3 +1,4 @@
+using Frosty.Sdk.Utils;
 using System;
 using System.Collections.Generic;
 
@@ -26,6 +27,6 @@ public class SuperBundleInstallChunk
         Name = Type == InstallChunkType.Split
             ? $"{InstallChunk.InstallBundle}{SuperBundle.Name[SuperBundle.Name.IndexOf('/')..]}"
             : SuperBundle.Name;
-        Id = Utils.Utils.HashString(Name, true);
+        Id = Fnv1.HashString(Name, true);
     }
 }
