@@ -5,13 +5,13 @@ namespace Frosty.Sdk.Utils;
 ///     encode.
 ///     This is used to construct the huffman tree.
 /// </summary>
-internal sealed class HuffManConstructionNode : HuffmanNode, IComparable<HuffManConstructionNode>
+internal sealed class HuffmanConstructionNode : HuffmanNode, IComparable<HuffmanConstructionNode>
 {
-    public HuffManConstructionNode()
+    public HuffmanConstructionNode()
     {
     }
 
-    public HuffManConstructionNode(char inValueChar, int inOccurrences)
+    public HuffmanConstructionNode(char inValueChar, int inOccurrences)
     {
         Value = ~(uint)inValueChar;
         Occurrences = inOccurrences;
@@ -19,11 +19,11 @@ internal sealed class HuffManConstructionNode : HuffmanNode, IComparable<HuffMan
 
     public int Occurrences { get; private set; }
 
-    public new HuffManConstructionNode? Left { get; private set; }
+    public new HuffmanConstructionNode? Left { get; private set; }
 
-    public new HuffManConstructionNode? Right { get; private set; }
+    public new HuffmanConstructionNode? Right { get; private set; }
 
-    public int CompareTo(HuffManConstructionNode? other)
+    public int CompareTo(HuffmanConstructionNode? other)
     {
         if (other is null)
         {
@@ -39,14 +39,14 @@ internal sealed class HuffManConstructionNode : HuffmanNode, IComparable<HuffMan
         return cmp;
     }
 
-    public void SetLeftNode(HuffManConstructionNode leftNode)
+    public void SetLeftNode(HuffmanConstructionNode leftNode)
     {
         base.SetLeftNode(leftNode);
         Left = leftNode;
         Occurrences += leftNode.Occurrences;
     }
 
-    public void SetRightNode(HuffManConstructionNode rightNode)
+    public void SetRightNode(HuffmanConstructionNode rightNode)
     {
         base.SetRightNode(rightNode);
         Right = rightNode;

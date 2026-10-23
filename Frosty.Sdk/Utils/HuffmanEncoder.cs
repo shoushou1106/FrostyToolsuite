@@ -6,12 +6,12 @@ using Frosty.Sdk.IO;
 namespace Frosty.Sdk.Utils;
 
 /// <summary>
-///     HuffmanEncoder can be used to encode given strings into a byte array.
+///     HuffmanEncoder can be used to encode the given strings into a byte array.
 /// </summary>
 /// <example>
-///     Either call <see cref="Encode(IEnumerable{string}, Endian)" /> directly with the strings to encode.
-///     Or if more control is required, call <see cref="BuildHuffmanEncodingTree(IEnumerable{string})" /> with a
-///     representation of the strings to encode to build the encoding tree. After that call
+///     Either call <see cref="Encode(IEnumerable{string}, Endian)" /> directly with the strings to encode,
+///     or if more control is required, call <see cref="BuildHuffmanEncodingTree(IEnumerable{string})" /> with a
+///     representation of the strings to encode to build the encoding tree. After that, call
 ///     <see cref="EncodeTexts{T}(IEnumerable{Tuple{T, string}}, Endian?, bool, bool)" /> to get the encoding result.
 /// </example>
 public class HuffmanEncoder
@@ -23,17 +23,17 @@ public class HuffmanEncoder
 
     /// <summary>
     ///     Helper method to get the encoded texts and the encoding tree all in one go.
-    ///     The encoded texts, the encoding, and the individual texts offsets can be retrieved from the
+    ///     The encoded texts, the encoding, and the individual text offsets can be retrieved from the
     ///     <see cref="EncodingResult" />.
     ///     <list type="bullet">
     ///         <item>
     ///             <description>
-    ///                 <c>EncodingResult.EncodingTree</c> returns the huffman tree used for encoding in the form of
+    ///                 <c>EncodingResult.EncodingTree</c> returns the Huffman tree used for encoding in the form of
     ///                 an integer list.
     ///             </description>
     ///         </item>
     ///         <item>
-    ///             <description><c>EncodingResult.EncodedTexts</c> returns the given strings encoded to a byte array..</description>
+    ///             <description><c>EncodingResult.EncodedTexts</c> returns the given strings encoded to a byte array.</description>
     ///         </item>
     ///         <item>
     ///             <description>
@@ -48,11 +48,11 @@ public class HuffmanEncoder
     ///             </description>
     ///         </item>
     ///     </list>
-    ///     Note that this method always uses little endinan for the text data.
+    ///     Note that this method always uses little-endian for the text data.
     /// </summary>
-    /// <param name="texts">The texts to encode</param>
-    /// <param name="inEndian">The endian to use for the encoded texts</param>
-    /// <returns>EncodingResult with the data.</returns>
+    /// <param name="texts">The texts to encode.</param>
+    /// <param name="inEndian">The endianness to use for the encoded texts.</param>
+    /// <returns>An <see cref="EncodingResult" /> with the data.</returns>
     public static EncodingResult Encode(IEnumerable<string> texts, Endian inEndian = Endian.Little)
     {
         HashSet<string> nonNullUniqueStrings = [.. texts];
@@ -70,9 +70,9 @@ public class HuffmanEncoder
     /// <summary>
     ///     Computes the necessary length in bytes for the given number of bits with optionally added padding.
     /// </summary>
-    /// <param name="numberOfBits">Number of bits to turn into a byte array</param>
-    /// <param name="usePadding">Whether or not to use padding to get to the next 32 bits or 4 byte size</param>
-    /// <returns>the number of necessary bytes to store the given number of bits with the given padding option</returns>
+    /// <param name="numberOfBits">Number of bits to turn into a byte array.</param>
+    /// <param name="usePadding">Whether to use padding to get to the next 32-bit or 4-byte size.</param>
+    /// <returns>The number of necessary bytes to store the given number of bits with the given padding option.</returns>
     public static int GetDataLengthInBytes(int numberOfBits, bool usePadding)
     {
         int byteSize = Math.DivRem(numberOfBits, 8, out int remainder);
@@ -87,45 +87,44 @@ public class HuffmanEncoder
         }
 
         int paddingLength = (4 - byteSize) & 3;
-        // paddingLength is computed as modulo 4 operation, just uing bitwise and here.
+        // paddingLength is computed as a modulo 4 operation; just using bitwise AND here.
         byteSize += paddingLength;
 
         return byteSize;
     }
 
     /// <summary>
-    ///     Returns the byte array for the given bool list in the specified endianness and padding. Some things to note:
+    ///     Returns the byte array for the given bool list with the specified endianness and padding. Some things to note:
     ///     <list type="bullet">
     ///         <item>
-    ///             The byte array returns the bools as 32 bit integer blocks, the endianness is applied to this integer
+    ///             The byte array returns the bool list as 32-bit integer blocks; the endianness is applied to this integer
     ///             representation.
     ///         </item>
     ///         <item>
-    ///             Endianess behabiour overwrites padding behaviour. The default is a little endian byte array, if this is
-    ///             changed to big endian than padding is applied regardless of the argument.
+    ///             Endianness behavior overrides padding behavior. The default is a little-endian byte array; if this is
+    ///             changed to big-endian, then padding is applied regardless of the argument.
     ///         </item>
     ///     </list>
     /// </summary>
-    /// <param name="encodedTestsAsBools">The list of bools to convert to byte array.</param>
+    /// <param name="encodedTestsAsBoolList">The list of bools to convert to a byte array.</param>
     /// <param name="endian">The endianness to apply to the (integer) representation of the bool array.</param>
     /// <param name="usePadding">
-    ///     Whether or not to use padd the result to get to the next 4 bytes length. If big endian is
-    ///     used, then the result is always padded.
+    ///     Whether to pad the result to get to the next 4-byte length. If big endian is used, then the result is always padded.
     /// </param>
-    /// <returns>A byte array with the given boolean list as byte representation</returns>
-    public static byte[] GetByteArrayForBoolList(IList<bool> encodedTestsAsBools,
+    /// <returns>A byte array with the given boolean list as a byte representation.</returns>
+    public static byte[] GetByteArrayForBoolList(IList<bool> encodedTestsAsBoolList,
         Endian endian = Endian.Little, bool usePadding = true)
     {
-        ArgumentNullException.ThrowIfNull(encodedTestsAsBools);
+        ArgumentNullException.ThrowIfNull(encodedTestsAsBoolList);
 
-        // BitArray is always little endian by default!
+        // BitArray is always little-endian by default!
         if (endian != Endian.Big)
         {
-            return GetByteArrayForBoolList0(encodedTestsAsBools, usePadding);
+            return GetByteArrayForBoolList0(encodedTestsAsBoolList, usePadding);
         }
 
         // Change of endianness forces padding:
-        byte[] byteArray = GetByteArrayForBoolList0(encodedTestsAsBools, true);
+        byte[] byteArray = GetByteArrayForBoolList0(encodedTestsAsBoolList, true);
 
         for (int index = 0; index + 4 <= byteArray.Length; index += 4)
         {
@@ -135,7 +134,7 @@ public class HuffmanEncoder
             BitConverter.TryWriteBytes(slice, reverseNumber);
         }
 
-        // This should no longer be necessary, when calling padding before
+        // This should no longer be necessary when padding is applied beforehand
         // if (index < littleEndianByteArray.Length)
         // {
         //     byte[] intermediate = new byte[4];
@@ -156,20 +155,20 @@ public class HuffmanEncoder
     }
 
     /// <summary>
-    ///     Uses the given input to construct the huffman encoding table (or tree). The created encoding includes end delimiter
-    ///     character (char 0x0) with a number of occurrences of the number of given strings.
-    ///     Also temporarily stores the given texts to use them in other methods if the need arises.
-    ///     Returns the uint representation of the huffman encoding.
+    ///     Uses the given input to construct the Huffman encoding table (or tree). The created encoding includes an end delimiter
+    ///     character (char 0x0) with the number of occurrences equal to the number of given strings.
+    ///     Also, temporarily stores the given texts to use them in other methods if the need arises.
+    ///     Returns the uint representation of the Huffman encoding.
     ///     Note that this method is quite a bit slower than calling
-    ///     <see cref="EncodeTexts{T}(IEnumerable{Tuple{T, string}}, Endian?, bool, bool)" />, but is null and duplicate save
-    ///     as well as padding the result data.
+    ///     <see cref="EncodeTexts{T}(IEnumerable{Tuple{T, string}}, Endian?, bool, bool)" />, but is null- and duplicate-safe,
+    ///     and pads the result data.
     /// </summary>
-    /// <param name="texts">The texts to encode, or a suitable approximation of the characters appearances.</param>
-    /// <returns>The list of huffman node values in the order they should be written.</returns>
+    /// <param name="texts">The texts to encode, or a suitable approximation of the characters' appearances.</param>
+    /// <returns>The list of Huffman node values in the order they should be written.</returns>
     public IList<uint> BuildHuffmanEncodingTree(IEnumerable<string> texts)
     {
         List<string> strings = [.. texts];
-        HuffManConstructionNode rootNode = CalculateHuffmanEncoding(strings);
+        HuffmanConstructionNode rootNode = CalculateHuffmanEncoding(strings);
 
         List<HuffmanNode> encodingNodes = GetNodeListToWrite(rootNode);
         _characterEncoding = GetCharEncoding(encodingNodes);
@@ -178,65 +177,65 @@ public class HuffmanEncoder
     }
 
     /// <summary>
-    ///     Encodes the given text into a bool values, using the encoding set previously by
+    ///     Encodes the given text into a list of bool values, using the encoding set previously by
     ///     <see cref="BuildHuffmanEncodingTree(IEnumerable{string})" />.
-    ///     The result bool list can e.g., be put into an BitArray by calling <c>new BitArray(resultList.ToArray())</c>. From
-    ///     there it can be copied into byte arrays or similar.
+    ///     The resulting bool list can, e.g., be put into a BitArray by calling <c>new BitArray(resultList.ToArray())</c>.
+    ///     From there, it can be copied into byte arrays or similar.
     /// </summary>
     /// <param name="text">A single text to encode.</param>
-    /// <param name="includeEndDelimeter">
-    ///     Whether or not the encoding for a 0x0 character should be added to the end of the text.
+    /// <param name="includeEndDelimiter">
+    ///     Whether the encoding for a 0x0 character should be added to the end of the text.
     /// </param>
-    /// <returns>the bool representation of the encoded text.</returns>
-    /// <exception cref="KeyNotFoundException">If a character or symbol to encode was not found in the dictionary</exception>
+    /// <returns>The bool representation of the encoded text.</returns>
+    /// <exception cref="KeyNotFoundException">If a character or symbol to encode was not found in the dictionary.</exception>
     /// <exception cref="InvalidOperationException">If no encoding has been created yet.</exception>
-    public IList<bool> EncodeText(string text, bool includeEndDelimeter = true)
+    public IList<bool> EncodeText(string text, bool includeEndDelimiter = true)
     {
         ArgumentNullException.ThrowIfNull(text);
 
         CheckEncodingExists();
-        return GetEncodedText(text, _characterEncoding!, includeEndDelimeter);
+        return GetEncodedText(text, _characterEncoding!, includeEndDelimiter);
     }
 
     /// <summary>
-    ///     Encodes the given String using the previously created Huffman Encoding from
+    ///     Encodes the given string using the previously created Huffman encoding from
     ///     <see cref="BuildHuffmanEncodingTree(IEnumerable{string})" /> and returns the created byte array together with the
     ///     list of text identifiers and their bit offsets in the byte array.
-    ///     NOTE: Changing the encoding to big endian might invalidate the assigned positions for the text in the returned
+    ///     NOTE: Changing the encoding to big-endian might invalidate the assigned positions for the text in the returned
     ///     result!
     ///     <seealso cref="EncodeTextsToBool{T}(IEnumerable{Tuple{T, string}}, bool)" />
     ///     <seealso cref="GetByteArrayForBoolList(IList{bool}, Endian, bool)" />
     /// </summary>
     /// <typeparam name="T">
-    ///     The type of identifier to use for the texts. Might be a uint id/counter/hashvalue or complex type.
-    ///     Has to be unique per string and not null
+    ///     The type of identifier to use for the texts. Might be a uint id/counter/hash value or complex type.
+    ///     Must be unique per string and not null.
     /// </typeparam>
     /// <param name="textsPerIdentifier">The tuples of string identifiers and the strings to encode.</param>
     /// <param name="endian">
-    ///     The endian type to use for creating the byte array in the returned result object.
-    ///     If no endian is given then the result will not include the byte array and will be the same as created by
+    ///     The endianness to use for creating the byte array in the returned result object.
+    ///     If no endian is given, then the result will not include the byte array and will be the same as created by
     ///     <c>EncodeTextsToBool</c>! You can call <see cref="GetByteArrayForBoolList(IList{bool}, Endian, bool)" /> with the
-    ///     wanted settings later.
-    ///     Note that the given endian overwrites any behaviour from <c>usePadding</c>. If the given encoding is not null but
-    ///     different from the system setting then the result is always padded.
-    ///     Note furthermore that big endian settings migh mean the returned bit offsets for texts in the result will no longer
+    ///     desired settings later.
+    ///     Note that the given endian overrides any behavior from <c>usePadding</c>. If the given endian is not null but
+    ///     different from the system setting, then the result is always padded.
+    ///     Furthermore, note that big-endian settings might mean the returned bit offsets for texts in the result will no longer
     ///     be valid on the target system!
     /// </param>
     /// <param name="compressResults">
-    ///     If true, then this method tries to reuse already compiled string encodings and produced
+    ///     If true, then this method tries to reuse already-compiled string encodings and produced
     ///     bit segments, so the returned byte array might be shorter. Defaults to false.
     /// </param>
     /// <param name="usePadding">
-    ///     Whether to use padding to get to increase the data byte array size so it is a multiple of 4.
-    ///     I.e., multiples of 32 bit. This behaviur is overwritten by the given <c>endian</c>. Endians different than the
+    ///     Whether to use padding to increase the data byte array size so that it is a multiple of 4.
+    ///     I.e., multiples of 32 bits. This behavior is overridden by the given <c>endian</c>. An endianness different from the
     ///     system default will always be padded.
     /// </param>
     /// <returns>
-    ///     An instance of <see cref="HuffmanEncodedTextArray{T}" /> with the byte array of the encoded texts, and a list
-    ///     of the given text identifiers and their bit position inside the byte array. The list has the same ordering as the
+    ///     An instance of <see cref="HuffmanEncodedTextArray{T}" /> with the byte array of the encoded texts and a list
+    ///     of the given text identifiers and their bit positions inside the byte array. The list has the same ordering as the
     ///     given input to this method.
     /// </returns>
-    /// <exception cref="KeyNotFoundException">If a character or symbol to encode was not found in the dictionary</exception>
+    /// <exception cref="KeyNotFoundException">If a character or symbol to encode was not found in the dictionary.</exception>
     /// <exception cref="InvalidOperationException">If no encoding has been created yet.</exception>
     public HuffmanEncodedTextArray<T> EncodeTexts<T>(IEnumerable<Tuple<T, string>> textsPerIdentifier, Endian? endian,
         bool compressResults = false, bool usePadding = true) where T : notnull
@@ -248,33 +247,33 @@ public class HuffmanEncoder
             return byteListResult;
         }
 
-        byte[] encodedToBytes = GetByteArrayForBoolList(byteListResult.EncodedTestsAsBools, endian.Value, usePadding);
+        byte[] encodedToBytes = GetByteArrayForBoolList(byteListResult.EncodedTestsAsBoolList, endian.Value, usePadding);
         byteListResult.EncodedTexts = encodedToBytes;
 
         return byteListResult;
     }
 
     /// <summary>
-    ///     Encodes the given String using the previously created Huffman Encoding from
-    ///     <see cref="BuildHuffmanEncodingTree(IEnumerable{string})" /> and returns the List of bools for the encoded texts.
+    ///     Encodes the given string using the previously created Huffman encoding from
+    ///     <see cref="BuildHuffmanEncodingTree(IEnumerable{string})" /> and returns the list of bools for the encoded texts.
     ///     Note that this method replaces null strings with empty strings.
     ///     NOTE: The returned <see cref="HuffmanEncodedTextArray{T}" /> will not have the byte array set, only the bool list!
     /// </summary>
     /// <typeparam name="T">
-    ///     The type of identifier to use for the texts. Might be a uint id/counter/hashvalue or complex type.
-    ///     Has to be unique per string and not null
+    ///     The type of identifier to use for the texts. Might be a uint id/counter/hash value or complex type.
+    ///     Must be unique per string and not null.
     /// </typeparam>
     /// <param name="textsPerIdentifier">The tuples of string identifiers and the strings to encode.</param>
     /// <param name="compressResults">
-    ///     If true, then this method tries to reuse already compiled string encodings and produced
+    ///     If true, then this method tries to reuse already-compiled string encodings and produced
     ///     bit segments, so the returned byte array might be shorter. Defaults to false.
     /// </param>
     /// <returns>
-    ///     An instance of <see cref="HuffmanEncodedTextArray{T}" /> with the bool list of the encoded texts, and a list
-    ///     of the given text identifiers and their bit position inside the list. The list has the same ordering as the given
+    ///     An instance of <see cref="HuffmanEncodedTextArray{T}" /> with the bool list of the encoded texts and a list
+    ///     of the given text identifiers and their bit positions inside the list. The list has the same ordering as the given
     ///     input to this method.
     /// </returns>
-    /// <exception cref="KeyNotFoundException">If a character or symbol to encode was not found in the dictionary</exception>
+    /// <exception cref="KeyNotFoundException">If a character or symbol to encode was not found in the dictionary.</exception>
     /// <exception cref="InvalidOperationException">If no encoding has been created yet.</exception>
     public HuffmanEncodedTextArray<T> EncodeTextsToBool<T>(IEnumerable<Tuple<T, string>> textsPerIdentifier,
         bool compressResults = false) where T : notnull
@@ -284,14 +283,14 @@ public class HuffmanEncoder
         CheckEncodingExists();
 
         List<IdentifierPositionTuple<T>> positionsOfStrings = [];
-        List<bool> encodedTextBools = [];
+        List<bool> encodedTextBoolList = [];
 
         Dictionary<string, int> alreadyEncodedTextPositions = [];
 
         foreach ((T textIdentifier, string rawText) in textsPerIdentifier)
         {
             string text = string.IsNullOrEmpty(rawText) ? string.Empty : rawText;
-            int position = encodedTextBools.Count;
+            int position = encodedTextBoolList.Count;
 
             bool encodeText = true;
             if (compressResults)
@@ -311,11 +310,11 @@ public class HuffmanEncoder
 
             if (encodeText)
             {
-                encodedTextBools.AddRange(GetEncodedText(text, _characterEncoding!, true));
+                encodedTextBoolList.AddRange(GetEncodedText(text, _characterEncoding!, true));
             }
         }
 
-        return new HuffmanEncodedTextArray<T>(positionsOfStrings, encodedTextBools);
+        return new HuffmanEncodedTextArray<T>(positionsOfStrings, encodedTextBoolList);
     }
 
     /// <summary>
@@ -327,19 +326,19 @@ public class HuffmanEncoder
     }
 
     /// <summary>
-    ///     Calculates the huffman encoding for the given texts, and returns the root node of the resulting tree.
+    ///     Calculates the Huffman encoding for the given texts and returns the root node of the resulting tree.
     /// </summary>
-    /// <param name="texts"></param>
-    /// <returns>Huffman root node.</returns>
-    private static HuffManConstructionNode CalculateHuffmanEncoding(List<string> texts)
+    /// <param name="texts">The texts to calculate the encoding for.</param>
+    /// <returns>The Huffman root node.</returns>
+    private static HuffmanConstructionNode CalculateHuffmanEncoding(List<string> texts)
     {
-        // Get set of chars and their number of occurrences...
+        // Get the set of chars and their number of occurrences...
         Dictionary<char, int> charNumbers = [];
         foreach (char c in texts.SelectMany(text => text))
         {
-            if (charNumbers.TryGetValue(c, out int occurences))
+            if (charNumbers.TryGetValue(c, out int occurrences))
             {
-                charNumbers[c] = ++occurences;
+                charNumbers[c] = ++occurrences;
             }
             else
             {
@@ -351,10 +350,10 @@ public class HuffmanEncoder
         const char delimiter = (char)0x0;
         charNumbers[delimiter] = texts.Count;
 
-        List<HuffManConstructionNode> nodeList = new(charNumbers.Count);
+        List<HuffmanConstructionNode> nodeList = new(charNumbers.Count);
         foreach ((char key, int value) in charNumbers)
         {
-            nodeList.Add(new HuffManConstructionNode(key, value));
+            nodeList.Add(new HuffmanConstructionNode(key, value));
         }
 
         uint nodeValue = 0;
@@ -362,12 +361,12 @@ public class HuffmanEncoder
         {
             nodeList.Sort();
 
-            HuffManConstructionNode left = nodeList[0];
-            HuffManConstructionNode right = nodeList[1];
+            HuffmanConstructionNode left = nodeList[0];
+            HuffmanConstructionNode right = nodeList[1];
 
             nodeList.RemoveRange(0, 2);
 
-            HuffManConstructionNode composite = new() { Value = nodeValue++ };
+            HuffmanConstructionNode composite = new() { Value = nodeValue++ };
             composite.SetLeftNode(left);
             composite.SetRightNode(right);
 
@@ -378,10 +377,10 @@ public class HuffmanEncoder
     }
 
     /// <summary>
-    ///     Returns a dictionary of characters to their encoded bit representation.
+    ///     Returns a dictionary of characters to their encoded bit representations.
     /// </summary>
     /// <param name="encodingNodes">The (limited) list of Huffman code nodes used.</param>
-    /// <returns>Dictionary of char - code values</returns>
+    /// <returns>A dictionary of char-to-code values.</returns>
     private static Dictionary<char, List<bool>> GetCharEncoding(List<HuffmanNode> encodingNodes)
     {
         Dictionary<char, List<bool>> charEncodings = [];
@@ -403,11 +402,11 @@ public class HuffmanEncoder
     }
 
     /// <summary>
-    ///     Recalculates the nodelist to write to the resource based on the root node.
-    ///     This method returns a flat list or huffman nodes, that do not include the given root node.
+    ///     Recalculates the node list to write to the resource based on the root node.
+    ///     This method returns a flat list of Huffman nodes that does not include the given root node.
     /// </summary>
-    /// <param name="rootNode">the root node of the tree to flatten into a single list.</param>
-    /// <returns>list of nodes in the order to write</returns>
+    /// <param name="rootNode">The root node of the tree to flatten into a single list.</param>
+    /// <returns>A list of nodes in the order to write.</returns>
     private static List<HuffmanNode> GetNodeListToWrite(HuffmanNode? rootNode)
     {
         List<HuffmanNode> nodesSansRoot = [];
@@ -417,13 +416,13 @@ public class HuffmanEncoder
             return nodesSansRoot;
         }
 
-        // get all branches
+        // Get all branches
         List<HuffmanNode> branches = GetAllBranchNodes([rootNode]);
 
-        // sort branches by their value, so that the write out can happen in the correct order
+        // Sort branches by their value so that they can be written out in the correct order
         branches.Sort();
 
-        // add all the children in the order of their parent's value
+        // Add all the children in the order of their parent's value
         foreach (HuffmanNode branch in branches)
         {
             nodesSansRoot.Add(branch.Left!);
@@ -453,10 +452,10 @@ public class HuffmanEncoder
     }
 
     /// <summary>
-    ///     Return the encoding for the given node as path in the tree.
+    ///     Returns the encoding for the given node as a path in the tree.
     /// </summary>
     /// <param name="node">The node for which to find the encoding.</param>
-    /// <returns>the encoding as list of booleans.</returns>
+    /// <returns>The encoding as a list of booleans.</returns>
     private static List<bool> GetCharEncodingRecursive(HuffmanNode node)
     {
         HuffmanNode? parent = node.Parent;
@@ -485,16 +484,16 @@ public class HuffmanEncoder
     }
 
     /// <summary>
-    ///     Returns the bit encoded text as list of booleans.
-    ///     The end of the text is marked with the delimiter character 0x0 / huffman node value = uint.MaxValue.
+    ///     Returns the bit-encoded text as a list of booleans.
+    ///     The end of the text is marked with the delimiter character 0x0 / Huffman node value = uint.MaxValue.
     /// </summary>
-    /// <param name="toEncode">The text to encode, given as char array or similar char enumerable</param>
+    /// <param name="toEncode">The text to encode, given as a char array or similar char enumerable.</param>
     /// <param name="charEncoding">The character encoding to use for the text.</param>
-    /// <param name="includeEndDelimeter">Whether or not to include the end delimiter in the returned encoding.</param>
+    /// <param name="includeEndDelimiter">Whether to include the end delimiter in the returned encoding.</param>
     /// <returns>The encoded text.</returns>
-    /// <exception cref="KeyNotFoundException">If a character or symbol to encode was not found in the dictionary</exception>
+    /// <exception cref="KeyNotFoundException">If a character or symbol to encode was not found in the dictionary.</exception>
     private static List<bool> GetEncodedText(IEnumerable<char> toEncode, Dictionary<char, List<bool>> charEncoding,
-        bool includeEndDelimeter)
+        bool includeEndDelimiter)
     {
         List<bool> encodedText = [];
 
@@ -503,7 +502,7 @@ public class HuffmanEncoder
             encodedText.AddRange(TryGetCharacterEncoding(c, charEncoding));
         }
 
-        if (!includeEndDelimeter)
+        if (!includeEndDelimiter)
         {
             return encodedText;
         }
@@ -532,13 +531,13 @@ public class HuffmanEncoder
 
     /// <summary>
     ///     Returns the byte array for the given bool list. Does not take encoding into account!
-    ///     According to the BitArray docs the result is always in little endian.
+    ///     According to the BitArray docs, the result is always in little-endian.
     /// </summary>
-    private static byte[] GetByteArrayForBoolList0(IList<bool> encodedTestsAsBools, bool usePadding)
+    private static byte[] GetByteArrayForBoolList0(IList<bool> encodedTestsAsBoolList, bool usePadding)
     {
-        int byteSize = GetDataLengthInBytes(encodedTestsAsBools.Count, usePadding);
+        int byteSize = GetDataLengthInBytes(encodedTestsAsBoolList.Count, usePadding);
 
-        BitArray ba = new([.. encodedTestsAsBools]);
+        BitArray ba = new([.. encodedTestsAsBoolList]);
 
         byte[] byteArray = new byte[byteSize];
 
