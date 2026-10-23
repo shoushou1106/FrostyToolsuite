@@ -587,7 +587,7 @@ public static class Cas
         }
         else
         {
-            compressedBuffer = new Block<byte>(bufferSize);
+            compressedBuffer = Block<byte>.CreateUninitialized(bufferSize);
         }
 
         inStream.ReadExactly(compressedBuffer);
@@ -624,7 +624,7 @@ public static class Cas
         }
         else
         {
-            compressedBuffer = new Block<byte>(bufferSize);
+            compressedBuffer = Block<byte>.CreateUninitialized(bufferSize);
         }
 
         inStream.ReadExactly(compressedBuffer);

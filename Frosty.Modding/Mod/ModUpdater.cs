@@ -224,7 +224,7 @@ public class ModUpdater
             int size = (int)inStream.ReadInt64();
 
             long curPos = inStream.Position;
-            Block<byte> block = new(size);
+            Block<byte> block = Block<byte>.CreateUninitialized(size);
             inStream.Position = dataOffset + dataCount * 16 + offset;
             inStream.ReadExactly(block);
             data[i] = block;
@@ -666,7 +666,7 @@ public class ModUpdater
         Block<byte>[] data = new Block<byte>[dataCount];
         for (int i = 0; i < dataCount; i++)
         {
-            Block<byte> buffer = new(inStream.ReadInt32());
+            Block<byte> buffer = Block<byte>.CreateUninitialized(inStream.ReadInt32());
             inStream.ReadExactly(buffer);
             data[i] = buffer;
         }
@@ -841,7 +841,7 @@ public class ModUpdater
 
         uint archiveOffset = inDict.AsUInt("archiveOffset");
         stream.Position = archiveOffset;
-        Block<byte> block = new(inDict.AsInt("compressedSize"));
+        Block<byte> block = Block<byte>.CreateUninitialized(inDict.AsInt("compressedSize"));
         stream.ReadExactly(block);
 
         data.Add(block);

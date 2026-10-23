@@ -30,7 +30,7 @@ public class CasCryptoResourceInfo : CasResourceInfo
         {
             stream.Decrypt(KeyManager.GetKey(m_keyId), PaddingMode.None);
 
-            Block<byte> retVal = new((int)GetSize());
+            Block<byte> retVal = Block<byte>.CreateUninitialized((int)GetSize());
             stream.ReadExactly(retVal);
             return retVal;
         }

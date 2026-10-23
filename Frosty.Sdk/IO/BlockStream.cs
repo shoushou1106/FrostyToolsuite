@@ -124,7 +124,7 @@ public class BlockStream : DataStream
                 if (CheckExtraObfuscation(stream, out int keySize))
                 {
                     int size = (int)(stream.Length - keySize);
-                    using (Block<byte> data = new(size))
+                    using (Block<byte> data = Block<byte>.CreateUninitialized(size))
                     {
                         stream.ReadExactly(data);
 
@@ -165,7 +165,7 @@ public class BlockStream : DataStream
                 stream.Position = 0;
             }
 
-            retVal = new BlockStream((int)stream.Length);
+            retVal = new BlockStream(Block<byte>.CreateUninitialized((int)stream.Length));
             stream.ReadExactly(retVal.m_block);
             return retVal;
         }
@@ -184,7 +184,7 @@ public class BlockStream : DataStream
         {
             stream.Position = inOffset;
 
-            BlockStream retVal = new(inSize);
+            BlockStream retVal = new(Block<byte>.CreateUninitialized(inSize));
 
             stream.ReadExactly(retVal.m_block);
             return retVal;
@@ -278,7 +278,7 @@ public class BlockStream : DataStream
             return false;
         }
 
-        stream = new BlockStream((int)(inStream.Length - 0x22C));
+        stream = new BlockStream(Block<byte>.CreateUninitialized((int)(inStream.Length - 0x22C)));
         inStream.ReadExactly(stream.m_block);
 
         // deobfuscate the data

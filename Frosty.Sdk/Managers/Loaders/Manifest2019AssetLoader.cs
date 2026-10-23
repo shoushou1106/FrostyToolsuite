@@ -169,7 +169,7 @@ public class Manifest2019AssetLoader : IAssetLoader
             if (chunksCount != 0)
             {
                 stream.Position = chunkDataOffset;
-                Block<uint> chunkData = new(dataCount);
+                Block<uint> chunkData = Block<uint>.CreateUninitialized(dataCount);
                 stream.ReadExactly(chunkData.ToBlock<byte>());
 
                 stream.Position = chunkGuidOffset;
@@ -259,7 +259,7 @@ public class Manifest2019AssetLoader : IAssetLoader
 
         stream.Position = inOffset + locationOffset;
 
-        Block<byte> fileIdentifierFlags = new(totalCount);
+        Block<byte> fileIdentifierFlags = Block<byte>.CreateUninitialized(totalCount);
         stream.ReadExactly(fileIdentifierFlags);
 
         // the flags should be the last thing in the bundle

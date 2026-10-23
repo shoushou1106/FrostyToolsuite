@@ -20,7 +20,7 @@ public class ResourceData
 
     public Block<byte> GetData()
     {
-        Block<byte> retVal = new(m_size);
+        Block<byte> retVal = Block<byte>.CreateUninitialized(m_size);
         using (FileStream stream = new(m_fileName, FileMode.Open, FileAccess.Read))
         {
             stream.Position = m_offset;

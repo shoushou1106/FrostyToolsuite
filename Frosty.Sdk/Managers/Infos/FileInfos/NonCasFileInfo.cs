@@ -85,7 +85,7 @@ public class NonCasFileInfo : IFileInfo
         {
             stream.Position = m_offset;
 
-            Block<byte> retVal = new((int)m_size);
+            Block<byte> retVal = Block<byte>.CreateUninitialized((int)m_size);
 
             stream.ReadExactly(retVal);
             return retVal;

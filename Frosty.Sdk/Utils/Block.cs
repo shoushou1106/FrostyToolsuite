@@ -16,16 +16,16 @@ public sealed class Block<T> : IDisposable where T : unmanaged
     private bool _disposed;
 
     /// <summary>
-    ///     Allocates a new block of memory. Like the unmanaged allocation it replaces, the contents are not cleared.
+    ///     Allocates a new zeroed block of memory.
     /// </summary>
     /// <param name="inSize">The total number of items to allocate.</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="inSize" /> is invalid.</exception>
+    /// <seealso cref="CreateUninitialized" />
     public Block(int inSize)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(inSize);
 
-        // Allocate array without zeroing
-        _buffer = GC.AllocateUninitializedArray<byte>(inSize * ElementSize);
+        _buffer = new byte[inSize * ElementSize];
         BaseSize = inSize;
     }
 
@@ -110,7 +110,7 @@ public sealed class Block<T> : IDisposable where T : unmanaged
     }
 
     /// <summary>
-    ///     Privately used in ToBlock
+    ///     Privately used in ToBlock and CreateUninitialized
     /// </summary>
     private Block(byte[] inBuffer, int inByteOffset, int inSize)
     {
@@ -170,6 +170,22 @@ public sealed class Block<T> : IDisposable where T : unmanaged
         _disposed = true;
         _buffer = [];
         _baseByteOffset = 0;
+    }
+
+    /// <summary>
+    ///     Allocates a new block of memory without zeroing it, so it holds leftover data until written.
+    ///     Only use it when the whole block is overwritten right away, like reading a file into it.
+    /// </summary>
+    /// <param name="inSize">The total number of items to allocate.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="inSize" /> is invalid.</exception>
+    // CA1000: Do not declare static members on generic types
+#pragma warning disable CA1000
+    public static Block<T> CreateUninitialized(int inSize)
+#pragma warning restore CA1000
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(inSize);
+
+        return new Block<T>(GC.AllocateUninitializedArray<byte>(inSize * ElementSize), 0, inSize);
     }
 
     /// <summary>

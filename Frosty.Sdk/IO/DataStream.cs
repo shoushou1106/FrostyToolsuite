@@ -221,7 +221,7 @@ public class DataStream : IDisposable
 
     public string ReadFixedSizedString(int size, Encoding? inEncoding = null)
     {
-        using (Block<byte> buffer = new(size))
+        using (Block<byte> buffer = Block<byte>.CreateUninitialized(size))
         {
             m_stream.ReadExactly(buffer);
             return (inEncoding ?? Encoding.UTF8).GetString(buffer).TrimEnd((char)0);

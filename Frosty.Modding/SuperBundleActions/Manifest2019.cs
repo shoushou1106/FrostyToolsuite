@@ -458,7 +458,7 @@ internal class Manifest2019 : IDisposable
             if (chunksCount != 0)
             {
                 stream.Position = chunkDataOffset;
-                Block<uint> chunkData = new(dataCount);
+                Block<uint> chunkData = Block<uint>.CreateUninitialized(dataCount);
                 stream.ReadExactly(chunkData.ToBlock<byte>());
 
                 stream.Position = chunkGuidOffset;
@@ -646,7 +646,7 @@ internal class Manifest2019 : IDisposable
 
         inStream.Position = inOffset + locationOffset;
 
-        Block<byte> fileIdentifierFlags = new(totalCount);
+        Block<byte> fileIdentifierFlags = Block<byte>.CreateUninitialized(totalCount);
         inStream.ReadExactly(fileIdentifierFlags);
 
         inStream.Position = inOffset + dataOffset;
