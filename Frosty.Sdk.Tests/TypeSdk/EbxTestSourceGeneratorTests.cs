@@ -3,7 +3,7 @@ namespace Frosty.Sdk.Tests.TypeSdk;
 /// <summary>
 /// TODO: Replace FrostyTypeSdkGenerator.Example. Directly debug on this test instead.
 /// </summary>
-internal sealed class EbxTestSourceGeneratorTests
+internal static class EbxTestSourceGeneratorTests
 {
     // Not implemented.
     // Because FrostyTypeSdkGenerator.Example is cleared out during .NET 8 upgrade.

@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 
 using Frosty.Sdk.IO;
 
@@ -197,7 +198,7 @@ public class HuffmanEncoder
         ArgumentNullException.ThrowIfNull(text);
 
         CheckEncodingExists();
-        return GetEncodedText(text, _characterEncoding!, includeEndDelimiter);
+        return GetEncodedText(text, _characterEncoding, includeEndDelimiter);
     }
 
     /// <summary>
@@ -316,7 +317,7 @@ public class HuffmanEncoder
 
             if (encodeText)
             {
-                encodedTextBoolList.AddRange(GetEncodedText(text, _characterEncoding!, true));
+                encodedTextBoolList.AddRange(GetEncodedText(text, _characterEncoding, true));
             }
         }
 
@@ -429,6 +430,7 @@ public class HuffmanEncoder
         branches.Sort();
 
         // Add all the children in the order of their parent's value
+        // GetAllBranchNodes only returns nodes with both children set
         foreach (HuffmanNode branch in branches)
         {
             nodesSansRoot.Add(branch.Left!);
@@ -543,6 +545,8 @@ public class HuffmanEncoder
     {
         int byteSize = GetDataLengthInBytes(encodedTestsAsBoolList.Count, usePadding);
 
+        // Filled by the constructor
+        // ReSharper disable once CollectionNeverUpdated.Local
         BitArray ba = new([.. encodedTestsAsBoolList]);
 
         byte[] byteArray = new byte[byteSize];
@@ -556,6 +560,7 @@ public class HuffmanEncoder
     ///     Asserts that an encoding has been created.
     /// </summary>
     /// <exception cref="InvalidOperationException">If no encoding exists.</exception>
+    [MemberNotNull(nameof(_characterEncoding))]
     private void CheckEncodingExists()
     {
         if (_characterEncoding is null)

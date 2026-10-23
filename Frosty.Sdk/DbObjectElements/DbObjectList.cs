@@ -37,7 +37,7 @@ public class DbObjectList : DbObject, IEnumerable<DbObject>
 
     public IEnumerator<DbObject> GetEnumerator()
     {
-        return new DbObjectListEnum(_items);
+        return _items.GetEnumerator();
     }
 
     IEnumerator IEnumerable.GetEnumerator()
@@ -156,45 +156,6 @@ public class DbObjectList : DbObject, IEnumerable<DbObject>
             }
 
             _items.Add(obj);
-        }
-    }
-
-    private class DbObjectListEnum(List<DbObject> inItems) : IEnumerator<DbObject>
-    {
-        // Enumerators are positioned before the first element
-        // until the first MoveNext() call.
-        private int _position = -1;
-
-        public bool MoveNext()
-        {
-            _position++;
-            return _position < inItems.Count;
-        }
-
-        public void Reset()
-        {
-            _position = -1;
-        }
-
-        object IEnumerator.Current => Current;
-
-        public DbObject Current
-        {
-            get
-            {
-                try
-                {
-                    return inItems[_position];
-                }
-                catch (IndexOutOfRangeException)
-                {
-                    throw new InvalidOperationException();
-                }
-            }
-        }
-
-        public void Dispose()
-        {
         }
     }
 }

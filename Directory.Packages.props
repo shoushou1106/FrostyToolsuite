@@ -14,8 +14,8 @@
        With TransitivePinning enabled, manage sub-package/transitive packages here, instead in project -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0"/>
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.13"/>
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.13"/>
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="11.0.0-rc.2.26504.105"/>
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="11.0.0-rc.2.26504.105"/>
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0"/>
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0"/>
     <PackageVersion Include="NUnit" Version="5.0.0"/>

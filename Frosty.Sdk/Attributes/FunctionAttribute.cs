@@ -2,26 +2,29 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Frosty.Sdk.Attributes;
 
-/// <remarks>
-///     TODO: This file is likely not finished. Suggest adding sealed, dropping protected, and use IEquatable.
-/// </remarks>
 [AttributeUsage(AttributeTargets.Struct)]
-public class FunctionAttribute(params string[] argumentTypes) : Attribute
+public sealed class FunctionAttribute(params string[] argumentTypes) : Attribute, IEquatable<FunctionAttribute>
 {
     public string[] ArgumentTypes { get; } = argumentTypes;
 
-    public override bool Equals([NotNullWhen(true)] object? obj)
+    public bool Equals([NotNullWhen(true)] FunctionAttribute? other)
     {
-        return obj is FunctionAttribute other && other.ArgumentTypes.SequenceEqual(ArgumentTypes);
+        return other is not null && ArgumentTypes.AsSpan().SequenceEqual(other.ArgumentTypes);
     }
 
-    protected bool Equals(FunctionAttribute other)
+    public override bool Equals([NotNullWhen(true)] object? obj)
     {
-        return base.Equals(other) && ArgumentTypes.Equals(other.ArgumentTypes);
+        return obj is FunctionAttribute other && Equals(other);
     }
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(base.GetHashCode(), ArgumentTypes);
+        HashCode hash = new();
+        foreach (string argumentType in ArgumentTypes)
+        {
+            hash.Add(argumentType);
+        }
+
+        return hash.ToHashCode();
     }
 }

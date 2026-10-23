@@ -49,9 +49,9 @@ public static class ObjectExtensions
                 case T temp:
                     result = temp;
                     return true;
-                case IPrimitive primitive when primitive.ToActualType() is T:
-                    // TODO: Verify whether the IPrimitive branch should return true after assigning result.
-                    break;
+                case IPrimitive primitive when primitive.ToActualType() is T actual:
+                    result = actual;
+                    return true;
             }
 
             result = default;

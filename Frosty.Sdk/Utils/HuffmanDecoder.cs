@@ -146,6 +146,7 @@ public class HuffmanDecoder
             while (!node.IsLeaf && bitIndex < dataLengthInBits)
             {
                 int bit = (_data[bitIndex / 32] >> (bitIndex % 32)) & 1;
+                // Non-leaf nodes are always built with both children
                 node = bit == 0 ? node.Left! : node.Right!;
                 bitIndex++;
             }

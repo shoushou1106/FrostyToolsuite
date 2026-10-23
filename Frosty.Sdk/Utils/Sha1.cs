@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 
 namespace Frosty.Sdk.Utils;
@@ -96,7 +97,7 @@ public readonly struct Sha1 : IEquatable<Sha1>
         return _a == other._a && _b == other._b && _c == other._c && _d == other._d && _e == other._e;
     }
 
-    public override bool Equals(object? obj)
+    public override bool Equals([NotNullWhen(true)] object? obj)
     {
         return obj is Sha1 other && Equals(other);
     }

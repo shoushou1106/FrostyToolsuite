@@ -3,3 +3,6 @@
 dotnet_diagnostic.CA1720.severity = none
 # ReSharper Code inspection: Class is never instantiated (non-private accessibility)
 resharper_class_never_instantiated_global_highlighting = hint
+# ReSharper Code inspection: Member can be made private (non-private accessibility)
+# Attribute properties are read by consumers through reflection
+resharper_member_can_be_private_global_highlighting = hint

@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 using Frosty.Sdk.Interfaces;
 
 namespace Frosty.Sdk.Ebx;
@@ -70,7 +72,7 @@ public readonly struct TypeRef : IEquatable<TypeRef>
         return InternalType is null;
     }
 
-    public override bool Equals(object? obj)
+    public override bool Equals([NotNullWhen(true)] object? obj)
     {
         return obj is TypeRef b && Equals(b);
     }

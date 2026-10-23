@@ -34,8 +34,8 @@ public class EbxPartition
 
     public IEnumerable<IEbxInstance> Instances => InternalInstances;
 
-    // TODO: Remove this resharper disable after something used this somewhere
-    // ReSharper disable MemberCanBePrivate.Global
+    // Public API, remove warning disbale after something called it.
+    // ReSharper disable once MemberCanBePrivate.Global
     public IEnumerable<IEbxInstance> ExportedObjects =>
         InternalInstances.Where(obj => obj.GetInstanceGuid().IsExported);
 
@@ -66,7 +66,6 @@ public class EbxPartition
     {
     }
 
-    // TODO: Change FirstOrDefault to SingleOrDefault if a duplicated object in ExportedObjects should cause a throw. Delete this comment after fix / not needed
     public IEbxInstance? GetObject(Guid exportedGuid)
     {
         return ExportedObjects.FirstOrDefault(obj => obj.GetInstanceGuid() == exportedGuid);

@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Frosty.Sdk.Ebx;
 
 public readonly struct FileRef(string? value) : IEquatable<FileRef>
@@ -24,7 +26,7 @@ public readonly struct FileRef(string? value) : IEquatable<FileRef>
         return $"FileRef '{_fileName ?? "null"}'";
     }
 
-    public override bool Equals(object? obj)
+    public override bool Equals([NotNullWhen(true)] object? obj)
     {
         return obj is FileRef b && Equals(b);
     }
@@ -46,7 +48,6 @@ public readonly struct FileRef(string? value) : IEquatable<FileRef>
 
     public override int GetHashCode()
     {
-        // TODO: Specific exact StringComparison type. The InvariantCulture is a safe placeholder.
-        return _fileName?.GetHashCode(StringComparison.InvariantCulture) ?? 0;
+        return _fileName?.GetHashCode(StringComparison.Ordinal) ?? 0;
     }
 }

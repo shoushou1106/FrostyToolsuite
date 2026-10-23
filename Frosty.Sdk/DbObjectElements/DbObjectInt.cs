@@ -42,8 +42,8 @@ public class DbObjectInt : DbObject
 
     public override ulong AsULong()
     {
-        // TODO: Possible typo, (ulong) instead of (uint), delete this comment after fix / if its not
-        return (uint)_value;
+        // Zero-extend, so the value matches AsUInt
+        return AsUInt();
     }
 
     protected override void InternalSerialize(DataStream stream)

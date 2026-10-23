@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO.Ebx;
 
@@ -57,7 +59,7 @@ public readonly struct PointerRef : IEquatable<PointerRef>
         return !a.Equals(b);
     }
 
-    public override bool Equals(object? obj)
+    public override bool Equals([NotNullWhen(true)] object? obj)
     {
         return obj is PointerRef b && Equals(b);
     }
@@ -75,6 +77,7 @@ public readonly struct PointerRef : IEquatable<PointerRef>
             hash = (hash * 16777619) ^ Type.GetHashCode();
             return Type switch
             {
+                // Type is only Internal when constructed with a non-null instance
                 PointerRefType.Internal => (hash * 16777619) ^ Internal!.GetHashCode(),
                 PointerRefType.External => (hash * 16777619) ^ External.GetHashCode(),
                 _ => hash

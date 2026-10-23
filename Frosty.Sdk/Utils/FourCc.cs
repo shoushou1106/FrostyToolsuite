@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Frosty.Sdk.Utils;
 
 public readonly struct FourCc(uint value) : IEquatable<FourCc>
@@ -54,7 +56,7 @@ public readonly struct FourCc(uint value) : IEquatable<FourCc>
         return !a.Equals(b);
     }
 
-    public override bool Equals(object? obj)
+    public override bool Equals([NotNullWhen(true)] object? obj)
     {
         return obj switch
         {

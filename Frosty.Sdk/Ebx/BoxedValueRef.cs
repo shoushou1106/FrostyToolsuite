@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 using Frosty.Sdk.TypeSdk;
 
 namespace Frosty.Sdk.Ebx;
@@ -30,7 +32,7 @@ public struct BoxedValueRef(object? inValue, TypeFlags inFlags) : IEquatable<Box
             $"BoxedValueRef '{(type.Name == CollectionName ? $"Array<{type.GenericTypeArguments[0].GetName()}>" : type == typeof(PointerRef) ? "Class" : type.GetName())}'";
     }
 
-    public override bool Equals(object? obj)
+    public override bool Equals([NotNullWhen(true)] object? obj)
     {
         return obj is BoxedValueRef b && Equals(b);
     }

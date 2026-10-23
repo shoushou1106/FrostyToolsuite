@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Frosty.Sdk.Ebx;
 
 public readonly struct AssetClassGuid : IEquatable<AssetClassGuid>
@@ -30,7 +32,7 @@ public readonly struct AssetClassGuid : IEquatable<AssetClassGuid>
         return !a.Equals(b);
     }
 
-    public override bool Equals(object? obj)
+    public override bool Equals([NotNullWhen(true)] object? obj)
     {
         return obj switch
         {

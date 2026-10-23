@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 namespace Frosty.Sdk.Ebx;
@@ -28,7 +29,7 @@ public readonly struct ResourceRef(ulong value) : IEquatable<ResourceRef>
         return _resourceId;
     }
 
-    public override bool Equals(object? obj)
+    public override bool Equals([NotNullWhen(true)] object? obj)
     {
         return obj switch
         {
