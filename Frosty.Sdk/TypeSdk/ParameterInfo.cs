@@ -15,7 +15,7 @@ internal class ParameterInfo
 
     public void Read(MemoryReader reader)
     {
-        m_name = reader.ReadNullTerminatedString();
+        m_name = reader.ReadUtf8StringFromPointer();
         p_typeInfo = reader.ReadLong();
         m_type = reader.ReadByte();
         if (TypeInfo.Version > 3)

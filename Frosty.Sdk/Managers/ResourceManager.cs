@@ -1,16 +1,13 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.IO.Compression;
-using System.Linq;
-using System.Net.Http;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using Frosty.Sdk.IO;
+using Frosty.Sdk.IO.Compression;
 using Frosty.Sdk.Managers.CatResources;
 using Frosty.Sdk.Managers.Infos;
 using Frosty.Sdk.Managers.Infos.FileInfos;
 using Frosty.Sdk.Utils;
-using Octokit;
 using Microsoft.Extensions.Logging;
 
 namespace Frosty.Sdk.Managers;
@@ -82,58 +79,133 @@ public static class ResourceManager
         }
 
         // get oodle libs from unreal
-        if (Directory.EnumerateFiles(FileSystemManager.BasePath, "oo2core_*").Any())
+        if (Directory.EnumerateFiles(FileSystemManager.BasePath, "oo2core_*").Any() &&
+            !File.Exists(CompressionOodle.LibraryPath))
         {
-            string oodleSo = Path.Combine(AppContext.BaseDirectory, "ThirdParty", "liboo2core.so");
-            string oodleDll = Path.Combine(AppContext.BaseDirectory, "ThirdParty", "liboo2core.dll");
-            if (!File.Exists(oodleSo) || !File.Exists(oodleDll))
+            Directory.CreateDirectory(Path.GetDirectoryName(CompressionOodle.LibraryPath)!);
+            if (!TryDownloadOodle(CompressionOodle.LibraryPath))
             {
-                GitHubClient client = new(new ProductHeaderValue("Frosty"));
-
-                // Get the latest release
-                Release? release = client.Repository.Release.Get("WorkingRobot", "OodleUE", "2024-11-01-726").Result;
-
-                if (release is null)
-                {
-                    FrostyLogger.Logger.LogError(
-                        "Failed to download Oodle release. Please install Oodle 2.9.13 or equivalent from Unreal Engine manually.");
-                    return false;
-                }
-
-                ReleaseAsset? msvc = release.Assets.FirstOrDefault(a => a.Name == "msvc.zip");
-                ReleaseAsset? gcc = release.Assets.FirstOrDefault(a => a.Name == "gcc.zip");
-
-                if (msvc is null || gcc is null)
-                {
-                    FrostyLogger.Logger.LogError("Failed to find Oodle");
-                    return false;
-                }
-
-                using HttpClient httpClient = new();
-                Stream msvcStream = httpClient.GetStreamAsync(msvc.BrowserDownloadUrl).Result;
-                Stream gccStream = httpClient.GetStreamAsync(gcc.BrowserDownloadUrl).Result;
-
-                using ZipArchive msvcArchive = new(msvcStream, ZipArchiveMode.Read);
-                ZipArchiveEntry? dll = msvcArchive.GetEntry("bin/Release/oodle-data-shared.dll");
-                using ZipArchive gccArchive = new(gccStream, ZipArchiveMode.Read);
-                ZipArchiveEntry? so = gccArchive.GetEntry("lib/Release/liboodle-data-shared.so");
-                if (dll is null || so is null)
-                {
-                    FrostyLogger.Logger?.LogError("Failed to extract Oodle");
-                    return false;
-                }
-
-                using Stream stream = dll.Open();
-                using FileStream dllStream = File.Create(oodleDll);
-                stream.CopyTo(dllStream);
-                using Stream stream2 = so.Open();
-                using FileStream soStream = File.Create(oodleSo);
-                stream2.CopyTo(soStream);
+                FrostyLogger.Logger.LogError(
+                    "Failed to download Oodle. Please install Oodle 2.9.16 or equivalent from Unreal Engine manually, and name it liboo2core.");
+                FrostyLogger.Logger.LogInformation("https://github.com/WorkingRobot/OodleUE/releases/2026-06-04-1357/");
+                return false;
             }
         }
 
         IsInitialized = true;
         return true;
+    }
+
+    /// <summary>
+    ///     Downloads Oodle for the current OS and CPU into <paramref name="inDestination" />
+    /// </summary>
+    private static bool TryDownloadOodle(string inDestination)
+    {
+        bool isArm64 = RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
+        if (!isArm64 && RuntimeInformation.ProcessArchitecture != Architecture.X64)
+        {
+            FrostyLogger.Logger.LogError(
+                "Auto Oodle download does not support your current architecture: {Arch}", RuntimeInformation.ProcessArchitecture.ToString());
+            return false;
+        }
+
+        try
+        {
+            using HttpClient client = new();
+            if (OperatingSystem.IsWindows())
+            {
+                return isArm64
+                    ? TryExtractOodle(client, "msvc-arm64-release.zip",
+                        "dc6c93af3b8dc4d7a176d838487aa5d0f540aad94197e296d5adabad0b0a8e8e", "bin/oodle-data-shared.dll",
+                        inDestination)
+                    : TryExtractOodle(client, "msvc-x64-release.zip",
+                        "08844ec260e40134ce6089ffe2003d6f862cd2abf1ebfb62a3fa8d2f69f48a2b", "bin/oodle-data-shared.dll",
+                        inDestination);
+            }
+
+            if (OperatingSystem.IsLinux())
+            {
+                return isArm64
+                    ? TryExtractOodle(client, "gcc-arm64-release.zip",
+                        "fb698deb4f725ade94e2dfe16d9628e13a6a699cc21fc4c3d742bd061a065f40", "lib/liboodle-data-shared.so",
+                        inDestination)
+                    : TryExtractOodle(client, "gcc-x64-release.zip",
+                        "458c66945ea6124d4f6fcf64cec5601ab230f61f6677a6ecab6cca621a9d0e11", "lib/liboodle-data-shared.so",
+                        inDestination);
+            }
+
+            if (!OperatingSystem.IsMacOS())
+            {
+                return false;
+            }
+
+            // TODO: Pick the Oodle version per game instead of one fixed version, see CompressionOodle.Compress.
+            // macOS release does not ship inside the release zip.
+            // Windows release is not included in the repo directly.
+            Uri oodleMacLibrary = new(
+                "https://raw.githubusercontent.com/WorkingRobot/OodleUE/2026-06-04-1357/Engine/Source/Runtime/OodleDataCompression/Sdks/2.9.16/lib/Mac/liboo2coremac64.2.9.16.dylib");
+
+            const string oodleMacLibrarySha256 =
+                "47269bc3c9f7ef7948775be2c018ce674d1ab8a8526b6935e9d1033b0b47e8b7";
+
+            
+            byte[]? library = TryDownloadVerified(client, oodleMacLibrary, oodleMacLibrarySha256);
+            if (library is null)
+            {
+                return false;
+            }
+
+            File.WriteAllBytes(inDestination, library);
+            return true;
+        }
+        catch (HttpRequestException e)
+        {
+            FrostyLogger.Logger.LogError(e, "Failed to download Oodle from the OodleUE release.");
+            return false;
+        }
+    }
+
+    private static bool TryExtractOodle(HttpClient inClient, string inAsset, string inSha256, string inEntry,
+        string inDestination)
+    {
+        // TODO: Pick the Oodle version per game instead of one fixed version, see CompressionOodle.Compress.
+        Uri oodleRelease =
+            new("https://github.com/WorkingRobot/OodleUE/releases/download/2026-06-04-1357/");
+
+        byte[]? zip = TryDownloadVerified(inClient, new Uri(oodleRelease, inAsset), inSha256);
+        if (zip is null)
+        {
+            return false;
+        }
+
+        using ZipArchive archive = new(new MemoryStream(zip), ZipArchiveMode.Read);
+        ZipArchiveEntry? entry = archive.GetEntry(inEntry);
+        if (entry is null)
+        {
+            return false;
+        }
+
+        entry.ExtractToFile(inDestination, true);
+        return true;
+    }
+
+    /// <returns>The downloaded bytes, or <see langword="null" /> if they do not match <paramref name="inSha256" />.</returns>
+    private static byte[]? TryDownloadVerified(HttpClient inClient, Uri inUri, string inSha256)
+    {
+        using HttpRequestMessage request = new(HttpMethod.Get, inUri);
+        using HttpResponseMessage response = inClient.Send(request);
+        response.EnsureSuccessStatusCode();
+
+        using MemoryStream download = new();
+        response.Content.ReadAsStream().CopyTo(download);
+        byte[] bytes = download.ToArray();
+        if (SHA256.HashData(bytes).AsSpan().SequenceEqual(Convert.FromHexString(inSha256)))
+        {
+            return bytes;
+        }
+
+        FrostyLogger.Logger.LogError("Failed to verify. {Uri} does not match its expected hash.", inUri);
+        return null;
     }
 
     public static long GetSize(Sha1 sha1)

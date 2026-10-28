@@ -1,32 +1,29 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-
 namespace Frosty.Sdk.IO.RiffEbx;
 
-internal class EbxTypeResolver
+internal sealed class EbxTypeResolver
 {
-    private readonly IList<Guid> m_typeGuids;
-    private readonly IList<uint> m_typeSignatures;
+    // The writer keeps adding to these lists after the resolver is created
+    private readonly IReadOnlyList<Guid> _typeGuids;
+    private readonly IReadOnlyList<uint> _typeSignatures;
 
-    internal EbxTypeResolver(IList<Guid> inTypeGuids, IList<uint> inTypeSignatures)
+    internal EbxTypeResolver(IReadOnlyList<Guid> inTypeGuids, IReadOnlyList<uint> inTypeSignatures)
     {
         EbxSharedTypeDescriptors.Initialize();
-        m_typeGuids = inTypeGuids;
-        m_typeSignatures = inTypeSignatures;
+        _typeGuids = inTypeGuids;
+        _typeSignatures = inTypeSignatures;
     }
 
     public EbxTypeDescriptor ResolveType(int index)
     {
-        return EbxSharedTypeDescriptors.GetTypeDescriptor(m_typeGuids[index], m_typeSignatures[index]);
+        return EbxSharedTypeDescriptors.GetTypeDescriptor(_typeGuids[index], _typeSignatures[index]);
     }
 
-    public EbxTypeDescriptor ResolveTypeFromField(ushort inTypeDescriptorRef)
+    public static EbxTypeDescriptor ResolveTypeFromField(ushort inTypeDescriptorRef)
     {
         return EbxSharedTypeDescriptors.GetTypeDescriptor(inTypeDescriptorRef);
     }
 
-    public EbxFieldDescriptor ResolveField(int index)
+    public static EbxFieldDescriptor ResolveField(int index)
     {
         return EbxSharedTypeDescriptors.GetFieldDescriptors(index);
     }

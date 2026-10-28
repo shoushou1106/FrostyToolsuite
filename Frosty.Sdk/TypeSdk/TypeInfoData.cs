@@ -29,7 +29,7 @@ internal class TypeInfoData
         string name = string.Empty;
         if (!ProfilesLibrary.HasStrippedTypeNames)
         {
-            name = reader.ReadNullTerminatedString();
+            name = reader.ReadUtf8StringFromPointer();
         }
 
         uint nameHash = uint.MaxValue;
@@ -129,7 +129,7 @@ internal class TypeInfoData
         long nameSpaceOffset = reader.ReadLong();
         long curPos = reader.Position;
         reader.Position = nameSpaceOffset;
-        m_nameSpace = reader.ReadNullTerminatedString();
+        m_nameSpace = reader.ReadUtf8StringFromPointer();
         reader.Position = curPos;
 
         if (TypeInfo.Version > 2)

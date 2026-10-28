@@ -228,7 +228,7 @@ public partial class FrostyModExecutor
 
                 using (DataStream stream = new(File.Create(Path.Combine(m_modDataPath, "layout.toc"))))
                 {
-                    ObfuscationHeader.Write(stream);
+                    ObfuscationHeader.Write(stream.BaseStream);
                     DbObject.Serialize(stream, layout);
                 }
             }

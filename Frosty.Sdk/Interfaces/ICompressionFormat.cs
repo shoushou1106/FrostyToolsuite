@@ -1,5 +1,4 @@
 using Frosty.Sdk.IO.Compression;
-using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.Interfaces;
 
@@ -8,16 +7,21 @@ public interface ICompressionFormat
     string Identifier { get; }
 
     /// <summary>
-    ///     Decompresses <paramref name="inData" /> and writes it to <paramref name="outData" />.
+    ///     Decompresses <paramref name="inData" /> into <paramref name="outData" />.
     /// </summary>
-    void Decompress<T>(Block<T> inData, ref Block<T> outData, CompressionFlags inFlags = CompressionFlags.None)
-        where T : unmanaged;
+    /// <returns>The number of bytes written to <paramref name="outData" />.</returns>
+    /// <exception cref="InvalidDataException"><paramref name="inData" /> could not be decompressed.</exception>
+    int Decompress(ReadOnlySpan<byte> inData, Span<byte> outData, CompressionOptions inOptions = CompressionOptions.None);
 
     /// <summary>
-    ///     Compresses <paramref name="inData" /> and writes it to <paramref name="outData" />.
+    ///     Compresses <paramref name="inData" /> into <paramref name="outData" />,
+    ///     which promised to be at least <see cref="GetCompressBounds" /> bytes long.
     /// </summary>
-    int Compress<T>(Block<T> inData, ref Block<T> outData, CompressionFlags inFlags = CompressionFlags.None)
-        where T : unmanaged;
+    /// <returns>The number of bytes written to <paramref name="outData" />.</returns>
+    int Compress(ReadOnlySpan<byte> inData, Span<byte> outData, CompressionOptions inOptions = CompressionOptions.None);
 
-    int GetCompressBounds(int inRawSize, CompressionFlags inFlags = CompressionFlags.None);
+    /// <summary>
+    ///     Get the largest size <see cref="Compress" /> can produce for <paramref name="inRawSize" /> bytes.
+    /// </summary>
+    int GetCompressBounds(int inRawSize, CompressionOptions inOptions = CompressionOptions.None);
 }

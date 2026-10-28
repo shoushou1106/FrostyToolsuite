@@ -1,19 +1,16 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using Frosty.Sdk.Managers;
 using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.IO.LegacyEbx;
 
-public static class EbxSharedTypeDescriptors
+internal static class EbxSharedTypeDescriptors
 {
     private static bool s_isInitialized;
 
-    private static Dictionary<uint, Guid> s_typeKeyMapping = new();
-    private static Dictionary<Guid, int> s_keyTypeMapping = new();
-    private static List<EbxFieldDescriptor> s_fieldDescriptors = new();
-    private static List<EbxTypeDescriptor> s_typeDescriptors = new();
+    private static readonly Dictionary<uint, Guid> TypeKeyMapping = new();
+    private static readonly Dictionary<Guid, int> KeyTypeMapping = new();
+    private static readonly List<EbxFieldDescriptor> FieldDescriptors = [];
+    private static readonly List<EbxTypeDescriptor> TypeDescriptors = [];
 
     public static void Initialize()
     {
@@ -37,97 +34,94 @@ public static class EbxSharedTypeDescriptors
 
     public static EbxTypeDescriptor GetTypeDescriptor(Guid key)
     {
-        return s_typeDescriptors[s_keyTypeMapping[key]];
+        return TypeDescriptors[KeyTypeMapping[key]];
     }
 
     public static EbxTypeDescriptor GetTypeDescriptor(short index)
     {
-        return s_typeDescriptors[index];
+        return TypeDescriptors[index];
     }
 
     public static EbxFieldDescriptor GetFieldDescriptor(int index)
     {
-        return s_fieldDescriptors[index];
+        return FieldDescriptors[index];
     }
 
     public static EbxTypeDescriptor GetKey(uint inNameHash)
     {
-        return new EbxTypeDescriptor(s_typeKeyMapping[inNameHash]);
+        return new EbxTypeDescriptor(TypeKeyMapping[inNameHash]);
     }
 
     public static EbxTypeDescriptor GetSharedTypeDescriptor(uint inNameHash)
     {
-        return s_typeDescriptors[s_keyTypeMapping[s_typeKeyMapping[inNameHash]]];
+        return TypeDescriptors[KeyTypeMapping[TypeKeyMapping[inNameHash]]];
     }
 
     private static void Read(Block<byte> file)
     {
-        using (BlockStream stream = new(file))
+        // Left open because the block belongs to the memory fs
+        using BlockStream stream = new(file, true);
+        EbxVersion magic = (EbxVersion)stream.ReadUInt32();
+
+        if (magic != EbxVersion.Version4)
         {
-            EbxVersion magic = (EbxVersion)stream.ReadUInt32();
+            throw new InvalidDataException("magic");
+        }
 
-            if (magic != EbxVersion.Version4)
+        ushort typeDescriptorCount = stream.ReadUInt16();
+        ushort fieldDescriptorCount = stream.ReadUInt16();
+
+        TypeDescriptors.Capacity = typeDescriptorCount + TypeDescriptors.Count;
+        FieldDescriptors.Capacity = fieldDescriptorCount + FieldDescriptors.Count;
+
+        int startFields = FieldDescriptors.Count;
+
+        for (int i = 0; i < fieldDescriptorCount; i++)
+        {
+            FieldDescriptors.Add(new EbxFieldDescriptor
             {
-                throw new InvalidDataException("magic");
+                NameHash = stream.ReadUInt32(),
+                Flags = stream.ReadUInt16(),
+                TypeDescriptorRef = stream.ReadUInt16(),
+                DataOffset = stream.ReadUInt32(),
+                SecondOffset = stream.ReadUInt32()
+            });
+        }
+
+        for (int i = 0; i < typeDescriptorCount; i++)
+        {
+            long offset = stream.Position;
+
+            Guid key = stream.ReadGuid();
+
+            EbxTypeDescriptor typeDescriptor = new()
+            {
+                NameHash = stream.ReadUInt32(),
+                FieldIndex = stream.ReadInt32(),
+                FieldCount = stream.ReadByte(),
+                Alignment = stream.ReadByte(),
+                Flags = stream.ReadUInt16(),
+                Size = stream.ReadUInt16(),
+                SecondSize = stream.ReadUInt16(),
+                Index = TypeDescriptors.Count
+            };
+
+            typeDescriptor.Name = TypeLibrary.GetType(typeDescriptor.NameHash)?.Name ?? string.Empty;
+
+            if (typeDescriptor.IsSharedTypeDescriptorKey())
+            {
+                // Reference to already existing type descriptor
+                typeDescriptor = TypeDescriptors[KeyTypeMapping[key]];
+            }
+            else
+            {
+                // Relative offset to the field, calculate the index.
+                typeDescriptor.FieldIndex = (int)((offset - (typeDescriptor.FieldIndex - 0x08)) / 0x10 + startFields);
+                KeyTypeMapping[key] = TypeDescriptors.Count;
+                TypeKeyMapping[typeDescriptor.NameHash] = key;
             }
 
-            ushort typeDescriptorCount = stream.ReadUInt16();
-            ushort fieldDescriptorCount = stream.ReadUInt16();
-
-            s_typeDescriptors.Capacity = typeDescriptorCount + s_typeDescriptors.Count;
-            s_fieldDescriptors.Capacity = fieldDescriptorCount + s_fieldDescriptors.Count;
-
-            int startFields = s_fieldDescriptors.Count;
-
-            for (int i = 0; i < fieldDescriptorCount; i++)
-            {
-                s_fieldDescriptors.Add(new EbxFieldDescriptor()
-                {
-                    NameHash = stream.ReadUInt32(),
-                    Flags = stream.ReadUInt16(),
-                    TypeDescriptorRef = stream.ReadUInt16(),
-                    DataOffset = stream.ReadUInt32(),
-                    SecondOffset = stream.ReadUInt32(),
-                });
-            }
-
-            for (int i = 0; i < typeDescriptorCount; i++)
-            {
-                long offset = stream.Position;
-
-                Guid key = stream.ReadGuid();
-
-                EbxTypeDescriptor typeDescriptor = new()
-                {
-                    NameHash = stream.ReadUInt32(),
-                    FieldIndex = stream.ReadInt32(),
-                    FieldCount = stream.ReadByte(),
-                    Alignment = stream.ReadByte(),
-                    Flags = stream.ReadUInt16(),
-                    Size = stream.ReadUInt16(),
-                    SecondSize = stream.ReadUInt16(),
-                    Index = s_typeDescriptors.Count
-                };
-
-                typeDescriptor.Name = TypeLibrary.GetType(typeDescriptor.NameHash)?.Name ?? string.Empty;
-
-                if (typeDescriptor.IsSharedTypeDescriptorKey())
-                {
-                    // reference to already existing type descriptor
-                    typeDescriptor = s_typeDescriptors[s_keyTypeMapping[key]];
-                }
-                else
-                {
-                    // its a relative offset to the field, so we have to calculate the index
-                    typeDescriptor.FieldIndex = (int)((offset - (typeDescriptor.FieldIndex - 0x08)) / 0x10 + startFields);
-                    s_keyTypeMapping.Remove(key);
-                    s_keyTypeMapping.Add(key, s_typeDescriptors.Count);
-                    s_typeKeyMapping.Remove(typeDescriptor.NameHash);
-                    s_typeKeyMapping.Add(typeDescriptor.NameHash, key);
-                }
-
-                s_typeDescriptors.Add(typeDescriptor);
-            }
+            TypeDescriptors.Add(typeDescriptor);
         }
     }
 }

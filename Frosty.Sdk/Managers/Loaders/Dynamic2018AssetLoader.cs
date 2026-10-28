@@ -313,19 +313,19 @@ public class Dynamic2018AssetLoader : IAssetLoader
         LoadDeltaStoredAssets(inDeltaStream, inDeltaOffset, inDeltaSize, inBaseStream, inBaseOffset, inBaseSize,
             () =>
             {
-                if (index < bundleMeta.EbxList.Length)
+                if (index < bundleMeta.EbxList.Count)
                 {
                     return bundleMeta.EbxList[index++];
                 }
 
-                if (index < bundleMeta.EbxList.Length + bundleMeta.ResList.Length)
+                if (index < bundleMeta.EbxList.Count + bundleMeta.ResList.Count)
                 {
-                    return bundleMeta.ResList[index++ - bundleMeta.EbxList.Length];
+                    return bundleMeta.ResList[index++ - bundleMeta.EbxList.Count];
                 }
 
-                if (index < bundleMeta.EbxList.Length + bundleMeta.ResList.Length + bundleMeta.ChunkList.Length)
+                if (index < bundleMeta.EbxList.Count + bundleMeta.ResList.Count + bundleMeta.ChunkList.Count)
                 {
-                    return bundleMeta.ChunkList[index++ - bundleMeta.EbxList.Length - bundleMeta.ResList.Length];
+                    return bundleMeta.ChunkList[index++ - bundleMeta.EbxList.Count - bundleMeta.ResList.Count];
                 }
 
                 return null;

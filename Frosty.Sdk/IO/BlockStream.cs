@@ -1,37 +1,37 @@
-using System;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Runtime.InteropServices;
+using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
-using Frosty.Sdk.Interfaces;
-using Frosty.Sdk.Managers;
+
 using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.IO;
 
+/// <summary>
+///     A <see cref="DataStream" /> over a <see cref="Block{T}" /> in memory, which grows when written past its end.
+/// </summary>
 public class BlockStream : DataStream
 {
-    private readonly Block<byte> m_block;
-    private readonly bool m_leaveOpen;
+    private readonly Block<byte> _block;
+    private readonly bool _leaveOpen;
+    private bool _disposed;
 
     public BlockStream()
     {
-        m_block = new Block<byte>(0);
-        m_stream = m_block.ToStream();
+        _block = new Block<byte>(0);
+        BaseStream = _block.ToStream();
     }
 
     public BlockStream(int inSize)
     {
-        m_block = new Block<byte>(inSize);
-        m_stream = m_block.ToStream();
+        _block = new Block<byte>(inSize);
+        BaseStream = _block.ToStream();
     }
 
     public BlockStream(Block<byte> inBuffer, bool inLeaveOpen = false)
     {
-        m_block = inBuffer;
-        m_stream = m_block.ToStream();
-        m_leaveOpen = inLeaveOpen;
+        _block = inBuffer;
+        BaseStream = _block.ToStream();
+        _leaveOpen = inLeaveOpen;
     }
 
     public override void Write(ReadOnlySpan<byte> buffer)
@@ -69,106 +69,86 @@ public class BlockStream : DataStream
 
         if (stream.Length < stream.Position + bufferSize)
         {
-            stream.m_stream.SetLength((int)stream.Position + bufferSize);
+            stream.BaseStream.SetLength((int)stream.Position + bufferSize);
         }
 
-        using (Block<byte> a = new(m_block, (int)Position, bufferSize))
-        using (Block<byte> b = new(stream.m_block, (int)stream.Position, bufferSize))
-        {
-            a.CopyTo(b);
-        }
+        using Block<byte> source = new(_block, (int)Position, bufferSize);
+        using Block<byte> dest = new(stream._block, (int)stream.Position, bufferSize);
+        source.CopyTo(dest);
 
         stream.Position += bufferSize;
 
         Position += bufferSize;
     }
 
-    public override string ReadNullTerminatedString(Encoding? inEncoding = null)
+    /// <summary>
+    ///     Same as <see cref="DataStream.ReadNullTerminatedString(Encoding)" />,
+    ///     but finds the terminator in memory instead of reading byte by byte.
+    /// </summary>
+    /// <remarks>
+    ///     <b>Encoding:</b> Any ASCII-compatible <paramref name="inEncoding" />.
+    ///     The UTF-8 <see cref="DataStream.ReadNullTerminatedString()" /> calls this override too.
+    /// </remarks>
+    public override string ReadNullTerminatedString(Encoding inEncoding)
     {
-        if (inEncoding is null || !inEncoding.Equals(Encoding.ASCII))
+        ArgumentNullException.ThrowIfNull(inEncoding);
+
+        // All the 8-bit encoding, for example, UTF-8, uses high-order bytes,
+        // that all chars are promised to be higher than 0x80.
+        // So there is nothing needed to degrade into base.ReadNullTerminatedString.
+        // Non-ASCII-compatible encodings like UTF-16 and UTF-32 are not supported,
+        // but the base method does not support them either.
+        
+        // "Length - Position" prevent reading trash from an uninitialized Block
+        ReadOnlySpan<byte> remaining = _block.ToReadOnlySpan((int)Position, (int)(Length - Position));
+        int length = remaining.IndexOf((byte)0);
+
+        if (length == -1)
         {
-            return base.ReadNullTerminatedString(inEncoding);
+            throw new EndOfStreamException();
         }
 
-        ReadOnlySpan<byte> span = m_block.ToReadOnlySpan((int)Position);
-        int length = span.IndexOf((byte)0);
-        if (length >= 0)
-        {
-            span = span[..length];
-        }
-
-        string retVal = Encoding.ASCII.GetString(span);
-        Position += retVal.Length + 1;
-        return retVal;
+        Position += length + 1;
+        return inEncoding.GetString(remaining[..length]);
     }
 
     public override DataStream CreateSubStream(long inStartOffset, int inSize)
     {
-        Block<byte> sub = new(m_block, (int)inStartOffset, inSize);
+        Block<byte> sub = new(_block, (int)inStartOffset, inSize);
         return new BlockStream(sub);
     }
 
     /// <summary>
-    /// Loads whole file into memory and deobfuscates it if necessary.
+    /// Loads the whole file into memory and deobfuscates it if necessary.
     /// </summary>
     /// <param name="inPath">The path of the file</param>
     /// <param name="inShouldDeobfuscate">The boolean if the file needs to be deobfuscated</param>
     /// <returns>A <see cref="BlockStream"/> that has the file loaded.</returns>
     public static BlockStream FromFile(string inPath, bool inShouldDeobfuscate)
     {
-        using (FileStream stream = new(inPath, FileMode.Open, FileAccess.Read))
+        using FileStream stream = new(inPath, FileMode.Open, FileAccess.Read);
+
+        if (inShouldDeobfuscate)
         {
-            BlockStream? retVal;
-            if (inShouldDeobfuscate)
+            // ReSharper disable once GrammarMistakeInComment
+            // The deobfuscated stream is returned to the caller.
+            // CA2000: Dispose objects before losing scope
+#pragma warning disable CA2000
+            BlockStream? deobfuscated = CheckExtraObfuscation(stream, out int keySize)
+                ? DeobfuscateWithKey(stream, keySize)
+                : Deobfuscate(stream);
+#pragma warning restore CA2000
+            if (deobfuscated is not null)
             {
-                if (CheckExtraObfuscation(stream, out int keySize))
-                {
-                    int size = (int)(stream.Length - keySize);
-                    using (Block<byte> data = Block<byte>.CreateUninitialized(size))
-                    {
-                        stream.ReadExactly(data);
-
-                        // this is not how the game actually decrypts the data, but also seems to work
-                        // look at https://github.com/CadeEvs/FrostyToolsuite/blob/1.0.6.2/FrostySdk/Deobfuscators/MEADeobfuscator.cs for actual decryption algorithm
-                        byte initialValue = data[0];
-                        byte key = data[0];
-                        for (int i = 0; i < size; i++)
-                        {
-                            byte nextKey = (byte)(((initialValue ^ data[i]) - i % 256) & 0xFF);
-                            data[i] ^= key;
-                            key = nextKey;
-                        }
-
-                        Span<byte> header = data.ToSpan();
-                        data.Shift(0x22c);
-
-                        using (Stream dataStream = data.ToStream())
-                        {
-                            if (Deobfuscate(header, dataStream, out retVal))
-                            {
-                                return retVal;
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    Span<byte> header = stackalloc byte[0x22C];
-                    stream.ReadExactly(header);
-
-                    if (Deobfuscate(header, stream, out retVal))
-                    {
-                        return retVal;
-                    }
-                }
-
-                stream.Position = 0;
+                return deobfuscated;
             }
 
-            retVal = new BlockStream(Block<byte>.CreateUninitialized((int)stream.Length));
-            stream.ReadExactly(retVal.m_block);
-            return retVal;
+            stream.Position = 0;
         }
+
+        BlockStream retVal = new(Block<byte>.CreateUninitialized((int)stream.Length));
+        stream.ReadExactly(retVal._block);
+        return retVal;
     }
 
     /// <summary>
@@ -180,15 +160,12 @@ public class BlockStream : DataStream
     /// <returns>A <see cref="BlockStream"/> that has the data loaded.</returns>
     public static BlockStream FromFile(string inPath, long inOffset, int inSize)
     {
-        using (FileStream stream = new(inPath, FileMode.Open, FileAccess.Read))
-        {
-            stream.Position = inOffset;
+        using FileStream stream = new(inPath, FileMode.Open, FileAccess.Read);
+        stream.Position = inOffset;
 
-            BlockStream retVal = new(Block<byte>.CreateUninitialized(inSize));
-
-            stream.ReadExactly(retVal.m_block);
-            return retVal;
-        }
+        BlockStream retVal = new(Block<byte>.CreateUninitialized(inSize));
+        stream.ReadExactly(retVal._block);
+        return retVal;
     }
 
     /// <summary>
@@ -198,12 +175,10 @@ public class BlockStream : DataStream
     /// <param name="inPaddingMode">The <see cref="PaddingMode"/> to use for the decryption.</param>
     public void Decrypt(byte[] inKey, PaddingMode inPaddingMode)
     {
-        using (Aes aes = Aes.Create())
-        {
-            aes.Key = inKey;
-            Span<byte> span = m_block.ToSpan((int)Position);
-            aes.DecryptCbc(span, inKey, span, inPaddingMode);
-        }
+        using Aes aes = Aes.Create();
+        aes.Key = inKey;
+        Span<byte> span = _block.ToSpan((int)Position);
+        aes.DecryptCbc(span, inKey, span, inPaddingMode);
     }
 
     /// <summary>
@@ -214,99 +189,146 @@ public class BlockStream : DataStream
     /// <param name="inPaddingMode">The <see cref="PaddingMode"/> to use for the decryption.</param>
     public void Decrypt(byte[] inKey, int inSize, PaddingMode inPaddingMode)
     {
-        using (Aes aes = Aes.Create())
-        {
-            aes.Key = inKey;
-            Span<byte> span = m_block.ToSpan((int)Position, inSize);
-            aes.DecryptCbc(span, inKey, span, inPaddingMode);
-        }
+        using Aes aes = Aes.Create();
+        aes.Key = inKey;
+        Span<byte> span = _block.ToSpan((int)Position, inSize);
+        aes.DecryptCbc(span, inKey, span, inPaddingMode);
     }
 
-    public override void Dispose()
+    /// <remarks>
+    ///     When the block is left open, it is trimmed (or zero padded) to exactly what was written.
+    /// </remarks>
+    protected override void Dispose(bool disposing)
     {
-        if (m_leaveOpen && Position > Length)
+        // Trimming touches the stream, so it must only run on the first call
+        if (disposing && !_disposed)
         {
-            Span<byte> padding = new byte[Position - Length];
-            Position = Length;
-            m_stream.Write(padding);
-        }
-        if (m_leaveOpen && m_block.Size != Length)
-        {
-            // resize the block if needed
-            m_block.Resize((int)Length);
+            _disposed = true;
+            if (_leaveOpen)
+            {
+                TrimBlockToLength();
+            }
+            else
+            {
+                _block.Dispose();
+            }
         }
 
-        base.Dispose();
-        if (!m_leaveOpen)
-        {
-            m_block.Dispose();
-        }
-        GC.SuppressFinalize(this);
+        base.Dispose(disposing);
+        // The base already calls GC.SuppressFinalize(this)
     }
 
     private static bool CheckExtraObfuscation(Stream inStream, out int keySize)
     {
         keySize = 0;
 
-        // read signature
+        // Read signature
         inStream.Seek(-36, SeekOrigin.End);
         Span<byte> signature = stackalloc byte[36];
         inStream.ReadExactly(signature);
         inStream.Position = 0;
 
-        // check signature
-        const string magic = "@e!adnXd$^!rfOsrDyIrI!xVgHeA!6Vc";
-        for (int i = 0; i < 32; i++)
+        // Check signature
+        if (!signature[4..].SequenceEqual("@e!adnXd$^!rfOsrDyIrI!xVgHeA!6Vc"u8))
         {
-            if (signature[i + 4] != magic[i])
-            {
-                return false;
-            }
-        }
-
-        // get key size
-        keySize = signature[3] << 24 | signature[2] << 16 | signature[1] << 8 | signature[0] << 0;
-        return true;
-    }
-
-    private static bool Deobfuscate(Span<byte> inHeader, Stream inStream, [NotNullWhen(returnValue:true)] out BlockStream? stream)
-    {
-        if (!(inHeader[0] == 0x00 && inHeader[1] == 0xD1 && inHeader[2] == 0xCE &&
-              (inHeader[3] == 0x00 || inHeader[3] == 0x01 || inHeader[3] == 0x03))) // version 0 is not used in fb3
-        {
-            stream = null;
             return false;
         }
 
-        stream = new BlockStream(Block<byte>.CreateUninitialized((int)(inStream.Length - 0x22C)));
-        inStream.ReadExactly(stream.m_block);
+        // Get key size
+        keySize = BinaryPrimitives.ReadInt32LittleEndian(signature);
+        return true;
+    }
 
-        // deobfuscate the data
+    private static BlockStream? DeobfuscateWithKey(Stream inStream, int inKeySize)
+    {
+        using Block<byte> data = Block<byte>.CreateUninitialized((int)(inStream.Length - inKeySize));
+        inStream.ReadExactly(data);
+
+        // TODO:
+        // This is not how the game actually decrypts the data, but also seems to work
+        // For actual decryption algorithm, see https://github.com/CadeEvs/FrostyToolsuite/blob/1.0.6.2/FrostySdk/Deobfuscators/MEADeobfuscator.cs
+        Span<byte> bytes = data;
+        byte initialValue = bytes[0];
+        byte key = bytes[0];
+        for (int i = 0; i < bytes.Length; i++)
+        {
+            byte nextKey = (byte)((initialValue ^ bytes[i]) - (i % 256));
+            bytes[i] ^= key;
+            key = nextKey;
+        }
+
+        Span<byte> header = data.ToSpan();
+        data.Shift(0x22C);
+
+        using Stream dataStream = data.ToStream();
+        return Deobfuscate(header, dataStream);
+    }
+
+    private static BlockStream? Deobfuscate(Stream inStream)
+    {
+        Span<byte> header = stackalloc byte[0x22C];
+        inStream.ReadExactly(header);
+
+        return Deobfuscate(header, inStream);
+    }
+
+    /// <returns>The deobfuscated data, or <see langword="null" /> if <paramref name="inHeader" /> is not obfuscation header.</returns>
+    private static BlockStream? Deobfuscate(ReadOnlySpan<byte> inHeader, Stream inStream)
+    {
+        if (!(inHeader[0] == 0x00 && inHeader[1] == 0xD1 && inHeader[2] == 0xCE &&
+              (inHeader[3] == 0x00 || inHeader[3] == 0x01 || inHeader[3] == 0x03))) // Version 0 is not used in FB3
+        {
+            return null;
+        }
+
+        BlockStream stream = new(Block<byte>.CreateUninitialized((int)(inStream.Length - 0x22C)));
+        inStream.ReadExactly(stream._block);
+
+        // Deobfuscate the data
         if (ProfilesLibrary.FrostbiteVersion > "2014.4.11" || inHeader[3] == 0x03)
         {
-            return true;
+            return stream;
         }
 
-        for (int i = 0; i < stream.m_block.Size; i++)
+        Span<byte> bytes = stream._block;
+        for (int i = 0; i < bytes.Length; i++)
         {
-            stream.m_block[i] ^= (byte)(0x7B ^ inHeader[0x128 + i % 0x101]);
+            bytes[i] ^= (byte)(0x7B ^ inHeader[0x128 + (i % 0x101)]);
         }
 
-        return true;
+        return stream;
+    }
+
+    private void TrimBlockToLength()
+    {
+        if (Position > Length)
+        {
+            Span<byte> padding = new byte[Position - Length];
+            Position = Length;
+            BaseStream.Write(padding);
+        }
+
+        if (_block.Size != Length)
+        {
+            // Resize the block if needed
+            _block.Resize((int)Length);
+        }
     }
 
     private void ResizeStream(long inDesiredMinLength)
     {
-        if (inDesiredMinLength > m_block.Size)
+        if (inDesiredMinLength <= _block.Size)
         {
-            long position = Position;
-            int neededLength = (int)Math.Max(inDesiredMinLength, Environment.SystemPageSize + position);
-            neededLength = (neededLength + 15) & ~15;
-            m_block.Resize(neededLength);
-
-            m_stream = m_block.ToStream();
-            m_stream.SetLength(inDesiredMinLength);
-            m_stream.Position = position;
+            return;
         }
+
+        long position = Position;
+        int neededLength = (int)Math.Max(inDesiredMinLength, Environment.SystemPageSize + position);
+        neededLength = (neededLength + 15) & ~15;
+        _block.Resize(neededLength);
+
+        BaseStream = _block.ToStream();
+        BaseStream.SetLength(inDesiredMinLength);
+        BaseStream.Position = position;
     }
 }

@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using Frosty.Sdk.Managers;
 using Frosty.Sdk.Utils;
 
@@ -11,9 +8,9 @@ internal static class EbxSharedTypeDescriptors
 {
     private static bool s_isInitialized;
 
-    private static Dictionary<(Guid, uint), int> s_mapping = new();
-    private static List<EbxFieldDescriptor> s_fieldDescriptors = new();
-    private static List<EbxTypeDescriptor> s_typeDescriptors = new();
+    private static readonly Dictionary<(Guid, uint), int> Mapping = new();
+    private static readonly List<EbxFieldDescriptor> FieldDescriptors = [];
+    private static readonly List<EbxTypeDescriptor> TypeDescriptors = [];
 
     public static void Initialize()
     {
@@ -35,29 +32,27 @@ internal static class EbxSharedTypeDescriptors
         s_isInitialized = true;
     }
 
-    public static EbxTypeDescriptor GetTypeDescriptor(Guid inGuid, uint inSignature) => s_typeDescriptors[s_mapping[(inGuid, inSignature)]];
+    public static EbxTypeDescriptor GetTypeDescriptor(Guid inGuid, uint inSignature) => TypeDescriptors[Mapping[(inGuid, inSignature)]];
 
-    public static EbxTypeDescriptor GetTypeDescriptor(ushort inIndex) => s_typeDescriptors[inIndex];
+    public static EbxTypeDescriptor GetTypeDescriptor(ushort inIndex) => TypeDescriptors[inIndex];
 
-    public static EbxFieldDescriptor GetFieldDescriptors(int inIndex) => s_fieldDescriptors[inIndex];
+    public static EbxFieldDescriptor GetFieldDescriptors(int inIndex) => FieldDescriptors[inIndex];
 
     private static void Read(Block<byte> inFile)
     {
-        using (BlockStream stream = new(inFile, true))
+        using BlockStream stream = new(inFile, true);
+        RiffStream riffStream = new(stream);
+        riffStream.ReadHeader(out FourCc fourCc, out uint size);
+
+        if (fourCc != "EBXT")
         {
-            RiffStream riffStream = new(stream);
-            riffStream.ReadHeader(out FourCc fourCc, out uint size);
-
-            if (fourCc != "EBXT")
-            {
-                throw new InvalidDataException("Not a valid EBXT chunk");
-            }
-
-            // read REFL chunk
-            riffStream.ReadNextChunk(ref size, ProcessChunk);
-
-            Debug.Assert(riffStream.Eof);
+            throw new InvalidDataException("Not a valid EBXT chunk");
         }
+
+        // Read REFL chunk
+        riffStream.ReadNextChunk(ref size, ProcessChunk);
+
+        Debug.Assert(riffStream.Eof);
     }
 
     private static void ProcessChunk(DataStream inStream, FourCc inFourCc, uint inSize)
@@ -67,37 +62,37 @@ internal static class EbxSharedTypeDescriptors
             return;
         }
 
-        int startFields = s_fieldDescriptors.Count;
-        int startTypes = s_typeDescriptors.Count;
+        int startFields = FieldDescriptors.Count;
+        int startTypes = TypeDescriptors.Count;
 
         int typeSigCount = inStream.ReadInt32();
         Dictionary<int, int> mapping = new();
         for (int i = 0; i < typeSigCount; i++)
         {
             (Guid, uint) sig = (inStream.ReadGuid(), inStream.ReadUInt32());
-            if (!s_mapping.TryAdd(sig, i + startTypes))
+            if (!Mapping.TryAdd(sig, i + startTypes))
             {
-                mapping.Add(i, s_mapping[sig]);
+                mapping.Add(i, Mapping[sig]);
             }
         }
 
         int typeDescriptorCount = inStream.ReadInt32();
-        s_typeDescriptors.Capacity = typeDescriptorCount + s_typeDescriptors.Count;
+        TypeDescriptors.Capacity = typeDescriptorCount + TypeDescriptors.Count;
         for (int i = 0; i < typeDescriptorCount; i++)
         {
-            s_typeDescriptors.Add(new EbxTypeDescriptor
+            TypeDescriptors.Add(new EbxTypeDescriptor
             {
                 NameHash = inStream.ReadUInt32(),
                 FieldIndex = inStream.ReadInt32() + startFields,
                 FieldCount = inStream.ReadUInt16(),
                 Flags = inStream.ReadUInt16(),
                 Size = inStream.ReadUInt16(),
-                Alignment = inStream.ReadUInt16(),
+                Alignment = inStream.ReadUInt16()
             });
         }
 
         int fieldDescriptorCount = inStream.ReadInt32();
-        s_fieldDescriptors.Capacity = fieldDescriptorCount + s_fieldDescriptors.Count;
+        FieldDescriptors.Capacity = fieldDescriptorCount + FieldDescriptors.Count;
         for (int i = 0; i < fieldDescriptorCount; i++)
         {
             EbxFieldDescriptor field = new()
@@ -118,27 +113,27 @@ internal static class EbxSharedTypeDescriptors
                     field.TypeDescriptorRef += (ushort)startTypes;
                 }
             }
-            s_fieldDescriptors.Add(field);
+            FieldDescriptors.Add(field);
         }
 
         int unkCount = inStream.ReadInt32();
         for (int i = 0; i < unkCount; i++)
         {
-            uint unk = inStream.ReadUInt32();
-            int count = inStream.ReadInt32(); // count of unk2
-            uint index = inStream.ReadUInt32(); // maps into unk2
+            _ = inStream.ReadUInt32(); // Unk
+            _ = inStream.ReadInt32(); // Count of unk2
+            _ = inStream.ReadUInt32(); // Index, maps into unk2
         }
 
         int unk2Count = inStream.ReadInt32();
         for (int i = 0; i < unk2Count; i++)
         {
-            uint offset = inStream.ReadUInt32(); // stringtable offset?
-            int index = inStream.ReadInt32(); // maps into signatures
+            _ = inStream.ReadUInt32(); // Offset, stringtable offset?
+            _ = inStream.ReadInt32(); // Index, maps into signatures
         }
 
         if (inFourCc == "RFL2")
         {
-            int unk3Count = inStream.ReadInt32();
+            _ = inStream.ReadInt32(); // Count of unk3
         }
     }
 }

@@ -2,7 +2,7 @@
 
 namespace Frosty.Sdk.IO.LegacyEbx;
 
-public struct EbxFieldDescriptor
+internal struct EbxFieldDescriptor
 {
     public string Name;
     public uint NameHash;

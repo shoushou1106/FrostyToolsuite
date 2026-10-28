@@ -8,6 +8,14 @@ namespace Frosty.Sdk.Utils;
 ///     Manages a sequential area of memory like <see cref="Span{T}" /> on the managed heap.
 /// </summary>
 /// <typeparam name="T">Underlying type.</typeparam>
+/// <remarks>
+///     Every <see cref="Block{T}" />, views included, is an object on the heap, while slicing a
+///     <see cref="Span{T}" /> allocates nothing. Use a <see cref="Block{T}" /> only for a buffer that has to live
+///     in a field or outlive the method, or that needs <see cref="Shift" />, <see cref="Resize" /> or
+///     <see cref="ToStream" />. Methods that only read or write the data take a <see cref="Span{T}" /> or
+///     <see cref="ReadOnlySpan{T}" />, which a block converts to implicitly. In loops, take the span once instead of
+///     using the indexer, which checks and slices on every access.
+/// </remarks>
 public sealed class Block<T> : IDisposable where T : unmanaged
 {
     private int _baseByteOffset;
@@ -355,6 +363,7 @@ public sealed class Block<T> : IDisposable where T : unmanaged
     /// <summary>
     ///     Interprets the block as a UTF-8 null-terminated string.
     /// </summary>
+    /// <remarks><b>Encoding:</b> UTF-8</remarks>
     /// <returns>A string instance from the data of the block.</returns>
     public static explicit operator string(Block<T> inBlock)
     {

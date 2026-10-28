@@ -28,7 +28,7 @@ public class TypeSdkBuilder
 
         if (!string.IsNullOrEmpty(ProfilesLibrary.TypeInfoSignature))
         {
-            offset = reader.ScanPatter(ProfilesLibrary.TypeInfoSignature);
+            offset = reader.ScanPattern(ProfilesLibrary.TypeInfoSignature);
         }
         else
         {
@@ -43,7 +43,7 @@ public class TypeSdkBuilder
             };
             foreach (string sig in patterns)
             {
-                offset = reader.ScanPatter(sig);
+                offset = reader.ScanPattern(sig);
                 if (offset != nint.Zero)
                 {
                     FrostyLogger.Logger.LogInformation($"The TypeInfoSig is missing, found offset for \"{sig}\"");
@@ -65,7 +65,7 @@ public class TypeSdkBuilder
 
     public bool DumpTypes(Process process)
     {
-        MemoryReader reader = new(process);
+        using MemoryReader reader = new(process);
         long typeInfoOffset = FindTypeInfoOffset(reader);
         if (typeInfoOffset == -1)
         {

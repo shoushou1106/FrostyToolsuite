@@ -1,81 +1,40 @@
-using System;
 using System.Buffers.Binary;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+
 using Frosty.Sdk.Utils;
+
 using Microsoft.Win32.SafeHandles;
 
 namespace Frosty.Sdk.IO;
 
-public sealed unsafe partial class MemoryReader
+/// <summary>
+///     Reads the memory of another process.
+///     <c>ReadProcessMemory</c> on Windows,
+///     <c>/proc/&lt;pid&gt;/mem</c> on Linux.
+///     Both need the same rights as attaching a debugger to that process.
+/// </summary>
+public sealed partial class MemoryReader(Process inProcess) : IDisposable
 {
-    #region -- Windows --
-
-    private enum SystemErrorCode
-    {
-        InvalidParameter = 0x57
-    }
-
-    [Flags]
-    private enum AllocationType
-    {
-        Commit = 0x1000
-    }
-
-    [Flags]
-    private enum ProtectionType
-    {
-        NoAccess = 0x1,
-        Guard = 0x100
-    }
-
-    [LibraryImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool ReadProcessMemory(SafeProcessHandle processHandle, nint address, nint bytes, nint size, out nint bytesReadCount);
-
-    [LibraryImport("kernel32.dll", SetLastError = true)]
-    private static partial nint VirtualQueryEx(SafeProcessHandle processHandle, nint address, out MemoryBasicInformation64 memoryInformation, nint size);
-
-    [StructLayout(LayoutKind.Explicit, Size = 48)]
-    private readonly record struct MemoryBasicInformation64([field: FieldOffset(0x0)] long BaseAddress, [field: FieldOffset(0x18)] nint RegionSize, [field: FieldOffset(0x20)] AllocationType State, [field: FieldOffset(0x24)] ProtectionType Protect);
-
-    #endregion
-
-    #region -- Linux --
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct iovec
-    {
-        public void* iov_base;
-        public nuint iov_len;
-    }
-
-    [LibraryImport("libc")]
-    private static unsafe partial nint process_vm_readv(int pid, iovec* localIov, nuint localIovCount, iovec* remoteIov,
-        nuint remoteIovCount, nuint flags);
-
-    #endregion
+    // Linux only, lazy load.
+    private SafeFileHandle? _memoryHandle;
 
     public long Position { get; set; }
 
-    private readonly Process m_process;
-
-    public MemoryReader(Process inProcess)
+    public void Dispose()
     {
-        m_process = inProcess;
+        _memoryHandle?.Dispose();
     }
 
     public void Pad(int alignment)
     {
         if (Position % alignment != 0)
         {
-            Position += alignment - Position % alignment;
+            Position += alignment - (Position % alignment);
         }
     }
 
@@ -173,21 +132,25 @@ public sealed unsafe partial class MemoryReader
             Pad(4);
         }
 
-        Span<byte> span = stackalloc byte[sizeof(Guid)];
-        ReadExactly(span);
+        Span<byte> buffer = stackalloc byte[Unsafe.SizeOf<Guid>()];
+        ReadExactly(buffer);
 
-        return new Guid(span);
+        return new Guid(buffer);
     }
 
     public Sha1 ReadSha1()
     {
-        Span<byte> span = stackalloc byte[sizeof(Sha1)];
-        ReadExactly(span);
+        Span<byte> buffer = stackalloc byte[Unsafe.SizeOf<Sha1>()];
+        ReadExactly(buffer);
 
-        return new Sha1(span);
+        return new Sha1(buffer);
     }
 
-    public string ReadNullTerminatedString(bool pad = true)
+    /// <summary>
+    ///     Reads a pointer to a null terminated string and the string it points to.
+    /// </summary>
+    /// <remarks><b>Encoding:</b> UTF-8 (all languages).</remarks>
+    public string ReadUtf8StringFromPointer(bool pad = true)
     {
         if (pad)
         {
@@ -198,135 +161,119 @@ public sealed unsafe partial class MemoryReader
         long orig = Position;
         Position = offset;
 
-        StringBuilder sb = new();
-        while (true)
+        List<byte> bytes = [];
+        for (byte b = ReadByte(); b != 0; b = ReadByte())
         {
-            char c = (char)ReadByte();
-            if (c == 0x00)
-            {
-                break;
-            }
-
-            sb.Append(c);
+            bytes.Add(b);
         }
 
         Position = orig;
-        return sb.ToString();
+        return Encoding.UTF8.GetString(CollectionsMarshal.AsSpan(bytes));
     }
 
     public void ReadExactly(Span<byte> buffer)
     {
-        ReadMemory((nint)Position, buffer, out nint bytesRead);
+        int bytesRead = ReadMemory((nint)Position, buffer);
         if (bytesRead != buffer.Length)
         {
             throw new EndOfStreamException();
         }
+
         Position += bytesRead;
     }
 
-    public nint ScanPatter(string pattern)
+    public nint ScanPattern(string inPattern)
     {
-        ConvertPatternToAob(pattern, out string mask, out Block<byte> currentAob);
+        ArgumentNullException.ThrowIfNull(inPattern);
 
-        foreach ((nint Address, int Size) region in GetRegions())
+        string[] parts = inPattern.Trim().Split(' ');
+        byte[] pattern = new byte[parts.Length];
+        bool[] isWildcard = new bool[parts.Length];
+        for (int i = 0; i < parts.Length; i++)
         {
-            Block<byte> regionBytes = new(region.Size);
-
-            ReadMemory(region.Address, regionBytes, out nint _);
-
-            int address;
-            if ((address = SearchPattern(regionBytes, 0, currentAob, mask)) != 0)
-            {
-                currentAob.Dispose();
-                regionBytes.Dispose();
-                return region.Address + address;
-            }
-
-            regionBytes.Dispose();
+            isWildcard[i] = parts[i].Contains('?', StringComparison.Ordinal);
+            pattern[i] = isWildcard[i] ? (byte)0 : byte.Parse(parts[i], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
         }
 
-        currentAob.Dispose();
+        foreach ((nint address, int size) in GetRegions())
+        {
+            using Block<byte> region = new(size);
+            ReadMemory(address, region);
+
+            int index = IndexOfPattern(region, pattern, isWildcard);
+            if (index != -1)
+            {
+                return address + index;
+            }
+        }
 
         return nint.Zero;
     }
 
-    private int SearchPattern(Block<byte> buffer, int initIndex, Block<byte> currentAob, string mask)
+    private static int IndexOfPattern(ReadOnlySpan<byte> inBuffer,
+        ReadOnlySpan<byte> inPattern, ReadOnlySpan<bool> inIsWildcard)
     {
-        for (int i = initIndex; i < buffer.Size; ++i)
+        for (int i = 0; i <= inBuffer.Length - inPattern.Length; i++)
         {
-            for (int x = 0; x < currentAob.Size && x + i < buffer.Size; x++)
+            int x = 0;
+            while (x < inPattern.Length && (inIsWildcard[x] || inBuffer[i + x] == inPattern[x]))
             {
-                if (currentAob[x] != buffer[i + x] && mask[x] != '?')
-                {
-                    goto end;
-                }
+                x++;
             }
-            return i;
-            end:;
-        }
-        return 0;
-    }
 
-    private void ConvertPatternToAob(string inPatternString, out string mask, out Block<byte> currentAob)
-    {
-        string trimmed = inPatternString.Trim();
-
-        mask = "";
-        string[] partHex = trimmed.Split(' ');
-        currentAob = new Block<byte>(partHex.Length);
-        for (int i = 0; i < partHex.Length; ++i)
-        {
-            if (partHex[i].Contains('?'))
+            if (x == inPattern.Length)
             {
-                currentAob[i] = 0xCC;
-                mask += '?';
-            }
-            else
-            {
-                currentAob[i] = Convert.ToByte(partHex[i], 16);
-                mask += 'x';
+                return i;
             }
         }
+
+        return -1;
     }
 
     private IEnumerable<(nint Address, int Size)> GetRegions()
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (OperatingSystem.IsWindows())
         {
-            nint currentAddress = m_process.MainModule?.BaseAddress ?? 0;
+            nint currentAddress = inProcess.MainModule?.BaseAddress ?? 0;
 
             while (true)
             {
-                if (VirtualQueryEx(m_process.SafeHandle, currentAddress, out MemoryBasicInformation64 region, Unsafe.SizeOf<MemoryBasicInformation64>()) == 0)
+                if (NativeMethods.VirtualQueryEx(inProcess.SafeHandle, currentAddress,
+                        out MemoryBasicInformation64 region, (nuint)Unsafe.SizeOf<MemoryBasicInformation64>()) == 0)
                 {
-                    if (Marshal.GetLastPInvokeError() == (int) SystemErrorCode.InvalidParameter)
+                    int error = Marshal.GetLastPInvokeError();
+                    if (error == ErrorInvalidParameter)
                     {
                         break;
                     }
 
-                    throw new Win32Exception();
+                    throw new Win32Exception(error);
                 }
 
-                if (region.State.HasFlag(AllocationType.Commit) && region.Protect != ProtectionType.NoAccess && !region.Protect.HasFlag(ProtectionType.Guard))
+                if (region.State.HasFlag(AllocationType.Commit) &&
+                    region.Protect != ProtectionType.NoAccess &&
+                    !region.Protect.HasFlag(ProtectionType.Guard))
                 {
-                    yield return (currentAddress, (int) region.RegionSize);
+                    yield return (currentAddress, (int)region.RegionSize);
                 }
 
-                currentAddress = (nint) region.BaseAddress + region.RegionSize;
+                currentAddress = (nint)region.BaseAddress + (nint)region.RegionSize;
             }
         }
-        else
+        else if (OperatingSystem.IsLinux())
         {
-            string path = $"/proc/{m_process.Id}/maps";
-            foreach (string region in File.ReadLines(path))
+            foreach (string region in File.ReadLines($"/proc/{inProcess.Id}/maps"))
             {
-                string[] arr = region.Split(' ');
-                int index = arr[0].IndexOf('-');
-                nint start = nint.Parse(arr[0][..index], NumberStyles.HexNumber);
-                nint end = nint.Parse(arr[0][(index + 1)..], NumberStyles.HexNumber);
+                string[] columns = region.Split(' ');
+                string range = columns[0];
+                int separator = range.IndexOf('-', StringComparison.Ordinal);
+                nint start = nint.Parse(range.AsSpan(0, separator), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+                nint end = nint.Parse(range.AsSpan(separator + 1), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
 
-                string perm = arr[1];
-                if (perm[0] == '-' /*|| perm[1] == '-'*/ || perm[2] != 'x')
+                string permissions = columns[1];
+                if (permissions[0] == '-' 
+                    // || permissions[1] == '-'
+                    || permissions[2] != 'x')
                 {
                     continue;
                 }
@@ -334,34 +281,72 @@ public sealed unsafe partial class MemoryReader
                 yield return (start, (int)(end - start));
             }
         }
-    }
-
-    private void ReadMemory(nint inAddress, Block<byte> outData, out nint bytesRead)
-    {
-        ReadMemory(inAddress, outData.ToSpan(), out bytesRead);
-    }
-
-    private void ReadMemory(nint inAddress, Span<byte> outData, out nint bytesRead)
-    {
-        fixed (byte* ptr = outData)
+        else
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                if (!ReadProcessMemory(m_process.SafeHandle, inAddress, (nint)ptr, outData.Length, out bytesRead))
-                {
-                    throw new Win32Exception();
-                }
-            }
-            else
-            {
-                iovec localIo = new() { iov_base = ptr, iov_len = (nuint)outData.Length };
-                iovec remoteIo = new() { iov_base = inAddress.ToPointer(), iov_len = (nuint)outData.Length };
-
-                if ((bytesRead = process_vm_readv(m_process.Id, &localIo, 1, &remoteIo, 1, 0)) == -1)
-                {
-                    throw new Exception();
-                }
-            }
+            throw new PlatformNotSupportedException("MemoryReader only support Windows or Linux right now.");
         }
     }
+
+    private int ReadMemory(nint inAddress, Span<byte> outData)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            if (!NativeMethods.ReadProcessMemory(inProcess.SafeHandle, inAddress, outData, (nuint)outData.Length,
+                    out nuint bytesRead))
+            {
+                throw new Win32Exception(Marshal.GetLastPInvokeError());
+            }
+
+            return (int)bytesRead;
+        }
+
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new PlatformNotSupportedException("MemoryReader only support Windows or Linux right now.");
+        }
+
+        _memoryHandle ??= File.OpenHandle($"/proc/{inProcess.Id}/mem", FileMode.Open, FileAccess.Read,
+            FileShare.ReadWrite);
+        return RandomAccess.Read(_memoryHandle, outData, inAddress);
+    }
+
+    #region -- Windows --
+
+    private const int ErrorInvalidParameter = 0x57;
+
+    [Flags]
+    private enum AllocationType : uint
+    {
+        Commit = 0x1000
+    }
+
+    [Flags]
+    private enum ProtectionType : uint
+    {
+        NoAccess = 0x1,
+        Guard = 0x100
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size = 48)]
+    private readonly record struct MemoryBasicInformation64(
+        [field: FieldOffset(0x0)] long BaseAddress,
+        [field: FieldOffset(0x18)] nuint RegionSize,
+        [field: FieldOffset(0x20)] AllocationType State,
+        [field: FieldOffset(0x24)] ProtectionType Protect);
+
+    private static partial class NativeMethods
+    {
+        [LibraryImport("kernel32.dll", SetLastError = true)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static partial bool ReadProcessMemory(SafeProcessHandle hProcess, nint lpBaseAddress,
+            Span<byte> lpBuffer, nuint nSize, out nuint lpNumberOfBytesRead);
+
+        [LibraryImport("kernel32.dll", SetLastError = true)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        internal static partial nuint VirtualQueryEx(SafeProcessHandle hProcess, nint lpAddress,
+            out MemoryBasicInformation64 lpBuffer, nuint dwLength);
+    }
+
+    #endregion
 }

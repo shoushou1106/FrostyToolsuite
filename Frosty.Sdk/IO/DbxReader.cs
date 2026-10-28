@@ -3,185 +3,126 @@ using Frosty.Sdk.Ebx;
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO.Ebx;
 using static Frosty.Sdk.TypeSdk.TypeFlags;
-using System;
+using System.Globalization;
 using System.Collections;
 using System.Diagnostics;
 using System.Reflection;
 using System.Xml;
 using System.Collections.ObjectModel;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+
+using Microsoft.Extensions.Logging;
 
 namespace Frosty.Sdk.IO;
 
 public sealed class DbxReader
 {
-    private static readonly Type s_pointerType = typeof(PointerRef);
-    private static readonly Type s_collectionType = typeof(ObservableCollection<>);
-    private static readonly Type? s_boxedValueRefType = TypeLibrary.GetType("BoxedValueRef")?.Type;
-    private static readonly Type? s_typeRefType = TypeLibrary.GetType("TypeRef")?.Type;
+    private static readonly Type PointerType = typeof(PointerRef);
+    private static readonly Type CollectionType = typeof(ObservableCollection<>);
+    private static readonly Type? BoxedValueRefType = TypeLibrary.GetType("BoxedValueRef")?.Type;
+    private static readonly Type? TypeRefType = TypeLibrary.GetType("TypeRef")?.Type;
 
-    // we only want to write out properties with these flags
-    private static readonly BindingFlags s_propertyBindingFlags = BindingFlags.Public | BindingFlags.Instance;
+    // Only write out properties with these flags
+    private const BindingFlags PropertyBindingFlags = BindingFlags.Public | BindingFlags.Instance;
 
-    // the loaded dbx file
-    private readonly XmlDocument m_xml = new();
-    // key - instance guid, value - instance and its xml representation
-    private readonly Dictionary<Guid, (IEbxInstance ebxInstance, XmlNode dbxInstance)> m_guidToObjAndXmlNode = new();
-    // used to keep track of number of refs pointing to an instance
-    private readonly Dictionary<Guid, int> m_guidToRefCount = new();
+    // The loaded dbx file
+    private readonly XmlDocument _xml = new();
+    // Key - Instance guid, value - Instance and its XML representation
+    private readonly Dictionary<Guid, (IEbxInstance ebxInstance, XmlNode dbxInstance)> _guidToObjAndXmlNode = new();
+    // Used to keep track of number of refs pointing to an instance
+    private readonly Dictionary<Guid, int> _guidToRefCount = new();
 
-    private EbxPartition? m_ebx;
-    private Guid m_primaryInstGuid;
-    // incremented when an internal id is requested
-    private int m_internalId = -1;
-    private string m_filepath = string.Empty;
+    private EbxPartition? _ebx;
+    // (Never used) private Guid m_primaryInstGuid;
+    
+    // Incremented when an internal id is requested
+    private int _internalId = -1;
+    private readonly string _filepath = string.Empty;
 
     public DbxReader(string filepath)
     {
-        m_filepath = filepath;
-        m_xml.Load(filepath);
-        m_guidToObjAndXmlNode.Clear();
-        m_guidToRefCount.Clear();
+        _filepath = filepath;
+        _xml.Load(filepath);
     }
 
     public DbxReader(Stream inStream)
     {
-        m_xml.Load(inStream);
-        m_guidToObjAndXmlNode.Clear();
-        m_guidToRefCount.Clear();
+        _xml.Load(inStream);
     }
 
     public EbxPartition ReadAsset()
     {
-        m_ebx = new EbxPartition();
-#if FROSTY_DEVELOPER
+        _ebx = new EbxPartition();
+#if DEBUG
         Stopwatch w = new();
         w.Start();
 #endif
-        XmlNode? rootNode = m_xml.DocumentElement;
+        XmlNode? rootNode = _xml.DocumentElement;
 
-        Debug.Assert(rootNode != null && rootNode.Name == "partition", "Invalid DBX (root element is not a partition)");
+        Debug.Assert(rootNode is { Name: "partition" }, "Invalid DBX (Root element is not a partition)");
 
         ReadPartition(rootNode);
-#if FROSTY_DEVELOPER
+#if DEBUG
         w.Stop();
-        Console.WriteLine($"Dbx {m_filepath} read in {w.ElapsedMilliseconds} ms");
+        FrostyLogger.Logger.LogDebug("DBX {Filepath} read in {ElapsedMilliseconds} ms", _filepath, w.ElapsedMilliseconds);
 #endif
-        return m_ebx!;
+        return _ebx!;
     }
 
-    private static void SetProperty(object obj, Type objType, string propName, object? propValue)
+    private static void SetProperty(object obj, Type objType, string propName, object propValue)
     {
-        PropertyInfo? property = objType.GetProperty(propName, s_propertyBindingFlags);
-        if (property is not null && property.CanWrite)
+        PropertyInfo? property = objType.GetProperty(propName, PropertyBindingFlags);
+        if (property is null || !property.CanWrite)
         {
-            if (propValue is null)
-            {
-                Console.WriteLine($"Null property {propName}");
-                return;
-            }
-            property.SetValue(obj, propValue);
+            return;
         }
+
+        property.SetValue(obj, propValue);
     }
 
     private static void SetPropertyFromStringValue(object obj, Type objType, string propName, string propValue)
     {
-        PropertyInfo? property = objType.GetProperty(propName, s_propertyBindingFlags);
-        if (property is not null && property.CanWrite)
+        PropertyInfo? property = objType.GetProperty(propName, PropertyBindingFlags);
+        if (property is null || !property.CanWrite)
         {
-            object? value = GetValueFromString(property.PropertyType, propValue, property.GetCustomAttribute<EbxFieldMetaAttribute>()?.Flags.GetTypeEnum());
-            if (value is null)
-            {
-                Console.WriteLine($"Null value {propName}");
-                return;
-            }
-            property.SetValue(obj, value);
+            return;
         }
+
+        object value = GetValueFromString(property.PropertyType, propValue,
+            property.GetCustomAttribute<EbxFieldMetaAttribute>()?.Flags.GetTypeEnum());
+        property.SetValue(obj, value);
     }
 
     private static object GetValueFromString(Type propType, string propValue, TypeEnum? frostbiteType = null)
     {
         if (propType.IsPrimitive)
         {
-            return Convert.ChangeType(propValue, propType);
+            return Convert.ChangeType(propValue, propType, CultureInfo.InvariantCulture);
         }
 
-        switch (frostbiteType)
+        return frostbiteType switch
         {
-            case TypeEnum.Boolean:
-            {
-                return ValueToPrimitive(bool.Parse(propValue), propType);
-            }
-            case TypeEnum.Float32:
-            {
-                return ValueToPrimitive(float.Parse(propValue), propType);
-            }
-            case TypeEnum.Float64:
-            {
-                return ValueToPrimitive(double.Parse(propValue), propType);
-            }
-            case TypeEnum.Int8:
-            {
-                return ValueToPrimitive(sbyte.Parse(propValue), propType);
-            }
-            case TypeEnum.Int16:
-            {
-                return ValueToPrimitive(short.Parse(propValue), propType);
-            }
-            case TypeEnum.Int32:
-            {
-                return ValueToPrimitive(int.Parse(propValue), propType);
-            }
-            case TypeEnum.Int64:
-            {
-                return ValueToPrimitive(long.Parse(propValue), propType);
-            }
-            case TypeEnum.UInt8:
-            {
-                return ValueToPrimitive(byte.Parse(propValue), propType);
-            }
-            case TypeEnum.UInt16:
-            {
-                return ValueToPrimitive(ushort.Parse(propValue), propType);
-            }
-            case TypeEnum.UInt32:
-            {
-                return ValueToPrimitive(uint.Parse(propValue), propType);
-            }
-            case TypeEnum.UInt64:
-            {
-                return ValueToPrimitive(ulong.Parse(propValue), propType);
-            }
-            case TypeEnum.Enum:
-            {
-                return Enum.Parse(propType, propValue);
-            }
-            case TypeEnum.Guid:
-            {
-                return ValueToPrimitive(Guid.Parse(propValue), propType);
-            }
-            case TypeEnum.FileRef:
-            {
-                return ValueToPrimitive(new FileRef(propValue), propType);
-            }
-            case TypeEnum.String:
-            case TypeEnum.CString:
-            {
-                return ValueToPrimitive(propValue, propType);
-            }
-            case TypeEnum.Class:
-            {
-                return new PointerRef();
-            }
-            case TypeEnum.ResourceRef:
-            {
-                return ValueToPrimitive(new ResourceRef(ulong.Parse(propValue, System.Globalization.NumberStyles.HexNumber)), propType);
-            }
-            default:
-                throw new NotImplementedException("Unimplemented property type: " + frostbiteType);
-        }
+            TypeEnum.Boolean => ValueToPrimitive(bool.Parse(propValue), propType),
+            TypeEnum.Float32 => ValueToPrimitive(float.Parse(propValue, CultureInfo.InvariantCulture), propType),
+            TypeEnum.Float64 => ValueToPrimitive(double.Parse(propValue, CultureInfo.InvariantCulture), propType),
+            TypeEnum.Int8 => ValueToPrimitive(sbyte.Parse(propValue, CultureInfo.InvariantCulture), propType),
+            TypeEnum.Int16 => ValueToPrimitive(short.Parse(propValue, CultureInfo.InvariantCulture), propType),
+            TypeEnum.Int32 => ValueToPrimitive(int.Parse(propValue, CultureInfo.InvariantCulture), propType),
+            TypeEnum.Int64 => ValueToPrimitive(long.Parse(propValue, CultureInfo.InvariantCulture), propType),
+            TypeEnum.UInt8 => ValueToPrimitive(byte.Parse(propValue, CultureInfo.InvariantCulture), propType),
+            TypeEnum.UInt16 => ValueToPrimitive(ushort.Parse(propValue, CultureInfo.InvariantCulture), propType),
+            TypeEnum.UInt32 => ValueToPrimitive(uint.Parse(propValue, CultureInfo.InvariantCulture), propType),
+            TypeEnum.UInt64 => ValueToPrimitive(ulong.Parse(propValue, CultureInfo.InvariantCulture), propType),
+            TypeEnum.Enum => Enum.Parse(propType, propValue),
+            TypeEnum.Guid => ValueToPrimitive(Guid.Parse(propValue), propType),
+            TypeEnum.FileRef => ValueToPrimitive(new FileRef(propValue), propType),
+            TypeEnum.String or TypeEnum.CString => ValueToPrimitive(propValue, propType),
+            TypeEnum.Class => new PointerRef(),
+            TypeEnum.ResourceRef => ValueToPrimitive(
+                new ResourceRef(ulong.Parse(propValue,
+                    NumberStyles.HexNumber, CultureInfo.InvariantCulture)),
+                propType),
+            _ => throw new NotImplementedException("Not implemented property type: " + frostbiteType)
+        };
     }
 
     private static string? GetAttributeValue(XmlNode node, string name)
@@ -189,7 +130,7 @@ public sealed class DbxReader
         return node.Attributes?.GetNamedItem(name)?.Value;
     }
 
-    // Converts the given value to the given frostbite primitive type (an int will be converted to Frostbite.Core.Int32)
+    // Converts the given value to the given Frostbite primitive type (an int will be converted to Frostbite.Core.Int32)
     private static object ValueToPrimitive(object value, Type valueType)
     {
         IPrimitive primitive = (IPrimitive)Activator.CreateInstance(valueType)!;
@@ -200,22 +141,22 @@ public sealed class DbxReader
     private void ReadPartition(XmlNode partitionNode)
     {
         Guid partitionGuid = Guid.Parse(GetAttributeValue(partitionNode, "guid")!);
-        m_primaryInstGuid = Guid.Parse(GetAttributeValue(partitionNode, "primaryInstance")!);
+        // (Never used) m_primaryInstGuid = Guid.Parse(GetAttributeValue(partitionNode, "primaryInstance")!);
 
-        m_ebx!.PartitionGuid = partitionGuid;
+        _ebx!.PartitionGuid = partitionGuid;
 
         foreach(XmlNode child in partitionNode.ChildNodes)
         {
             CreateInstance(child);
         }
 
-        // because of pointers, instances must be initialized before being parsed
-        foreach(var kvp in m_guidToObjAndXmlNode)
+        // Because of PointerRefs, every instance has to exist before any field is read
+        foreach(var kvp in _guidToObjAndXmlNode)
         {
-            ParseInstance(kvp.Value.dbxInstance, kvp.Value.ebxInstance, kvp.Key);
+            ParseInstance(kvp.Value.dbxInstance, kvp.Value.ebxInstance);
         }
 
-        m_ebx!.InternalRefCounts = m_guidToRefCount.Values.ToList();
+        _ebx!.InternalRefCounts = [.. _guidToRefCount.Values];
     }
 
     private void CreateInstance(XmlNode node)
@@ -226,8 +167,7 @@ public sealed class DbxReader
             return;
         }
 
-        dynamic? obj = Activator.CreateInstance(ebxType);
-        if(obj is null)
+        if (Activator.CreateInstance(ebxType) is not IEbxInstance obj)
         {
             return;
         }
@@ -237,17 +177,17 @@ public sealed class DbxReader
 
         AssetClassGuid assetGuid = new
             (isExported ? instGuid : Guid.Empty,
-            ++m_internalId);
+            ++_internalId);
 
         obj.SetInstanceGuid(assetGuid);
-        m_guidToObjAndXmlNode.Add(instGuid, new(obj, node));
-        m_guidToRefCount.Add(instGuid, 0);
+        _guidToObjAndXmlNode.Add(instGuid, (obj, node));
+        _guidToRefCount.Add(instGuid, 0);
     }
 
-    private void ParseInstance(XmlNode node, IEbxInstance obj, Guid instGuid)
+    private void ParseInstance(XmlNode node, IEbxInstance obj)
     {
         ReadInstanceFields(node, obj, obj.GetType());
-        m_ebx!.AddObject(obj);
+        _ebx!.AddObject(obj);
     }
 
     private PointerRef ParseRef(XmlNode node, string refGuid)
@@ -258,34 +198,32 @@ public sealed class DbxReader
         }
 
         string? refEbxGuid = GetAttributeValue(node, "partitionGuid");
-        // external
+        // External
         if (refEbxGuid != null)
         {
             Guid extGuid = Guid.Parse(refGuid.Split('\\')[1]);
             Guid ebxFileGuid = Guid.Parse(refEbxGuid);
             EbxImportReference import = new() { InstanceGuid = extGuid, PartitionGuid = ebxFileGuid };
-            m_ebx!.AddDependency(ebxFileGuid);
+            _ebx!.AddDependency(ebxFileGuid);
             return new PointerRef(import);
         }
-        // internal
-        else
-        {
-            Guid instGuid = Guid.Parse(refGuid);
-            PointerRef internalRef = new PointerRef(m_guidToObjAndXmlNode[instGuid].ebxInstance);
-            m_guidToRefCount[instGuid]++;
-            return internalRef;
-        }
+
+        // Internal
+        Guid instGuid = Guid.Parse(refGuid);
+        PointerRef internalRef = new(_guidToObjAndXmlNode[instGuid].ebxInstance);
+        _guidToRefCount[instGuid]++;
+        return internalRef;
     }
 
     private void ReadInstanceFields(XmlNode node, object obj, Type objType)
     {
         foreach(XmlNode child in node.ChildNodes)
         {
-            ReadField(ref obj, child, objType);
+            ReadField(obj, child, objType);
         }
     }
 
-    private void ReadField(ref object obj,
+    private void ReadField(object obj,
         XmlNode node,
         Type objType,
         bool isArray = false,
@@ -312,11 +250,11 @@ public sealed class DbxReader
             {
                 if (isRef)
                 {
-                    ((IList?)obj)?.Add(ParseRef(node, GetAttributeValue(node, "ref")!));
+                    ((IList)obj).Add(ParseRef(node, GetAttributeValue(node, "ref")!));
                 }
                 else
                 {
-                    ((IList?)obj)?.Add(GetValueFromString(arrayElementType!, node.InnerText, arrayElementTypeEnum));
+                    ((IList)obj).Add(GetValueFromString(arrayElementType!, node.InnerText, arrayElementTypeEnum));
                 }
                 break;
             }
@@ -333,7 +271,7 @@ public sealed class DbxReader
                 object structObj = ReadStruct(arrayElementType, node);
                 if (isArray)
                 {
-                    ((IList?)obj)?.Add(structObj);
+                    ((IList)obj).Add(structObj);
                 }
                 else
                 {
@@ -361,25 +299,14 @@ public sealed class DbxReader
                     {
                         value = ParseRef(node, refGuid);
                     }
-                    else if (node.FirstChild is not null)
-                    {
-                        switch (node.FirstChild.Name)
-                        {
-                            case "complex":
-                                value = ReadStruct(arrayElementType, node.FirstChild);
-                                break;
-                            case "array":
-                                value = ReadArray(node.FirstChild);
-                                break;
-                            default:
-                                value = GetValueFromString(valueType.Type, node.InnerText, valueType.GetFlags().GetTypeEnum());
-                                break;
-                        }
-                    }
                     else
                     {
-                        // this should not happen
-                        value = null;
+                        value = node.FirstChild?.Name switch
+                        {
+                            "complex" => ReadStruct(arrayElementType, node.FirstChild),
+                            "array" => ReadArray(node.FirstChild),
+                            _ => GetValueFromString(valueType.Type, node.InnerText, valueType.GetFlags().GetTypeEnum())
+                        };
                     }
 
                     boxed = new BoxedValueRef(value, valueType.GetFlags());
@@ -388,35 +315,27 @@ public sealed class DbxReader
                 {
                     boxed = new BoxedValueRef();
                 }
-                SetProperty(obj, objType, GetAttributeValue(node, "name")!, ValueToPrimitive(boxed, s_boxedValueRefType!));
+                SetProperty(obj, objType, GetAttributeValue(node, "name")!, ValueToPrimitive(boxed, BoxedValueRefType!));
                 break;
             }
             case "typeref":
             {
                 string? typeName = GetAttributeValue(node, "typeName");
-                TypeRef typeRef;
+                TypeRef typeRef = typeName is not null ? new TypeRef(TypeLibrary.GetType(typeName)) : new TypeRef();
 
-                if (typeName is not null)
-                {
-                    typeRef = new TypeRef(TypeLibrary.GetType(typeName));
-                }
-                else
-                {
-                    typeRef = new TypeRef();
-                }
-
-                SetProperty(obj, objType, GetAttributeValue(node, "name")!, ValueToPrimitive(typeRef, s_typeRefType!));
+                SetProperty(obj, objType, GetAttributeValue(node, "name")!, ValueToPrimitive(typeRef, TypeRefType!));
                 break;
             }
             case "delegate":
             {
                 string? typeName = GetAttributeValue(node, "typeName");
                 IType? type = typeName is null ? null : TypeLibrary.GetType(typeName);
-                PropertyInfo? property = objType.GetProperty(GetAttributeValue(node, "name")!, s_propertyBindingFlags);
+                PropertyInfo? property = objType.GetProperty(GetAttributeValue(node, "name")!, PropertyBindingFlags);
                 if (property is not null && property.CanWrite)
                 {
                     IDelegate del = (IDelegate)Activator.CreateInstance(property.PropertyType)!;
                     del.FunctionType = type;
+                    property.SetValue(obj, del);
                 }
                 break;
             }
@@ -426,23 +345,20 @@ public sealed class DbxReader
     private object ReadArray(XmlNode node)
     {
         string arrayTypeStr = GetAttributeValue(node, "type")!;
-        bool isRef = arrayTypeStr.StartsWith("ref(");
+        bool isRef = arrayTypeStr.StartsWith("ref(", StringComparison.Ordinal);
 
-        Type arrayElementType = (isRef ? s_pointerType : TypeLibrary.GetType(arrayTypeStr)?.Type)
-                                ?? throw new ArgumentException($"array element type doesn't exist? {arrayTypeStr}");
+        Type arrayElementType = (isRef ? PointerType : TypeLibrary.GetType(arrayTypeStr)?.Type)
+                                ?? throw new ArgumentException($"Array element type doesn't exist? {arrayTypeStr}");
 
         EbxTypeMetaAttribute? arrayTypeMeta = arrayElementType.GetCustomAttribute<EbxTypeMetaAttribute>();
-        Type arrayType = s_collectionType.MakeGenericType(arrayElementType);
+        Type arrayType = CollectionType.MakeGenericType(arrayElementType);
 
         object array = Activator.CreateInstance(arrayType)
-                       ?? throw new ArgumentException($"failed to create array with element type {arrayElementType.Name}");
+                       ?? throw new ArgumentException($"Failed to create array with element type: {arrayElementType.Name}");
 
-        if (node.ChildNodes.Count > 0)
+        foreach (XmlNode child in node.ChildNodes)
         {
-            foreach(XmlNode child in node.ChildNodes)
-            {
-                ReadField(ref array, child, arrayType, true, isRef, arrayElementType, arrayTypeMeta?.Flags.GetTypeEnum());
-            }
+            ReadField(array, child, arrayType, true, isRef, arrayElementType, arrayTypeMeta?.Flags.GetTypeEnum());
         }
 
         return array;
@@ -451,17 +367,14 @@ public sealed class DbxReader
     private object ReadStruct(Type? structType, XmlNode node)
     {
         Type type = (structType ?? TypeLibrary.GetType(GetAttributeValue(node, "type")!)?.Type)
-                    ?? throw new ArgumentException($"struct type doesn't exist?");
+                    ?? throw new ArgumentException("Struct type doesn't exist?");
 
         object obj = Activator.CreateInstance(type)
-                      ?? throw new ArgumentException($"failed to create struct of type {type.Name}");
+                      ?? throw new ArgumentException($"Failed to create struct of type: {type.Name}");
 
-        if (node.ChildNodes.Count > 0)
+        foreach (XmlNode child in node.ChildNodes)
         {
-            foreach(XmlNode child in node.ChildNodes)
-            {
-                ReadField(ref obj, child, type);
-            }
+            ReadField(obj, child, type);
         }
 
         return obj;

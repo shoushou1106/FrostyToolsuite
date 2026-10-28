@@ -1,58 +1,149 @@
-using System;
 using System.Buffers.Binary;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+
 using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.IO;
 
+/// <summary>
+///     Reads and writes Frostbite data on top of a <see cref="Stream" />: numbers in either <see cref="Endian" />,
+///     strings (UTF-8 unless an encoding is given), 7 bit encoded integers, guids and sha1s.
+/// </summary>
 public class DataStream : IDisposable
 {
-    /// <inheritdoc cref="Stream.Position"/>
-    public long Position
-    {
-        get => m_stream.Position;
-        set => m_stream.Position = value;
-    }
-
-    /// <inheritdoc cref="Stream.Length"/>
-    public long Length => m_stream.Length;
-
-    protected Stream m_stream;
-    private readonly Stack<long> m_steps = new();
-    private Block<byte>? m_buffer;
+    private readonly Stack<long> _steps = new();
+    private readonly bool _leaveOpen;
+    private Block<byte>? _stringBuffer;
+    private bool _disposed;
 
     protected DataStream()
     {
-        m_stream = Stream.Null;
+        BaseStream = Stream.Null;
     }
 
-    public DataStream(Stream inStream)
+    /// <param name="inStream">The stream to read from and write to.</param>
+    /// <param name="inLeaveOpen">
+    ///     <see langword="true" /> to leave <paramref name="inStream" /> open when this <see cref="DataStream" /> is disposed.
+    /// </param>
+    public DataStream(Stream inStream, bool inLeaveOpen = false)
     {
-        m_stream = inStream;
+        ArgumentNullException.ThrowIfNull(inStream);
+
+        BaseStream = inStream;
+        _leaveOpen = inLeaveOpen;
     }
 
-    /// <inheritdoc cref="Stream.Seek"/>
-    public long Seek(long offset, SeekOrigin origin) => m_stream.Seek(offset, origin);
+    /// <summary>
+    ///     The stream this <see cref="DataStream" /> reads from and writes to.
+    /// </summary>
+    public Stream BaseStream { get; protected set; }
 
-    /// <inheritdoc cref="Stream.CopyTo(Stream)"/>
-    public void CopyTo(Stream destination) => CopyTo(destination, (int)(Length - Position));
-    /// <inheritdoc cref="Stream.CopyTo(Stream, int)"/>
-    public virtual void CopyTo(Stream destination, int bufferSize) => m_stream.CopyTo(destination, bufferSize);
+    /// <inheritdoc cref="Stream.Position" />
+    public long Position
+    {
+        get => BaseStream.Position;
+        set => BaseStream.Position = value;
+    }
 
-    public void CopyTo(DataStream destination) => CopyTo(destination, (int)(Length - Position));
-    public virtual void CopyTo(DataStream destination, int bufferSize) => CopyTo((Stream)destination, bufferSize);
+    /// <inheritdoc cref="Stream.Length" />
+    public long Length => BaseStream.Length;
 
-    /// <inheritdoc cref="Stream.SetLength"/>
-    public void SetLength(int value) => m_stream.SetLength(value);
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <inheritdoc cref="Stream.Seek" />
+    public long Seek(long offset, SeekOrigin origin)
+    {
+        return BaseStream.Seek(offset, origin);
+    }
+
+    /// <inheritdoc cref="Stream.CopyTo(Stream)" />
+    public void CopyTo(Stream destination)
+    {
+        CopyTo(destination, (int)(Length - Position));
+    }
+
+    /// <inheritdoc cref="Stream.CopyTo(Stream, int)" />
+    public virtual void CopyTo(Stream destination, int bufferSize)
+    {
+        BaseStream.CopyTo(destination, bufferSize);
+    }
+
+    public void CopyTo(DataStream destination)
+    {
+        CopyTo(destination, (int)(Length - Position));
+    }
+
+    public virtual void CopyTo(DataStream destination, int bufferSize)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+
+        CopyTo(destination.BaseStream, bufferSize);
+    }
+
+    /// <inheritdoc cref="Stream.SetLength" />
+    public void SetLength(int value)
+    {
+        BaseStream.SetLength(value);
+    }
+
+    public void Pad(int alignment)
+    {
+        if (BaseStream.Position % alignment != 0)
+        {
+            BaseStream.Position += alignment - (BaseStream.Position % alignment);
+        }
+    }
+
+    public void StepIn(long inPosition)
+    {
+        _steps.Push(Position);
+        Position = inPosition;
+    }
+
+    public void StepOut()
+    {
+        Debug.Assert(_steps.Count > 0, "StepOut called when there were no steps taken.");
+        Position = _steps.Pop();
+    }
+
+    public virtual DataStream CreateSubStream(long inStartOffset, int inSize)
+    {
+        StepIn(inStartOffset);
+
+        DataStream retVal = new(new MemoryStream(ReadBytes(inSize)));
+
+        StepOut();
+
+        return retVal;
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed || !disposing)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        if (!_leaveOpen)
+        {
+            BaseStream.Dispose();
+        }
+
+        _stringBuffer?.Dispose();
+    }
 
     #region -- Read --
 
     /// <summary>
-    /// Reads count number of bytes from the current stream and advances the position within the stream.
+    ///     Reads count number of bytes from the current stream and advances the position within the stream.
     /// </summary>
     /// <param name="count">The number of bytes to be read from the current stream.</param>
     /// <returns>A byte array containing the read bytes.</returns>
@@ -60,30 +151,34 @@ public class DataStream : IDisposable
     public byte[] ReadBytes(int count)
     {
         byte[] retVal = new byte[count];
-        m_stream.ReadExactly(retVal, 0, retVal.Length);
+        BaseStream.ReadExactly(retVal);
         return retVal;
     }
 
-    /// <inheritdoc cref="Stream.ReadExactly(Span{byte})"/>
-    public void ReadExactly(Span<byte> buffer) => m_stream.ReadExactly(buffer);
+    /// <inheritdoc cref="Stream.ReadExactly(Span{byte})" />
+    public void ReadExactly(Span<byte> buffer)
+    {
+        BaseStream.ReadExactly(buffer);
+    }
 
-    /// <inheritdoc cref="Stream.Read(byte[], int, int)"/>
-    public int Read(byte[] buffer, int offset, int count) => m_stream.Read(buffer, offset, count);
+    /// <inheritdoc cref="Stream.Read(byte[], int, int)" />
+    public int Read(byte[] buffer, int offset, int count)
+    {
+        return BaseStream.Read(buffer, offset, count);
+    }
 
-    /// <inheritdoc cref="Stream.Read(Span{byte})"/>
-    public int Read(Span<byte> buffer) => m_stream.Read(buffer);
+    /// <inheritdoc cref="Stream.Read(Span{byte})" />
+    public int Read(Span<byte> buffer)
+    {
+        return BaseStream.Read(buffer);
+    }
 
     #region -- Basic Types --
 
     public byte ReadByte()
     {
-        int retVal = m_stream.ReadByte();
-        if (retVal == -1)
-        {
-            throw new EndOfStreamException();
-        }
-
-        return (byte)retVal;
+        int retVal = BaseStream.ReadByte();
+        return retVal == -1 ? throw new EndOfStreamException() : (byte)retVal;
     }
 
     public sbyte ReadSByte()
@@ -96,7 +191,15 @@ public class DataStream : IDisposable
         return ReadByte() != 0;
     }
 
-    public char ReadChar()
+    /// <summary>
+    ///     Reads one byte as one <see cref="char" />.
+    /// </summary>
+    /// <remarks>
+    ///     <b>Encoding:</b> Latin-1 (one byte per char)
+    ///     <para>Only for Frostbite fields, do NOT use it for normal usage.</para>
+    /// </remarks>
+    /// <seealso cref="WriteLatin1Char"/>
+    public char ReadLatin1Char()
     {
         return (char)ReadByte();
     }
@@ -104,14 +207,11 @@ public class DataStream : IDisposable
     public short ReadInt16(Endian endian = Endian.Little)
     {
         Span<byte> buffer = stackalloc byte[sizeof(short)];
-        m_stream.ReadExactly(buffer);
+        BaseStream.ReadExactly(buffer);
 
-        if (endian == Endian.Big)
-        {
-            return BinaryPrimitives.ReadInt16BigEndian(buffer);
-        }
-
-        return BinaryPrimitives.ReadInt16LittleEndian(buffer);
+        return endian == Endian.Big
+            ? BinaryPrimitives.ReadInt16BigEndian(buffer)
+            : BinaryPrimitives.ReadInt16LittleEndian(buffer);
     }
 
     public ushort ReadUInt16(Endian endian = Endian.Little)
@@ -122,14 +222,11 @@ public class DataStream : IDisposable
     public int ReadInt32(Endian endian = Endian.Little)
     {
         Span<byte> buffer = stackalloc byte[sizeof(int)];
-        m_stream.ReadExactly(buffer);
+        BaseStream.ReadExactly(buffer);
 
-        if (endian == Endian.Big)
-        {
-            return BinaryPrimitives.ReadInt32BigEndian(buffer);
-        }
-
-        return BinaryPrimitives.ReadInt32LittleEndian(buffer);
+        return endian == Endian.Big
+            ? BinaryPrimitives.ReadInt32BigEndian(buffer)
+            : BinaryPrimitives.ReadInt32LittleEndian(buffer);
     }
 
     public uint ReadUInt32(Endian endian = Endian.Little)
@@ -140,14 +237,11 @@ public class DataStream : IDisposable
     public long ReadInt64(Endian endian = Endian.Little)
     {
         Span<byte> buffer = stackalloc byte[sizeof(long)];
-        m_stream.ReadExactly(buffer);
+        BaseStream.ReadExactly(buffer);
 
-        if (endian == Endian.Big)
-        {
-            return BinaryPrimitives.ReadInt64BigEndian(buffer);
-        }
-
-        return BinaryPrimitives.ReadInt64LittleEndian(buffer);
+        return endian == Endian.Big
+            ? BinaryPrimitives.ReadInt64BigEndian(buffer)
+            : BinaryPrimitives.ReadInt64LittleEndian(buffer);
     }
 
     public ulong ReadUInt64(Endian endian = Endian.Little)
@@ -158,77 +252,95 @@ public class DataStream : IDisposable
     public Half ReadHalf(Endian endian = Endian.Little)
     {
         Span<byte> buffer = stackalloc byte[Unsafe.SizeOf<Half>()];
-        m_stream.ReadExactly(buffer);
+        BaseStream.ReadExactly(buffer);
 
-        if (endian == Endian.Big)
-        {
-            return BinaryPrimitives.ReadHalfBigEndian(buffer);
-        }
-
-        return BinaryPrimitives.ReadHalfLittleEndian(buffer);
+        return endian == Endian.Big
+            ? BinaryPrimitives.ReadHalfBigEndian(buffer)
+            : BinaryPrimitives.ReadHalfLittleEndian(buffer);
     }
 
     public float ReadSingle(Endian endian = Endian.Little)
     {
         Span<byte> buffer = stackalloc byte[sizeof(float)];
-        m_stream.ReadExactly(buffer);
+        BaseStream.ReadExactly(buffer);
 
-        if (endian == Endian.Big)
-        {
-            return BinaryPrimitives.ReadSingleBigEndian(buffer);
-        }
-
-        return BinaryPrimitives.ReadSingleLittleEndian(buffer);
+        return endian == Endian.Big
+            ? BinaryPrimitives.ReadSingleBigEndian(buffer)
+            : BinaryPrimitives.ReadSingleLittleEndian(buffer);
     }
 
     public double ReadDouble(Endian endian = Endian.Little)
     {
         Span<byte> buffer = stackalloc byte[sizeof(double)];
-        m_stream.ReadExactly(buffer);
+        BaseStream.ReadExactly(buffer);
 
-        if (endian == Endian.Big)
-        {
-            return BinaryPrimitives.ReadDoubleBigEndian(buffer);
-        }
-
-        return BinaryPrimitives.ReadDoubleLittleEndian(buffer);
+        return endian == Endian.Big
+            ? BinaryPrimitives.ReadDoubleBigEndian(buffer)
+            : BinaryPrimitives.ReadDoubleLittleEndian(buffer);
     }
 
     #endregion
 
     #region -- Strings --
 
-    public virtual string ReadNullTerminatedString(Encoding? inEncoding = null)
+    /// <summary>
+    ///     Reads bytes up to the next null terminator and decodes them.
+    /// </summary>
+    /// <remarks><b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="ReadNullTerminatedString(Encoding)"/></remarks>
+    /// <exception cref="EndOfStreamException">The stream ends before a null terminator.</exception>
+    public string ReadNullTerminatedString() => ReadNullTerminatedString(Encoding.UTF8);
+
+    /// <inheritdoc cref="ReadNullTerminatedString()" />
+    public virtual string ReadNullTerminatedString(Encoding inEncoding)
     {
-        int i = 0;
-        m_buffer ??= new Block<byte>(Environment.SystemPageSize);
+        ArgumentNullException.ThrowIfNull(inEncoding);
+
+        _stringBuffer ??= new Block<byte>(Environment.SystemPageSize);
+
+        int length = 0;
         while (true)
         {
             byte c = ReadByte();
             if (c == 0)
             {
-                return (inEncoding ?? Encoding.UTF8).GetString(m_buffer.ToReadOnlySpan(0, i));
+                return inEncoding.GetString(_stringBuffer.ToReadOnlySpan(0, length));
             }
 
-            if (i >= m_buffer.Size)
+            if (length >= _stringBuffer.Size)
             {
-                m_buffer.Resize(m_buffer.Size + Environment.SystemPageSize);
+                _stringBuffer.Resize(_stringBuffer.Size + Environment.SystemPageSize);
             }
 
-            m_buffer[i++] = c;
+            _stringBuffer[length++] = c;
         }
     }
 
-    public string ReadFixedSizedString(int size, Encoding? inEncoding = null)
+    /// <summary>
+    ///     Reads exactly <paramref name="size" /> bytes and decodes them without trailing <c>'\0'</c>.
+    /// </summary>
+    /// <remarks><b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="ReadFixedSizedString(int, Encoding)"/></remarks>
+    public string ReadFixedSizedString(int size) => ReadFixedSizedString(size, Encoding.UTF8);
+
+    /// <inheritdoc cref="ReadFixedSizedString(int)" />
+    // ReSharper disable once MemberCanBePrivate.Global
+    public string ReadFixedSizedString(int size, Encoding inEncoding)
     {
-        using (Block<byte> buffer = Block<byte>.CreateUninitialized(size))
-        {
-            m_stream.ReadExactly(buffer);
-            return (inEncoding ?? Encoding.UTF8).GetString(buffer).TrimEnd((char)0);
-        }
+        ArgumentNullException.ThrowIfNull(inEncoding);
+
+        using Block<byte> buffer = Block<byte>.CreateUninitialized(size);
+        BaseStream.ReadExactly(buffer);
+        return inEncoding.GetString(buffer).TrimEnd('\0');
     }
 
-    public string ReadSizedString(Encoding? inEncoding = null)
+    /// <summary>
+    ///     Reads a size in bytes as a 7-bit encoded int, and pass into <see cref="ReadFixedSizedString(int)" />.
+    /// </summary>
+    /// <remarks><b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="ReadSizedString(Encoding)"/></remarks>
+    public string ReadSizedString() => ReadSizedString(Encoding.UTF8);
+
+    /// <inheritdoc cref="ReadSizedString()" />
+    // ReSharper disable once MemberCanBePrivate.Global
+    public string ReadSizedString(Encoding inEncoding)
     {
         return ReadFixedSizedString(Read7BitEncodedInt32(), inEncoding);
     }
@@ -237,80 +349,74 @@ public class DataStream : IDisposable
 
     public int Read7BitEncodedInt32()
     {
-        uint num1 = 0;
-        for (int index = 0; index < 28; index += 7)
+        uint result = 0;
+        for (int shift = 0; shift < 28; shift += 7)
         {
-            byte num2 = ReadByte();
-            num1 |= (uint) ((num2 & sbyte.MaxValue) << index);
-            if (num2 <= 127)
+            byte b = ReadByte();
+            result |= (uint)(b & 0x7F) << shift;
+            if (b <= 0x7F)
             {
-                return (int) num1;
+                return (int)result;
             }
         }
-        byte num3 = ReadByte();
-        if (num3 > 15)
-        {
-            throw new FormatException();
-        }
 
-        return (int) (num1 | (uint) num3 << 28);
+        byte last = ReadByte();
+        return last > 0b1111 ? throw new FormatException() : (int)(result | ((uint)last << 28));
     }
 
     public long Read7BitEncodedInt64()
     {
-        ulong num1 = 0;
-        for (int index = 0; index < 63; index += 7)
+        ulong result = 0;
+        for (int shift = 0; shift < 63; shift += 7)
         {
-            byte num2 = ReadByte();
-            num1 |= (ulong) (((long) num2 & sbyte.MaxValue) << index);
-            if (num2 <= 127)
+            byte b = ReadByte();
+            result |= (ulong)(b & 0x7F) << shift;
+            if (b <= 0x7F)
             {
-                return (long) num1;
+                return (long)result;
             }
         }
-        byte num3 = ReadByte();
-        if (num3 > 1)
-        {
-            throw new FormatException();
-        }
 
-        return (long) (num1 | (ulong) num3 << 63);
+        byte last = ReadByte();
+        return last > 0b1 ? throw new FormatException() : (long)(result | ((ulong)last << 63));
     }
 
     public Guid ReadGuid(Endian endian = Endian.Little)
     {
-        Span<byte> span = stackalloc byte[Unsafe.SizeOf<Guid>()];
-        m_stream.ReadExactly(span);
+        Span<byte> buffer = stackalloc byte[Unsafe.SizeOf<Guid>()];
+        BaseStream.ReadExactly(buffer);
 
-        if (endian == Endian.Big)
-        {
-            return new Guid(BinaryPrimitives.ReadInt32BigEndian(span),
-                BinaryPrimitives.ReadInt16BigEndian(span[4..]), BinaryPrimitives.ReadInt16BigEndian(span[6..]),
-                span[8..].ToArray());
-        }
-
-        return new Guid(span);
+        return new Guid(buffer, endian == Endian.Big);
     }
 
     public Sha1 ReadSha1()
     {
-        Span<byte> span = stackalloc byte[Unsafe.SizeOf<Sha1>()];
-        m_stream.ReadExactly(span);
+        Span<byte> buffer = stackalloc byte[Unsafe.SizeOf<Sha1>()];
+        BaseStream.ReadExactly(buffer);
 
-        return new Sha1(span);
+        return new Sha1(buffer);
     }
 
     #endregion
 
     #region -- Write --
 
-    public virtual void Write(ReadOnlySpan<byte> buffer) => m_stream.Write(buffer);
+    public virtual void Write(ReadOnlySpan<byte> buffer)
+    {
+        BaseStream.Write(buffer);
+    }
 
-    public virtual void Write(byte[] buffer, int offset, int count) => m_stream.Write(buffer, offset, count);
+    public virtual void Write(byte[] buffer, int offset, int count)
+    {
+        BaseStream.Write(buffer, offset, count);
+    }
 
     #region -- Basic Types --
 
-    public virtual void WriteByte(byte value) => m_stream.WriteByte(value);
+    public virtual void WriteByte(byte value)
+    {
+        BaseStream.WriteByte(value);
+    }
 
     public void WriteSByte(sbyte value)
     {
@@ -322,8 +428,21 @@ public class DataStream : IDisposable
         WriteByte((byte)(value ? 1 : 0));
     }
 
-    public void WriteChar(char value)
+    /// <summary>
+    ///     Writes <paramref name="value" /> as one byte.
+    /// </summary>
+    /// <remarks>
+    ///     <b>Encoding:</b> Latin-1 (one byte per char)
+    ///     <para>Only for Frostbite fields, do NOT use it for normal usage.</para>
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="value" /> is above U+00FF.</exception>
+    /// <seealso cref="ReadLatin1Char"/>
+    public void WriteLatin1Char(char value)
     {
+        // Fail fast, explicit exception for unwritable char
+        // To avoid the English-only tragedy of v1
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(value, '\u00FF');
+
         WriteByte((byte)value);
     }
 
@@ -442,32 +561,64 @@ public class DataStream : IDisposable
 
     #region -- Strings --
 
-    public void WriteNullTerminatedString(string value, Encoding? inEncoding = null)
+    /// <summary>
+    ///     Writes the encoded <paramref name="value" /> followed by one null byte.
+    /// </summary>
+    /// <remarks><b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="WriteNullTerminatedString(string, Encoding)"/></remarks>
+    public void WriteNullTerminatedString(string value) => WriteNullTerminatedString(value, Encoding.UTF8);
+
+    /// <inheritdoc cref="WriteNullTerminatedString(string)" />
+    // ReSharper disable once MemberCanBePrivate.Global
+    public void WriteNullTerminatedString(string value, Encoding inEncoding)
     {
-        using (Block<byte> buffer = new((inEncoding ?? Encoding.UTF8).GetByteCount(value) + 1))
-        {
-            (inEncoding ?? Encoding.UTF8).GetBytes(value, buffer);
-            buffer[buffer.Size - 1] = 0;
-            Write(buffer);
-        }
+        ArgumentNullException.ThrowIfNull(value);
+        ArgumentNullException.ThrowIfNull(inEncoding);
+
+        int size = inEncoding.GetByteCount(value) + 1;
+        Span<byte> buffer = size <= 256 ? stackalloc byte[size] : new byte[size];
+
+        inEncoding.GetBytes(value, buffer);
+        buffer[^1] = 0;
+        Write(buffer);
     }
 
-    public void WriteFixedSizedString(string value, int size, Encoding? inEncoding = null)
+    /// <summary>
+    ///     Writes <paramref name="value" /> into exactly <paramref name="size" /> bytes, padded with zeros.
+    /// </summary>
+    /// <remarks><b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="WriteFixedSizedString(string, int, Encoding)"/></remarks>
+    /// <exception cref="ArgumentException">The encoded string does not fit in <paramref name="size" /> bytes.</exception>
+    public void WriteFixedSizedString(string value, int size) => WriteFixedSizedString(value, size, Encoding.UTF8);
+
+    /// <inheritdoc cref="WriteFixedSizedString(string, int)" />
+    // ReSharper disable once MemberCanBePrivate.Global
+    public void WriteFixedSizedString(string value, int size, Encoding inEncoding)
     {
-        using (Block<byte> buffer = new(size))
-        {
-            (inEncoding ?? Encoding.UTF8).GetBytes(value, buffer);
-            for (int i = value.Length; i < size; i++)
-            {
-                buffer[i] = 0;
-            }
-            Write(buffer);
-        }
+        ArgumentNullException.ThrowIfNull(value);
+        ArgumentNullException.ThrowIfNull(inEncoding);
+
+        Span<byte> buffer = size <= 256 ? stackalloc byte[size] : new byte[size];
+
+        // Use Encoding.GetBytes instead of string.Length so it doesn't kill other languages
+        // GetBytes throws the documented ArgumentException when the buffer is too small
+        int written = inEncoding.GetBytes(value, buffer);
+        // Span.Clear() fills 0 with good performance
+        buffer[written..].Clear();
+        Write(buffer);
     }
 
-    public void WriteSizedString(string value, Encoding? inEncoding = null)
+    /// <summary>
+    ///     Writes the encoded size including a null terminator as a 7-bit encoded int, then the null-terminated string.
+    /// </summary>
+    /// <remarks><b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="WriteSizedString(string, Encoding)"/></remarks>
+    public void WriteSizedString(string value) => WriteSizedString(value, Encoding.UTF8);
+
+    /// <inheritdoc cref="WriteSizedString(string)" />
+    public void WriteSizedString(string value, Encoding inEncoding)
     {
-        int size = (inEncoding ?? Encoding.UTF8).GetByteCount(value) + 1;
+        ArgumentNullException.ThrowIfNull(value);
+        ArgumentNullException.ThrowIfNull(inEncoding);
+
+        int size = inEncoding.GetByteCount(value) + 1;
         Write7BitEncodedInt32(size);
         WriteFixedSizedString(value, size, inEncoding);
     }
@@ -478,14 +629,7 @@ public class DataStream : IDisposable
     {
         Span<byte> buffer = stackalloc byte[Unsafe.SizeOf<Guid>()];
 
-        value.TryWriteBytes(buffer);
-
-        if (endian == Endian.Big)
-        {
-            Unsafe.As<byte, int>(ref buffer[0]) = BinaryPrimitives.ReverseEndianness(Unsafe.As<byte, int>(ref buffer[0]));
-            Unsafe.As<byte, short>(ref buffer[4]) = BinaryPrimitives.ReverseEndianness(Unsafe.As<byte, short>(ref buffer[4]));
-            Unsafe.As<byte, short>(ref buffer[6]) = BinaryPrimitives.ReverseEndianness(Unsafe.As<byte, short>(ref buffer[6]));
-        }
+        value.TryWriteBytes(buffer, endian == Endian.Big, out _);
 
         Write(buffer);
     }
@@ -501,64 +645,25 @@ public class DataStream : IDisposable
 
     public void Write7BitEncodedInt32(int value)
     {
-        uint num;
-        for (num = (uint) value; num > (uint) sbyte.MaxValue; num >>= 7)
+        uint remaining = (uint)value;
+        for (; remaining > 0x7F; remaining >>= 7)
         {
-            WriteByte((byte)(num | 0xFFFFFF80U));
+            WriteByte((byte)(remaining | 0x80));
         }
 
-        WriteByte((byte)num);
+        WriteByte((byte)remaining);
     }
 
     public void Write7BitEncodedInt64(long value)
     {
-        ulong num;
-        for (num = (ulong) value; num > (ulong) sbyte.MaxValue; num >>= 7)
+        ulong remaining = (ulong)value;
+        for (; remaining > 0x7F; remaining >>= 7)
         {
-            WriteByte((byte)(num | 0xFFFFFFFFFFFFFF80UL));
+            WriteByte((byte)(remaining | 0x80));
         }
 
-        WriteByte((byte)num);
+        WriteByte((byte)remaining);
     }
 
     #endregion
-
-    public void Pad(int alignment)
-    {
-        if (m_stream.Position % alignment != 0)
-        {
-            m_stream.Position += alignment - (m_stream.Position % alignment);
-        }
-    }
-
-    public void StepIn(long inPosition)
-    {
-        m_steps.Push(Position);
-        Position = inPosition;
-    }
-
-    public void StepOut()
-    {
-        Debug.Assert(m_steps.Count > 0, "StepOut called when there were no steps taken.");
-        Position = m_steps.Pop();
-    }
-
-    public static implicit operator Stream(DataStream stream) => stream.m_stream;
-
-    public virtual void Dispose()
-    {
-        m_stream.Dispose();
-        m_buffer?.Dispose();
-    }
-
-    public virtual DataStream CreateSubStream(long inStartOffset, int inSize)
-    {
-        StepIn(inStartOffset);
-
-        DataStream retVal = new(new MemoryStream(ReadBytes(inSize)));
-
-        StepOut();
-
-        return retVal;
-    }
 }

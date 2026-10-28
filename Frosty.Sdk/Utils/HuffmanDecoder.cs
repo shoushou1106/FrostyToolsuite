@@ -121,6 +121,7 @@ public class HuffmanDecoder
     /// </summary>
     /// <param name="bitIndex">The index of the bit at which the encoded string starts.</param>
     /// <returns>The Huffman decoded string.</returns>
+    /// <remarks><b>Encoding:</b> UTF-16, one char per Huffman leaf, any language in the table.</remarks>
     /// <exception cref="InvalidDataException">Is thrown when the root node or encoded data were not read in before.</exception>
     public string ReadHuffmanEncodedString(int bitIndex)
     {
@@ -152,7 +153,10 @@ public class HuffmanDecoder
             }
 
             if (node.Letter == 0x00
-                // TODO: Should probably throw an exception instead or at least print a warning when the bit index is outside the read data array
+                // TODO:
+                // Should probably throw an exception instead
+                // or at least print a warning
+                // when the bit index is outside the read data array
                 || bitIndex >= dataLengthInBits)
             {
                 return sb.ToString();

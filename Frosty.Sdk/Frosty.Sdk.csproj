@@ -14,14 +14,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="K4os.Compression.LZ4"/>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp"/>
     <PackageReference Include="Microsoft.Extensions.Logging"/>
-    <PackageReference Include="Octokit"/>
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="ThirdParty/*"/>
-    <Content Include="ThirdParty/*" CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
 
   <ItemGroup>

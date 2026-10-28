@@ -26,7 +26,7 @@ internal class FieldInfo : IComparable
     {
         if (!ProfilesLibrary.HasStrippedTypeNames)
         {
-            m_name = reader.ReadNullTerminatedString();
+            m_name = reader.ReadUtf8StringFromPointer();
         }
 
         if (TypeInfo.Version > 4)

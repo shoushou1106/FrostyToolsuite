@@ -1,6 +1,6 @@
 namespace Frosty.Sdk.IO.LegacyEbx;
 
-public struct EbxInstance
+internal struct EbxInstance
 {
     public ushort TypeDescriptorRef;
     public ushort Count;

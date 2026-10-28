@@ -1,52 +1,57 @@
-﻿using System;
-using Frosty.Sdk.Managers.CatResources;
+﻿using Frosty.Sdk.Managers.CatResources;
 
 namespace Frosty.Sdk.IO;
 
-public class CatStream : IDisposable
+/// <summary>
+///     Reads the entries of a <c>cas.cat</c> file.
+/// </summary>
+public sealed class CatStream : IDisposable
 {
     public uint ResourceCount { get; }
     public uint PatchCount { get; }
     public uint EncryptedCount { get; }
 
-    private const string c_catMagic = "NyanNyanNyanNyan";
+    private const string CatMagic = "NyanNyanNyanNyan";
 
-    private readonly DataStream m_stream;
-    private readonly bool m_isNewFormat;
+    private readonly DataStream _stream;
+    private readonly bool _isNewFormat;
 
     public CatStream(string inFilename)
     {
-        m_isNewFormat = ProfilesLibrary.FrostbiteVersion > "2014.4.11";
-        m_stream = BlockStream.FromFile(inFilename, m_isNewFormat);
+        _isNewFormat = ProfilesLibrary.FrostbiteVersion > "2014.4.11";
+        _stream = BlockStream.FromFile(inFilename, _isNewFormat);
 
-        string magic = m_stream.ReadFixedSizedString(16);
-        if (magic != c_catMagic)
+        string magic = _stream.ReadFixedSizedString(16);
+        if (magic != CatMagic)
         {
             return;
         }
 
-        ResourceCount = (uint)(m_stream.Length - m_stream.Position) / 0x20;
+        ResourceCount = (uint)(_stream.Length - _stream.Position) / 0x20;
         PatchCount = 0;
         EncryptedCount = 0;
 
         // 2013.2, 2014.1, 2014.4.11
-        if (m_isNewFormat)
+        if (!_isNewFormat)
         {
-            ResourceCount = m_stream.ReadUInt32();
-            PatchCount = m_stream.ReadUInt32();
+            return;
+        }
 
-            // 2015.4.6, 2019-PR5, 2016.4.7, 2016.4.4, 2018.0
-            if (ProfilesLibrary.FrostbiteVersion >= "2015")
-            {
-                EncryptedCount = m_stream.ReadUInt32();
-                m_stream.Position += 12;
-            }
+        ResourceCount = _stream.ReadUInt32();
+        PatchCount = _stream.ReadUInt32();
 
-            // some games have encryption disabled
-            if (ResourceCount * 0x24 + PatchCount * 0x3C + EncryptedCount * 0x50 != m_stream.Length - m_stream.Position)
-            {
-                EncryptedCount = 0;
-            }
+        // 2015.4.6, 2019-PR5, 2016.4.7, 2016.4.4, 2018.0
+        if (ProfilesLibrary.FrostbiteVersion >= "2015")
+        {
+            EncryptedCount = _stream.ReadUInt32();
+            _stream.Position += 12;
+        }
+
+        // Some games have encryption disabled
+        if ((ResourceCount * 0x24) + (PatchCount * 0x3C) + (EncryptedCount * 0x50)
+            != _stream.Length - _stream.Position)
+        {
+            EncryptedCount = 0;
         }
     }
 
@@ -54,17 +59,17 @@ public class CatStream : IDisposable
     {
         CatResourceEntry entry = new()
         {
-            Sha1 = m_stream.ReadSha1(),
-            Offset = m_stream.ReadUInt32(),
-            Size = m_stream.ReadUInt32()
+            Sha1 = _stream.ReadSha1(),
+            Offset = _stream.ReadUInt32(),
+            Size = _stream.ReadUInt32()
         };
 
-        if (m_isNewFormat)
+        if (_isNewFormat)
         {
-            entry.LogicalOffset = m_stream.ReadUInt32();
+            entry.LogicalOffset = _stream.ReadUInt32();
         }
 
-        entry.ArchiveIndex = m_stream.ReadInt32() & 0xFF;
+        entry.ArchiveIndex = _stream.ReadInt32() & 0xFF;
         return entry;
     }
 
@@ -72,15 +77,15 @@ public class CatStream : IDisposable
     {
         CatResourceEntry entry = new()
         {
-            Sha1 = m_stream.ReadSha1(),
-            Offset = m_stream.ReadUInt32(),
-            Size = m_stream.ReadUInt32(),
-            LogicalOffset = m_stream.ReadUInt32(),
-            ArchiveIndex = m_stream.ReadInt32() & 0xFF,
-            OriginalSize = m_stream.ReadUInt32(),
+            Sha1 = _stream.ReadSha1(),
+            Offset = _stream.ReadUInt32(),
+            Size = _stream.ReadUInt32(),
+            LogicalOffset = _stream.ReadUInt32(),
+            ArchiveIndex = _stream.ReadInt32() & 0xFF,
+            OriginalSize = _stream.ReadUInt32(),
             IsEncrypted = true,
-            KeyId = m_stream.ReadFixedSizedString(8),
-            Checksum = m_stream.ReadBytes(32)
+            KeyId = _stream.ReadFixedSizedString(8),
+            Checksum = _stream.ReadBytes(32)
         };
 
         return entry;
@@ -90,15 +95,15 @@ public class CatStream : IDisposable
     {
         CatPatchEntry entry = new()
         {
-            Sha1 = m_stream.ReadSha1(),
-            BaseSha1 = m_stream.ReadSha1(),
-            DeltaSha1 = m_stream.ReadSha1()
+            Sha1 = _stream.ReadSha1(),
+            BaseSha1 = _stream.ReadSha1(),
+            DeltaSha1 = _stream.ReadSha1()
         };
         return entry;
     }
 
     public void Dispose()
     {
-        m_stream.Dispose();
+        _stream.Dispose();
     }
 }

@@ -1,26 +1,22 @@
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Reflection;
+using System.Diagnostics;
 using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Ebx;
 using Frosty.Sdk.Interfaces;
-using Frosty.Sdk.IO.Ebx;
 using Frosty.Sdk.TypeSdk;
 using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.IO.RiffEbx;
 
-public class EbxWriter : BaseEbxWriter
+public sealed class EbxWriter : BaseEbxWriter
 {
-    private readonly List<EbxExtra> m_arrays = new();
-    private readonly List<EbxExtra> m_boxedValues = new();
+    private readonly List<EbxExtra> _arrays = [];
+    private readonly List<EbxExtra> _boxedValues = [];
 
-    private readonly EbxTypeResolver m_typeResolver;
+    private readonly EbxTypeResolver _typeResolver;
 
-    private EbxFixup m_fixup;
+    private EbxFixup _fixup;
 
     [Flags]
     private enum Flags
@@ -34,64 +30,59 @@ public class EbxWriter : BaseEbxWriter
     public EbxWriter(DataStream inStream)
         : base(inStream)
     {
-        m_fixup = new()
+        _fixup = new EbxFixup
         {
-            TypeGuids = new List<Guid>(),
-            TypeSignatures = new List<uint>(),
-            InstanceOffsets = new List<uint>(),
-            PointerOffsets = new List<uint>(),
-            ResourceRefOffsets = new List<uint>(),
-            Imports = new List<EbxImportReference>(),
-            ImportOffsets = new List<uint>(),
-            TypeInfoOffsets = new List<uint>()
+            TypeGuids = [],
+            TypeSignatures = [],
+            InstanceOffsets = [],
+            PointerOffsets = [],
+            ResourceRefOffsets = [],
+            Imports = [],
+            ImportOffsets = [],
+            TypeInfoOffsets = []
         };
-        m_typeResolver = new EbxTypeResolver(m_fixup.TypeGuids, m_fixup.TypeSignatures);
+        _typeResolver = new EbxTypeResolver(_fixup.TypeGuids, _fixup.TypeSignatures);
     }
 
     protected override void InternalWriteEbx(Guid inPartitionGuid, int inExportedInstanceCount)
     {
-        m_fixup.PartitionGuid = inPartitionGuid;
-        m_fixup.ExportedInstanceCount = inExportedInstanceCount;
+        _fixup.PartitionGuid = inPartitionGuid;
+        _fixup.ExportedInstanceCount = inExportedInstanceCount;
 
         using Block<byte> payload = ProcessData();
 
-        RiffStream stream = new(m_stream);
+        RiffStream stream = new(_stream);
         stream.WriteHeader("RIFF", "EBX\0");
 
-        // align data of EBXD chunk to 16 bytes
+        // Align data of EBXD chunk to 16 bytes
         using Block<byte> data = new(payload.Size + 12);
-        data.Clear();
         data.Shift(12);
         payload.CopyTo(data, payload.Size);
         data.ResetShift();
 
         stream.WriteChunk("EBXD", data);
 
-        m_fixup.Imports = new EbxImportReference[m_imports.Count];
-        int i = 0;
-        foreach (EbxImportReference import in m_imports)
-        {
-            m_fixup.Imports[i++] = import;
-        }
+        _fixup.Imports = [.. _imports];
 
-        (m_fixup.InstanceOffsets as List<uint>)!.Sort();
-        (m_fixup.PointerOffsets as List<uint>)!.Sort();
-        (m_fixup.ResourceRefOffsets as List<uint>)!.Sort();
-        (m_fixup.ImportOffsets as List<uint>)!.Sort();
-        (m_fixup.TypeInfoOffsets as List<uint>)!.Sort();
+        _fixup.InstanceOffsets.Sort();
+        _fixup.PointerOffsets.Sort();
+        _fixup.ResourceRefOffsets.Sort();
+        _fixup.ImportOffsets.Sort();
+        _fixup.TypeInfoOffsets.Sort();
 
-        using Block<byte> fixup = EbxFixup.WriteFixup(m_fixup);
+        using Block<byte> fixup = EbxFixup.WriteFixup(_fixup);
         stream.WriteChunk("EFIX", fixup);
 
-        using Block<byte> x = new(sizeof(int) * 2 + m_arrays.Count + m_boxedValues.Count *
+        // Arrays and boxed values are both written as one EbxExtra each
+        using Block<byte> x = new(sizeof(int) * 2 + (_arrays.Count + _boxedValues.Count) *
                             (sizeof(uint) + sizeof(int) + sizeof(uint) + sizeof(ushort) + sizeof(ushort)));
 
         using (BlockStream subStream = new(x, true))
         {
-            subStream.WriteInt32(m_arrays.Count);
-            subStream.WriteInt32(m_boxedValues.Count);
+            subStream.WriteInt32(_arrays.Count);
+            subStream.WriteInt32(_boxedValues.Count);
 
-            foreach (EbxExtra array in m_arrays)
+            foreach (EbxExtra array in _arrays)
             {
                 subStream.WriteUInt32(array.Offset);
                 subStream.WriteInt32(array.Count);
@@ -100,7 +91,7 @@ public class EbxWriter : BaseEbxWriter
                 subStream.WriteUInt16(array.TypeDescriptorRef);
             }
 
-            foreach (EbxExtra boxedValue in m_boxedValues)
+            foreach (EbxExtra boxedValue in _boxedValues)
             {
                 subStream.WriteUInt32(boxedValue.Offset);
                 subStream.WriteInt32(boxedValue.Count);
@@ -117,13 +108,16 @@ public class EbxWriter : BaseEbxWriter
 
     protected override int CompareInstances(IEbxInstance inA, IEbxInstance inB)
     {
+        ArgumentNullException.ThrowIfNull(inA);
+        ArgumentNullException.ThrowIfNull(inB);
+
         Type typeA = inA.GetType();
         Type typeB = inB.GetType();
 
         Guid typeGuidA = typeA.GetGuid();
         Guid typeGuidB = typeB.GetGuid();
 
-        // sort for highest alignment first
+        // Sort for highest alignment first
         int a = typeB.GetCustomAttribute<EbxTypeMetaAttribute>()!.Alignment.CompareTo(
             typeA.GetCustomAttribute<EbxTypeMetaAttribute>()!.Alignment);
         if (a != 0)
@@ -131,20 +125,16 @@ public class EbxWriter : BaseEbxWriter
             return a;
         }
 
-        // then sort for type
+        // Then sort for type, and the ID
         a = typeGuidA.CompareTo(typeGuidB);
-        if (a != 0)
-        {
-            return a;
-        }
-
-        // lastly just the id
-        return inA.GetInstanceGuid().InternalId.CompareTo(inB.GetInstanceGuid().InternalId);
+        return a != 0 ? a : inA.GetInstanceGuid().InternalId.CompareTo(inB.GetInstanceGuid().InternalId);
     }
 
     protected override int AddType(Type inType)
     {
-        if (inType.Name.Equals(s_collectionName))
+        ArgumentNullException.ThrowIfNull(inType);
+
+        if (inType.Name.Equals(CollectionName, StringComparison.Ordinal))
         {
             return -1;
         }
@@ -154,166 +144,138 @@ public class EbxWriter : BaseEbxWriter
     private Block<byte> ProcessData()
     {
         Block<byte> data = new(1);
-        using (BlockStream writer = new(data, true))
+        using BlockStream writer = new(data, true);
+        foreach (IEbxInstance instance in _sortedInstances)
         {
-            for (int i = 0; i < m_sortedInstances.Count; i++)
+            AssetClassGuid guid = instance.GetInstanceGuid();
+
+            Type type = instance.GetType();
+            int typeDescriptorRef = FindExistingType(type);
+            EbxTypeDescriptor typeDescriptor = _typeResolver.ResolveType(typeDescriptorRef);
+
+            writer.Pad(typeDescriptor.Alignment);
+
+            if (guid.IsExported)
             {
-                AssetClassGuid guid = ((dynamic)m_sortedInstances[i]).GetInstanceGuid();
+                writer.WriteGuid(guid.ExportedGuid);
+            }
+            _fixup.InstanceOffsets.Add((uint)writer.Position);
+            long classStartOffset = writer.Position;
 
-                Type type = m_sortedInstances[i].GetType();
-                int typeDescriptorRef = FindExistingType(type);
-                EbxTypeDescriptor typeDescriptor = m_typeResolver.ResolveType(typeDescriptorRef);
-
-                writer.Pad(typeDescriptor.Alignment);
-
-                if (guid.IsExported)
-                {
-                    writer.WriteGuid(guid.ExportedGuid);
-                }
-                m_fixup.InstanceOffsets.Add((uint)writer.Position);
-                long classStartOffset = writer.Position;
-
-                writer.WriteInt64(typeDescriptorRef);
-                if (typeDescriptor.Alignment != 0x04)
-                {
-                    writer.WriteUInt64(0);
-                }
-
-                writer.WriteUInt32(2); // seems to always be the same (needs more testing)
-
-                Flags flags = Flags.Aggregated | Flags.ReadOnly;
-                if (guid.IsExported)
-                {
-                    flags |= Flags.HasGuid | Flags.Exported;
-                }
-
-                writer.WriteUInt32((uint)flags);
-
-                WriteType(m_sortedInstances[i], m_typeResolver.ResolveType(typeDescriptorRef), writer, classStartOffset);
+            writer.WriteInt64(typeDescriptorRef);
+            if (typeDescriptor.Alignment != 0x04)
+            {
+                writer.WriteUInt64(0);
             }
 
-            writer.Pad(16);
+            writer.WriteUInt32(2); // Seems to always be the same (needs more testing)
 
-            m_fixup.ArrayOffset = (uint)writer.Position;
-            ReadOnlySpan<byte> emptyArray = stackalloc byte[32];
-            writer.Write(emptyArray);
-            if (m_arrayData.Count > 0)
+            Flags flags = Flags.Aggregated | Flags.ReadOnly;
+            if (guid.IsExported)
             {
-                for (int i = 0; i < m_arrays.Count; i++)
-                {
-                    EbxExtra array = m_arrays[i];
-                    ushort alignment;
-
-                    switch (array.Flags.GetTypeEnum())
-                    {
-                        case TypeFlags.TypeEnum.Struct:
-                            EbxTypeDescriptor typeDescriptor = m_typeResolver.ResolveType(array.TypeDescriptorRef);
-                            alignment = typeDescriptor.Alignment;
-                            break;
-                        case TypeFlags.TypeEnum.Float64:
-                        case TypeFlags.TypeEnum.Int64:
-                        case TypeFlags.TypeEnum.UInt64:
-                        case TypeFlags.TypeEnum.CString:
-                        case TypeFlags.TypeEnum.FileRef:
-                        case TypeFlags.TypeEnum.Delegate:
-                        case TypeFlags.TypeEnum.Class:
-                        case TypeFlags.TypeEnum.ResourceRef:
-                        case TypeFlags.TypeEnum.BoxedValueRef:
-                            alignment = 8; break;
-
-                        default: alignment = 4; break;
-                    }
-
-                    // make sure the array data is padded correctly for the first item
-                    writer.Position += sizeof(int);
-                    writer.Pad(alignment);
-                    writer.Position -= sizeof(int);
-                    writer.WriteInt32(array.Count);
-
-                    array.Offset = (uint)writer.Position;
-                    writer.Write(m_arrayData[i]);
-                    m_arrayData[i].Dispose();
-                    m_arrays[i] = array;
-                }
-                writer.Pad(16);
+                flags |= Flags.HasGuid | Flags.Exported;
             }
 
-            m_fixup.BoxedValueRefOffset = (uint)writer.Position;
-            if (m_boxedValueData.Count > 0)
-            {
-                for (int i = 0; i < m_boxedValues.Count; i++)
-                {
-                    EbxExtra boxedValue = m_boxedValues[i];
-                    ushort alignment;
+            writer.WriteUInt32((uint)flags);
 
-                    switch (boxedValue.Flags.GetTypeEnum())
-                    {
-                        case TypeFlags.TypeEnum.Struct:
-                            EbxTypeDescriptor typeDescriptor = m_typeResolver.ResolveType(boxedValue.TypeDescriptorRef);
-                            alignment = typeDescriptor.Alignment;
-                            break;
-                        case TypeFlags.TypeEnum.Float64:
-                        case TypeFlags.TypeEnum.Int64:
-                        case TypeFlags.TypeEnum.UInt64:
-                        case TypeFlags.TypeEnum.CString:
-                        case TypeFlags.TypeEnum.FileRef:
-                        case TypeFlags.TypeEnum.Delegate:
-                        case TypeFlags.TypeEnum.Class:
-                        case TypeFlags.TypeEnum.ResourceRef:
-                        case TypeFlags.TypeEnum.BoxedValueRef:
-                            alignment = 8; break;
-
-                        default: alignment = 4; break;
-                    }
-
-                    // make sure the array data is padded correctly for the first item
-                    writer.Pad(alignment);
-
-                    boxedValue.Offset = (uint)writer.Position;
-                    writer.Write(m_boxedValueData[i]);
-                    m_boxedValueData[i].Dispose();
-                    m_boxedValues[i] = boxedValue;
-                }
-            }
-
-            m_fixup.StringOffset = (uint)writer.Position;
-            foreach (string str in m_strings)
-            {
-                writer.WriteNullTerminatedString(str);
-            }
-
-            FixupPointers(writer);
+            WriteType(instance, _typeResolver.ResolveType(typeDescriptorRef), writer, classStartOffset);
         }
+
+        writer.Pad(16);
+
+        _fixup.ArrayOffset = (uint)writer.Position;
+        ReadOnlySpan<byte> emptyArray = stackalloc byte[32];
+        writer.Write(emptyArray);
+        if (_arrayData.Count > 0)
+        {
+            for (int i = 0; i < _arrays.Count; i++)
+            {
+                EbxExtra array = _arrays[i];
+                ushort alignment = GetAlignment(array);
+
+                // Make sure the array data is padded correctly for the first item
+                writer.Position += sizeof(int);
+                writer.Pad(alignment);
+                writer.Position -= sizeof(int);
+                writer.WriteInt32(array.Count);
+
+                array.Offset = (uint)writer.Position;
+                writer.Write(_arrayData[i]);
+                _arrayData[i].Dispose();
+                _arrays[i] = array;
+            }
+            writer.Pad(16);
+        }
+
+        _fixup.BoxedValueRefOffset = (uint)writer.Position;
+        if (_boxedValueData.Count > 0)
+        {
+            for (int i = 0; i < _boxedValues.Count; i++)
+            {
+                EbxExtra boxedValue = _boxedValues[i];
+                ushort alignment = GetAlignment(boxedValue);
+
+                // Make sure the array data is padded correctly for the first item
+                writer.Pad(alignment);
+
+                boxedValue.Offset = (uint)writer.Position;
+                writer.Write(_boxedValueData[i]);
+                _boxedValueData[i].Dispose();
+                _boxedValues[i] = boxedValue;
+            }
+        }
+
+        _fixup.StringOffset = (uint)writer.Position;
+        foreach (string str in _strings)
+        {
+            writer.WriteNullTerminatedString(str);
+        }
+
+        FixupPointers(writer);
 
         return data;
     }
 
+    private ushort GetAlignment(EbxExtra inExtra)
+    {
+        TypeFlags.TypeEnum type = inExtra.Flags.GetTypeEnum();
+
+        return type switch
+        {
+            TypeFlags.TypeEnum.Struct => _typeResolver.ResolveType(inExtra.TypeDescriptorRef).Alignment,
+            TypeFlags.TypeEnum.Float64 or TypeFlags.TypeEnum.Int64 or TypeFlags.TypeEnum.UInt64
+                or TypeFlags.TypeEnum.CString or TypeFlags.TypeEnum.FileRef or TypeFlags.TypeEnum.Delegate
+                or TypeFlags.TypeEnum.Class or TypeFlags.TypeEnum.ResourceRef or TypeFlags.TypeEnum.BoxedValueRef => 8,
+            _ => 4
+        };
+    }
+
     private int AddType(Type inType, bool inAddSignature)
     {
-        m_typeToDescriptor.Add(inType.GetNameHash(), m_fixup.TypeGuids.Count);
+        _typeToDescriptor.Add(inType.GetNameHash(), _fixup.TypeGuids.Count);
 
-        m_fixup.TypeGuids.Add(inType.GetGuid());
+        _fixup.TypeGuids.Add(inType.GetGuid());
 
         if (inAddSignature)
         {
-            m_fixup.TypeSignatures.Add(inType.GetSignature());
+            _fixup.TypeSignatures.Add(inType.GetSignature());
         }
 
-        return m_fixup.TypeGuids.Count - 1;
+        return _fixup.TypeGuids.Count - 1;
     }
 
     private int AddType(IType inType, bool inAddSignature)
     {
-        m_typeToDescriptor.Add(inType.NameHash, m_fixup.TypeGuids.Count);
+        _typeToDescriptor.Add(inType.NameHash, _fixup.TypeGuids.Count);
 
-        m_fixup.TypeGuids.Add(inType.Guid);
+        _fixup.TypeGuids.Add(inType.Guid);
 
         if (inAddSignature)
         {
-            m_fixup.TypeSignatures.Add(inType.Signature);
+            _fixup.TypeSignatures.Add(inType.Signature);
         }
 
-        return m_fixup.TypeGuids.Count - 1;
+        return _fixup.TypeGuids.Count - 1;
     }
 
     private void WriteType(object obj, EbxTypeDescriptor type, DataStream writer, long startPos)
@@ -323,35 +285,30 @@ public class EbxWriter : BaseEbxWriter
 
         for (int i = 0; i < type.FieldCount; i++)
         {
-            EbxFieldDescriptor field = m_typeResolver.ResolveField(type.FieldIndex + i);
+            EbxFieldDescriptor field = EbxTypeResolver.ResolveField(type.FieldIndex + i);
             PropertyInfo? ebxProperty = properties.FirstOrDefault(p => p.GetNameHash() == field.NameHash);
 
             writer.Position = startPos + field.DataOffset;
 
-            if (field.Flags.GetCategoryEnum() == TypeFlags.CategoryEnum.Array)
+            bool isArray = field.Flags.GetCategoryEnum() == TypeFlags.CategoryEnum.Array;
+            if (!isArray && field.Flags.GetTypeEnum() == TypeFlags.TypeEnum.Void)
             {
-                if (ebxProperty is null)
-                {
-                    continue;
-                }
+                WriteType(obj, EbxTypeResolver.ResolveTypeFromField(field.TypeDescriptorRef), writer, startPos);
+                continue;
+            }
+
+            if (ebxProperty is null)
+            {
+                continue;
+            }
+
+            if (isArray)
+            {
                 WriteArray(ebxProperty.GetValue(obj)!, field, writer);
             }
             else
             {
-                switch (field.Flags.GetTypeEnum())
-                {
-                    case TypeFlags.TypeEnum.Void:
-                        WriteType(obj, m_typeResolver.ResolveTypeFromField(field.TypeDescriptorRef), writer, startPos);
-                        break;
-                    default:
-                        if (ebxProperty is null)
-                        {
-                            continue;
-                        }
-                        WriteField(ebxProperty.GetValue(obj)!, field, writer);
-                        break;
-
-                }
+                WriteField(ebxProperty.GetValue(obj)!, field, writer);
             }
         }
 
@@ -378,17 +335,19 @@ public class EbxWriter : BaseEbxWriter
                 PointerRef pointer = (PointerRef)ebxObj;
                 ulong pointerIndex = 0;
 
-                if (pointer.Type == PointerRefType.External)
+                switch (pointer.Type)
                 {
-                    int importIdx = m_importOrderFw[pointer.External];
-
-                    // the import list in the EBX counts both GUIDs of each import separately
-                    // what we want is the index to the class GUID
-                    pointerIndex = (ulong)(importIdx * 2 + 1);
-                }
-                else if (pointer.Type == PointerRefType.Internal)
-                {
-                    pointerIndex = (ulong)m_sortedInstances.IndexOf(pointer.Internal!);
+                    case PointerRefType.External:
+                        // The import list in the EBX counts both GUIDs of each import separately
+                        // What we want is the index to the class GUID
+                        pointerIndex = (ulong)((_importOrderFw[pointer.External] * 2) + 1);
+                        break;
+                    case PointerRefType.Internal:
+                        pointerIndex = (ulong)_sortedInstances.IndexOf(pointer.Internal!);
+                        break;
+                    case PointerRefType.Null:
+                    default:
+                        break;
                 }
 
                 writer.WriteUInt64(pointerIndex);
@@ -445,45 +404,45 @@ public class EbxWriter : BaseEbxWriter
             case TypeFlags.TypeEnum.BoxedValueRef:
                 WriteBoxedValueRef((BoxedValueRef)((IPrimitive)ebxObj).ToActualType(), writer);
                 break;
+            case TypeFlags.TypeEnum.Struct:
+                throw new UnreachableException("Structs are written by WriteField and WriteBoxedField.");
             case TypeFlags.TypeEnum.Array:
-                throw new InvalidDataException("Array");
+                throw new NotImplementedException("Array");
             case TypeFlags.TypeEnum.DbObject:
-                throw new InvalidDataException("DbObject");
+                throw new NotImplementedException("DbObject");
+            case TypeFlags.TypeEnum.Void:
+            case TypeFlags.TypeEnum.Function:
+            case TypeFlags.TypeEnum.Interface:
+            case TypeFlags.TypeEnum.Delegate:
             default:
-                throw new InvalidDataException("Unknown");
+                throw new InvalidDataException($"Unknown EBX field type {ebxType}.");
         }
     }
 
     private void WriteField(object ebxObj, EbxFieldDescriptor inFieldDescriptor, DataStream writer)
     {
-        switch (inFieldDescriptor.Flags.GetTypeEnum())
+        TypeFlags.TypeEnum type = inFieldDescriptor.Flags.GetTypeEnum();
+        if (type == TypeFlags.TypeEnum.Struct)
         {
-            case TypeFlags.TypeEnum.Struct:
-                EbxTypeDescriptor typeDescriptor = m_typeResolver.ResolveTypeFromField(inFieldDescriptor.TypeDescriptorRef);
-                writer.Pad(typeDescriptor.Alignment);
-
-                WriteType(ebxObj, typeDescriptor, writer, writer.Position);
-                break;
-            default:
-                SharedWriteField(ebxObj, inFieldDescriptor.Flags.GetTypeEnum(), writer);
-                break;
+            EbxTypeDescriptor typeDescriptor = EbxTypeResolver.ResolveTypeFromField(inFieldDescriptor.TypeDescriptorRef);
+            writer.Pad(typeDescriptor.Alignment);
+            WriteType(ebxObj, typeDescriptor, writer, writer.Position);
+            return;
         }
+        
+        SharedWriteField(ebxObj, type, writer);
     }
 
     private void WriteBoxedField(object ebxObj, TypeFlags.TypeEnum inType, int inTypeDescriptorRef, DataStream writer)
     {
-        switch (inType)
+        if (inType != TypeFlags.TypeEnum.Struct)
         {
-            case TypeFlags.TypeEnum.Struct:
-                EbxTypeDescriptor typeDescriptor = m_typeResolver.ResolveType(inTypeDescriptorRef);
-                writer.Pad(typeDescriptor.Alignment);
-
-                WriteType(ebxObj, typeDescriptor, writer, writer.Position);
-                break;
-            default:
-                SharedWriteField(ebxObj, inType, writer);
-                break;
+            EbxTypeDescriptor typeDescriptor = _typeResolver.ResolveType(inTypeDescriptorRef);
+            writer.Pad(typeDescriptor.Alignment);
+            WriteType(ebxObj, typeDescriptor, writer, writer.Position);
+            return;
         }
+        SharedWriteField(ebxObj, inType, writer);
     }
 
     private void WriteBoxedValueRef(BoxedValueRef inBoxedValueRef, DataStream inWriter)
@@ -492,7 +451,7 @@ public class EbxWriter : BaseEbxWriter
         TypeRef typeRef = type is null ? new TypeRef() : new TypeRef(new SdkType(type));
         (TypeFlags Flags, ushort TypeDescriptorRef) tiPair = WriteTypeRef(typeRef, inWriter, true);
 
-        int index = m_boxedValues.Count;
+        int index = _boxedValues.Count;
         if (inBoxedValueRef.Value is not null)
         {
             EbxExtra boxedValue = new()
@@ -501,20 +460,18 @@ public class EbxWriter : BaseEbxWriter
                 Flags = tiPair.Flags,
                 TypeDescriptorRef = tiPair.TypeDescriptorRef
             };
-            m_boxedValues.Add(boxedValue);
+            _boxedValues.Add(boxedValue);
 
             Block<byte> data = new(0);
-            m_boxedValueData.Add(data);
-            using (BlockStream stream = new(data, true))
+            _boxedValueData.Add(data);
+            using BlockStream stream = new(data, true);
+            if (boxedValue.Flags.GetCategoryEnum() == TypeFlags.CategoryEnum.Array)
             {
-                if (boxedValue.Flags.GetCategoryEnum() == TypeFlags.CategoryEnum.Array)
-                {
-                    WriteBoxedArray(inBoxedValueRef.Value, inBoxedValueRef.Type, boxedValue.TypeDescriptorRef, stream);
-                }
-                else
-                {
-                    WriteBoxedField(inBoxedValueRef.Value, inBoxedValueRef.Type, boxedValue.TypeDescriptorRef, stream);
-                }
+                WriteBoxedArray(inBoxedValueRef.Value, inBoxedValueRef.Type, boxedValue.TypeDescriptorRef, stream);
+            }
+            else
+            {
+                WriteBoxedField(inBoxedValueRef.Value, inBoxedValueRef.Type, boxedValue.TypeDescriptorRef, stream);
             }
         }
         else
@@ -538,7 +495,7 @@ public class EbxWriter : BaseEbxWriter
 
         TypeFlags typeFlags = typeRef.InternalType!.GetFlags();
         if (typeRef.InternalType is not TypeInfoAsset &&
-            (typeRef.Type!.IsAssignableTo(typeof(IPrimitive)) || typeRef.Type == s_pointerType))
+            (typeRef.Type!.IsAssignableTo(typeof(IPrimitive)) || typeRef.Type == PointerType))
         {
             typeIdx = ushort.MaxValue;
             writer.WriteUInt32(typeFlags | 0x80000000);
@@ -549,7 +506,8 @@ public class EbxWriter : BaseEbxWriter
             typeIdx = (ushort)FindExistingType(typeRef.InternalType!);
             if (typeIdx == ushort.MaxValue)
             {
-                // boxed value type refs shouldn't end up here, as they're already handled when processing classes
+                // Boxed value type refs shouldn't end up here,
+                // as they're already handled when processing classes
                 typeIdx = (ushort)AddType(typeRef.InternalType!, inAddSignature);
             }
 
@@ -562,15 +520,15 @@ public class EbxWriter : BaseEbxWriter
 
     private void WriteArray(object inObj, EbxFieldDescriptor inFieldDescriptor, DataStream writer)
     {
-        // cast to IList to avoid having to invoke methods manually
+        // Cast to IList to avoid invoke methods manually
         IList arrayObj = (IList)inObj;
         int count = arrayObj.Count;
         int arrayIdx = 0;
 
         if (count > 0)
         {
-            arrayIdx = m_arrays.Count;
-            m_arrays.Add(
+            arrayIdx = _arrays.Count;
+            _arrays.Add(
                 new EbxExtra
                 {
                     Count = count,
@@ -579,15 +537,13 @@ public class EbxWriter : BaseEbxWriter
                 });
 
             Block<byte> data = new(0);
-            m_arrayData.Add(data);
-            using (BlockStream arrayWriter = new(data, true))
+            _arrayData.Add(data);
+            using BlockStream arrayWriter = new(data, true);
+            for (int i = 0; i < count; i++)
             {
-                for (int i = 0; i < count; i++)
-                {
-                    object subValue = arrayObj[i]!;
+                object subValue = arrayObj[i]!;
 
-                    WriteField(subValue, inFieldDescriptor, arrayWriter);
-                }
+                WriteField(subValue, inFieldDescriptor, arrayWriter);
             }
         }
         writer.WriteInt64(arrayIdx);
@@ -595,15 +551,15 @@ public class EbxWriter : BaseEbxWriter
 
     private void WriteBoxedArray(object inObj, TypeFlags.TypeEnum inType, int inTypeDescriptorRef, DataStream writer)
     {
-        // cast to IList to avoid having to invoke methods manually
+        // Cast to IList to avoid having to invoke methods manually
         IList arrayObj = (IList)inObj;
         int count = arrayObj.Count;
         int arrayIdx = 0;
 
         if (count > 0)
         {
-            arrayIdx = m_arrays.Count;
-            m_arrays.Add(
+            arrayIdx = _arrays.Count;
+            _arrays.Add(
                 new EbxExtra
                 {
                     Count = count,
@@ -612,15 +568,13 @@ public class EbxWriter : BaseEbxWriter
                 });
 
             Block<byte> data = new(0);
-            m_arrayData.Add(data);
-            using (BlockStream arrayWriter = new(data, true))
+            _arrayData.Add(data);
+            using BlockStream arrayWriter = new(data, true);
+            for (int i = 0; i < count; i++)
             {
-                for (int i = 0; i < count; i++)
-                {
-                    object subValue = arrayObj[i]!;
+                object subValue = arrayObj[i]!;
 
-                    WriteBoxedField(subValue, inType, inTypeDescriptorRef, arrayWriter);
-                }
+                WriteBoxedField(subValue, inType, inTypeDescriptorRef, arrayWriter);
             }
         }
         writer.WriteInt64(arrayIdx);
@@ -628,13 +582,13 @@ public class EbxWriter : BaseEbxWriter
 
     private void FixupPointers(DataStream writer)
     {
-        for (int i = 0; i < m_sortedInstances.Count; i++)
+        for (int i = 0; i < _sortedInstances.Count; i++)
         {
-            Type type = m_sortedInstances[i].GetType();
+            Type type = _sortedInstances[i].GetType();
             int classIdx = FindExistingType(type);
-            EbxTypeDescriptor typeDescriptor = m_typeResolver.ResolveType(classIdx);
+            EbxTypeDescriptor typeDescriptor = _typeResolver.ResolveType(classIdx);
 
-            writer.Position = m_fixup.InstanceOffsets[i];
+            writer.Position = _fixup.InstanceOffsets[i];
 
             writer.Position += sizeof(long);
             if (typeDescriptor.Alignment != 0x04)
@@ -645,46 +599,42 @@ public class EbxWriter : BaseEbxWriter
             writer.Position += sizeof(int);
             writer.Position += sizeof(int);
 
-            FixupType(m_sortedInstances[i], typeDescriptor, writer, m_fixup.InstanceOffsets[i]);
+            FixupType(_sortedInstances[i], typeDescriptor, writer, _fixup.InstanceOffsets[i]);
         }
     }
 
     private void FixupType(object obj, EbxTypeDescriptor type, DataStream writer, long startPos)
     {
-        // sweep through the EBX data after writing it to patch pointers/offsets
+        // Sweep through the EBX data after writing it to patch pointers/offsets
         Type objType = obj.GetType();
         PropertyInfo[] properties = objType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
         for (int i = 0; i < type.FieldCount; i++)
         {
-            EbxFieldDescriptor field = m_typeResolver.ResolveField(type.FieldIndex + i);
+            EbxFieldDescriptor field = EbxTypeResolver.ResolveField(type.FieldIndex + i);
             PropertyInfo? ebxProperty = properties.FirstOrDefault(p => p.GetNameHash() == field.NameHash);
 
             writer.Position = startPos + field.DataOffset;
 
-            if (field.Flags.GetCategoryEnum() == TypeFlags.CategoryEnum.Array)
+            bool isArray = field.Flags.GetCategoryEnum() == TypeFlags.CategoryEnum.Array;
+            if (!isArray && field.Flags.GetTypeEnum() == TypeFlags.TypeEnum.Void)
             {
-                if (ebxProperty is null)
-                {
-                    continue;
-                }
+                FixupType(obj, EbxTypeResolver.ResolveTypeFromField(field.TypeDescriptorRef), writer, startPos);
+                continue;
+            }
+
+            if (ebxProperty is null)
+            {
+                continue;
+            }
+
+            if (isArray)
+            {
                 FixupArray(ebxProperty.GetValue(obj)!, field, writer);
             }
             else
             {
-                switch (field.Flags.GetTypeEnum())
-                {
-                    case TypeFlags.TypeEnum.Void:
-                        FixupType(obj, m_typeResolver.ResolveTypeFromField(field.TypeDescriptorRef), writer, startPos);
-                        break;
-                    default:
-                        if (ebxProperty is null)
-                        {
-                            continue;
-                        }
-                        FixupField(ebxProperty.GetValue(obj)!, field, writer);
-                        break;
-                }
+                FixupField(ebxProperty.GetValue(obj)!, field, writer);
             }
         }
 
@@ -700,26 +650,25 @@ public class EbxWriter : BaseEbxWriter
                 break;
             case TypeFlags.TypeEnum.FileRef:
             case TypeFlags.TypeEnum.CString:
-                FixupPointer(m_fixup.StringOffset, writer);
+                FixupPointer(_fixup.StringOffset, writer);
                 break;
             case TypeFlags.TypeEnum.Class:
+                switch (((PointerRef)obj).Type)
                 {
-                    PointerRef pointer = (PointerRef)obj;
-
-                    if (pointer.Type == PointerRefType.External)
-                    {
-                        m_fixup.ImportOffsets.Add((uint)writer.Position);
+                    case PointerRefType.External:
+                        _fixup.ImportOffsets.Add((uint)writer.Position);
                         writer.Position += sizeof(long);
-                    }
-                    else if (pointer.Type == PointerRefType.Internal)
-                    {
+                        break;
+                    case PointerRefType.Internal:
                         FixupInternalRef(writer);
-                    }
-                    else if (pointer.Type == PointerRefType.Null)
-                    {
+                        break;
+                    case PointerRefType.Null:
                         writer.Position += sizeof(long);
-                    }
+                        break;
+                    default:
+                        throw new InvalidDataException($"Unknown pointer type: {((PointerRef)obj).Type}");
                 }
+
                 break;
             case TypeFlags.TypeEnum.ResourceRef:
                 FixupResourceRef(writer);
@@ -741,26 +690,18 @@ public class EbxWriter : BaseEbxWriter
                 writer.Position += sizeof(bool);
                 break;
             case TypeFlags.TypeEnum.Int8:
-                writer.Position += sizeof(byte);
-                break;
             case TypeFlags.TypeEnum.UInt8:
                 writer.Position += sizeof(byte);
                 break;
             case TypeFlags.TypeEnum.Int16:
-                writer.Position += sizeof(short);
-                break;
             case TypeFlags.TypeEnum.UInt16:
                 writer.Position += sizeof(short);
                 break;
             case TypeFlags.TypeEnum.Int32:
-                writer.Position += sizeof(int);
-                break;
             case TypeFlags.TypeEnum.UInt32:
                 writer.Position += sizeof(int);
                 break;
             case TypeFlags.TypeEnum.Int64:
-                writer.Position += sizeof(long);
-                break;
             case TypeFlags.TypeEnum.UInt64:
                 writer.Position += sizeof(long);
                 break;
@@ -773,60 +714,56 @@ public class EbxWriter : BaseEbxWriter
             case TypeFlags.TypeEnum.String:
                 writer.Position += 32;
                 break;
+            case TypeFlags.TypeEnum.Struct:
+                throw new UnreachableException("Structs are fixed up by FixupField and FixupBoxedField.");
             case TypeFlags.TypeEnum.Array:
-                throw new InvalidDataException("Array");
+                throw new NotImplementedException("Array");
             case TypeFlags.TypeEnum.DbObject:
-                throw new InvalidDataException("DbObject");
+                throw new NotImplementedException("DbObject");
+            case TypeFlags.TypeEnum.Delegate:
+            case TypeFlags.TypeEnum.Void:
+            case TypeFlags.TypeEnum.Function:
+            case TypeFlags.TypeEnum.Interface:
             default:
-                throw new InvalidDataException("Unknown");
+                throw new InvalidDataException($"Unknown EBX field type {inType}.");
         }
     }
 
     private void FixupField(object obj, EbxFieldDescriptor inFieldDescriptor, DataStream writer)
     {
-        switch (inFieldDescriptor.Flags.GetTypeEnum())
+        TypeFlags.TypeEnum type = inFieldDescriptor.Flags.GetTypeEnum();
+        if (type != TypeFlags.TypeEnum.Struct)
         {
-            case TypeFlags.TypeEnum.Struct:
-            {
-                EbxTypeDescriptor typeDescriptor = m_typeResolver.ResolveTypeFromField(inFieldDescriptor.TypeDescriptorRef);
-                writer.Pad(typeDescriptor.Alignment);
-
-                FixupType(obj, typeDescriptor, writer, writer.Position);
-                break;
-            }
-            default:
-                SharedFixupField(obj, inFieldDescriptor.Flags.GetTypeEnum(), writer);
-                break;
+            EbxTypeDescriptor typeDescriptor = EbxTypeResolver.ResolveTypeFromField(inFieldDescriptor.TypeDescriptorRef);
+            writer.Pad(typeDescriptor.Alignment);
+            FixupType(obj, typeDescriptor, writer, writer.Position);
+            return;
         }
+        SharedFixupField(obj, type, writer);
     }
 
     private void FixupBoxedField(object obj, TypeFlags.TypeEnum inType, int inTypeDescriptorRef, DataStream writer)
     {
-        switch (inType)
+        if (inType != TypeFlags.TypeEnum.Struct)
         {
-            case TypeFlags.TypeEnum.Struct:
-            {
-                EbxTypeDescriptor typeDescriptor = m_typeResolver.ResolveType(inTypeDescriptorRef);
-                writer.Pad(typeDescriptor.Alignment);
-
-                FixupType(obj, typeDescriptor, writer, writer.Position);
-                break;
-            }
-            default:
-                SharedFixupField(obj, inType, writer);
-                break;
+            EbxTypeDescriptor typeDescriptor = _typeResolver.ResolveType(inTypeDescriptorRef);
+            writer.Pad(typeDescriptor.Alignment);
+            FixupType(obj, typeDescriptor, writer, writer.Position);
+            return;
         }
+        SharedFixupField(obj, inType, writer);
     }
 
     private void FixupPointer(long sectionOffset, DataStream writer)
     {
         long fieldOffset = writer.Position;
-        m_fixup.PointerOffsets.Add((uint)fieldOffset);
+        _fixup.PointerOffsets.Add((uint)fieldOffset);
         long offset = sectionOffset + writer.ReadInt64();
         writer.Position = fieldOffset;
         offset -= writer.Position;
-        // file pointers only use 32 bits, but runtime pointers need 64 bits when being patched
-        // so just cast down and zero out the other 32 bits
+        // File pointers only use 32 bits,
+        // but runtime pointers need 64 bits when being patched.
+        // Cast down and zero out the other 32 bits
         writer.WriteInt32((int)offset);
         writer.WriteInt32(0);
     }
@@ -834,43 +771,45 @@ public class EbxWriter : BaseEbxWriter
     private void FixupInternalRef(DataStream writer)
     {
         long fieldOffset = writer.Position;
-        m_fixup.PointerOffsets.Add((uint)fieldOffset);
+        _fixup.PointerOffsets.Add((uint)fieldOffset);
 
         int refIdx = (int)writer.ReadInt64();
         writer.Position = fieldOffset;
 
-        long offset = m_fixup.InstanceOffsets[refIdx];
+        long offset = _fixup.InstanceOffsets[refIdx];
         offset -= writer.Position;
-        // file pointers only use 32 bits, but runtime pointers need 64 bits when being patched
-        // so just cast down and zero out the other 32 bits
+        // File pointers only use 32 bits,
+        // but runtime pointers need 64 bits when being patched.
+        // Cast down and zero out the other 32 bits
         writer.WriteInt32((int)offset);
         writer.WriteInt32(0);
     }
 
     private void FixupArray(object obj, EbxFieldDescriptor inFieldDescriptor, DataStream writer)
     {
-        // array pointers need to be in the pointer list
+        // Array pointers need to be in the pointer list
         long fieldOffset = writer.Position;
-        m_fixup.PointerOffsets.Add((uint)fieldOffset);
+        _fixup.PointerOffsets.Add((uint)fieldOffset);
         int arrayIdx = (int)writer.ReadInt64();
         writer.Position = fieldOffset;
 
         IList arrayObj = (IList)obj;
         if (arrayObj.Count == 0)
         {
-            // arrays with zero elements always point to an empty value 16 bytes into the array section
-            long offset = m_fixup.ArrayOffset + 0x10;
+            // Arrays with zero elements always point to an empty value 16 bytes into the array section
+            long offset = _fixup.ArrayOffset + 0x10;
             offset -= writer.Position;
             writer.WriteInt32((int)offset);
             writer.WriteInt32(0);
         }
         else
         {
-            EbxExtra array = m_arrays[arrayIdx];
+            EbxExtra array = _arrays[arrayIdx];
             long offset = array.Offset;
             offset -= writer.Position;
-            // file pointers only use 32 bits, but runtime pointers need 64 bits when being patched
-            // so just cast down and zero out the other 32 bits
+            // File pointers only use 32 bits,
+            // but runtime pointers need 64 bits when being patched.
+            // Cast down and zero out the other 32 bits
             writer.WriteInt32((int)offset);
             writer.WriteInt32(0);
 
@@ -886,28 +825,29 @@ public class EbxWriter : BaseEbxWriter
 
     private void FixupBoxedArray(object obj, TypeFlags.TypeEnum inType, int inTypeDescriptorRef, DataStream writer)
     {
-        // array pointers need to be in the pointer list
+        // Array pointers need to be in the pointer list
         long fieldOffset = writer.Position;
-        m_fixup.PointerOffsets.Add((uint)fieldOffset);
+        _fixup.PointerOffsets.Add((uint)fieldOffset);
         int arrayIdx = (int)writer.ReadInt64();
         writer.Position = fieldOffset;
 
         IList arrayObj = (IList)obj;
         if (arrayObj.Count == 0)
         {
-            // arrays with zero elements always point to an empty value 16 bytes into the array section
-            long offset = m_fixup.ArrayOffset + 0x10;
+            // Arrays with zero elements always point to an empty value 16 bytes into the array section
+            long offset = _fixup.ArrayOffset + 0x10;
             offset -= writer.Position;
             writer.WriteInt32((int)offset);
             writer.WriteInt32(0);
         }
         else
         {
-            EbxExtra array = m_arrays[arrayIdx];
+            EbxExtra array = _arrays[arrayIdx];
             long offset = array.Offset;
             offset -= writer.Position;
-            // file pointers only use 32 bits, but runtime pointers need 64 bits when being patched
-            // so just cast down and zero out the other 32 bits
+            // File pointers only use 32 bits,
+            // but runtime pointers need 64 bits when being patched.
+            // Cast down and zero out the other 32 bits
             writer.WriteInt32((int)offset);
             writer.WriteInt32(0);
 
@@ -932,7 +872,7 @@ public class EbxWriter : BaseEbxWriter
             return;
         }
 
-        m_fixup.TypeInfoOffsets.Add((uint)fieldOffset);
+        _fixup.TypeInfoOffsets.Add((uint)fieldOffset);
     }
 
     private void FixupResourceRef(DataStream writer)
@@ -945,7 +885,7 @@ public class EbxWriter : BaseEbxWriter
             return;
         }
 
-        m_fixup.ResourceRefOffsets.Add((uint)fieldOffset);
+        _fixup.ResourceRefOffsets.Add((uint)fieldOffset);
     }
 
     private void FixupBoxedValue(object obj, DataStream writer)
@@ -955,21 +895,22 @@ public class EbxWriter : BaseEbxWriter
 
         int boxedValIdx = (int)writer.ReadInt64();
         writer.Position = fieldOffset;
-        // null boxed values always have an offset of zero
+        // Null boxed values always have an offset of zero
         if (value.Value is null)
         {
             writer.WriteUInt64(0);
             return;
         }
 
-        // boxed value pointers need to be in the pointer list
-        m_fixup.PointerOffsets.Add((uint)fieldOffset);
-        EbxExtra boxedVal = m_boxedValues[boxedValIdx];
+        // Boxed value pointers need to be in the pointer list
+        _fixup.PointerOffsets.Add((uint)fieldOffset);
+        EbxExtra boxedVal = _boxedValues[boxedValIdx];
 
         long offset = boxedVal.Offset;
         offset -= writer.Position;
-        // file pointers only use 32 bits, but runtime pointers need 64 bits when being patched
-        // so just cast down and zero out the other 32 bits
+        // File pointers only use 32 bits,
+        // but runtime pointers need 64 bits when being patched.
+        // Cast down and zero out the other 32 bits
         writer.WriteUInt32((uint)offset);
         writer.WriteInt32(0);
 

@@ -1,6 +1,5 @@
-using System;
+using System.Globalization;
 using System.Collections;
-using System.Collections.Generic;
 using System.Xml;
 using System.Reflection;
 using Frosty.Sdk.Ebx;
@@ -10,39 +9,40 @@ using Frosty.Sdk.Managers;
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.Utils;
 using static Frosty.Sdk.TypeSdk.TypeFlags;
-using System.IO;
 
 namespace Frosty.Sdk.IO;
 
 public sealed class DbxWriter : IDisposable
 {
-    private static readonly string s_instanceGuidName = "__InstanceGuid";
-    private static readonly string s_instanceIdName = "__Id";
+    private const string InstanceGuidName = "__InstanceGuid";
+    private const string InstanceIdName = "__Id";
 
-    private readonly XmlWriterSettings m_settings = new() { Indent = true, IndentChars = "\t", NewLineChars = "\n"};
+    private readonly XmlWriterSettings _settings = new() { Indent = true, IndentChars = "\t", NewLineChars = "\n"};
 
-    private string m_filePath;
-    private XmlWriter? m_xmlWriter;
+    private string _filePath;
+    private XmlWriter? _xmlWriter;
 
     public DbxWriter()
     {
-        m_filePath = string.Empty;
+        _filePath = string.Empty;
     }
 
     public DbxWriter(string inFilePath)
     {
-        m_filePath = inFilePath;
-        m_xmlWriter = XmlWriter.Create(m_filePath, m_settings);
+        _filePath = inFilePath;
+        _xmlWriter = XmlWriter.Create(_filePath, _settings);
     }
 
     public DbxWriter(Stream inStream)
     {
-        m_filePath = string.Empty;
-        m_xmlWriter = XmlWriter.Create(inStream, m_settings);
+        _filePath = string.Empty;
+        _xmlWriter = XmlWriter.Create(inStream, _settings);
     }
 
     public void Write(EbxPartition inPartition)
     {
+        ArgumentNullException.ThrowIfNull(inPartition);
+
         if (!inPartition.IsValid)
         {
             return;
@@ -53,9 +53,11 @@ public sealed class DbxWriter : IDisposable
 
     public void Write(EbxPartition inPartition, string inFilePath)
     {
-        m_xmlWriter?.Close();
-        m_xmlWriter = XmlWriter.Create(inFilePath, m_settings);
-        m_filePath = inFilePath;
+        ArgumentNullException.ThrowIfNull(inPartition);
+
+        _xmlWriter?.Close();
+        _xmlWriter = XmlWriter.Create(inFilePath, _settings);
+        _filePath = inFilePath;
 
         if (!inPartition.IsValid)
         {
@@ -67,21 +69,20 @@ public sealed class DbxWriter : IDisposable
 
     public void Dispose()
     {
-        m_xmlWriter?.Dispose();
-        GC.SuppressFinalize(this);
+        _xmlWriter?.Dispose();
     }
 
     #region Partition Writing
     private void WritePartitionStart(Guid inAssetGuid, Guid inPrimaryInstanceGuid)
     {
-        m_xmlWriter!.WriteStartElement("partition");
-        m_xmlWriter.WriteAttributeString("guid", inAssetGuid.ToString());
-        m_xmlWriter.WriteAttributeString("primaryInstance", inPrimaryInstanceGuid.ToString());
+        _xmlWriter!.WriteStartElement("partition");
+        _xmlWriter.WriteAttributeString("guid", inAssetGuid.ToString());
+        _xmlWriter.WriteAttributeString("primaryInstance", inPrimaryInstanceGuid.ToString());
     }
 
     private void WritePartitionEnd()
     {
-        m_xmlWriter!.WriteEndElement();
+        _xmlWriter!.WriteEndElement();
     }
 
     #endregion
@@ -90,26 +91,25 @@ public sealed class DbxWriter : IDisposable
 
     private void WriteInstanceStart(AssetClassGuid classGuid, string type, string? id = null)
     {
-        m_xmlWriter!.WriteStartElement("instance");
+        _xmlWriter!.WriteStartElement("instance");
         if (id is not null)
         {
-            m_xmlWriter.WriteAttributeString("id", id);
+            _xmlWriter.WriteAttributeString("id", id);
         }
-        m_xmlWriter.WriteAttributeString("guid", classGuid.ToString());
+        _xmlWriter.WriteAttributeString("guid", classGuid.ToString());
 
-        m_xmlWriter.WriteAttributeString("type", type);
-        m_xmlWriter.WriteAttributeString("exported", classGuid.IsExported.ToString());
+        _xmlWriter.WriteAttributeString("type", type);
+        _xmlWriter.WriteAttributeString("exported", classGuid.IsExported.ToString());
     }
 
     private void WriteInstanceEnd()
     {
-        m_xmlWriter!.WriteEndElement();
+        _xmlWriter!.WriteEndElement();
     }
 
     /// <summary>
-    /// Writes the given ebx object to the dbx as an instance.
+    /// Writes the given EBX object to the DBX as an instance.
     /// </summary>
-    /// <param name="ebxObj"></param>
     private void WriteInstance(object ebxObj)
     {
         AssetClassGuid guid = ((dynamic)ebxObj).GetInstanceGuid();
@@ -230,30 +230,34 @@ public sealed class DbxWriter : IDisposable
             case TypeEnum.BoxedValueRef:
                 WriteBoxedValueRef(fieldName!, GetFieldValue<BoxedValueRef>(obj));
                 break;
+            case TypeEnum.Void:
+            case TypeEnum.DbObject:
+            case TypeEnum.Function:
+            case TypeEnum.Interface:
             default:
-                throw new NotImplementedException($"DbxWriter: unimplemented field type {fieldType}");
+                throw new NotImplementedException($"Not implemented DBX field type: {fieldType}");
         }
     }
     private void WriteFieldStart(string name, bool isArrayField, bool isTransient, bool isHidden)
     {
-        m_xmlWriter!.WriteStartElement(isArrayField ? "item" : "field");
+        _xmlWriter!.WriteStartElement(isArrayField ? "item" : "field");
         if (!isArrayField)
         {
-            m_xmlWriter.WriteAttributeString("name", name);
+            _xmlWriter.WriteAttributeString("name", name);
         }
         if (isTransient)
         {
-            m_xmlWriter.WriteAttributeString("transient", isTransient.ToString());
+            _xmlWriter.WriteAttributeString("transient", isTransient.ToString());
         }
         if (isHidden)
         {
-            m_xmlWriter.WriteAttributeString("hidden", isHidden.ToString());
+            _xmlWriter.WriteAttributeString("hidden", isHidden.ToString());
         }
     }
 
     private void WriteFieldEnd()
     {
-        m_xmlWriter!.WriteEndElement();
+        _xmlWriter!.WriteEndElement();
     }
 
     #endregion
@@ -267,7 +271,7 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        m_xmlWriter!.WriteValue(value);
+        _xmlWriter!.WriteValue(value);
 
         if (fieldName is not null)
         {
@@ -282,7 +286,7 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        m_xmlWriter!.WriteValue(value);
+        _xmlWriter!.WriteValue(value);
 
         if (fieldName is not null)
         {
@@ -297,7 +301,7 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        m_xmlWriter!.WriteValue(value);
+        _xmlWriter!.WriteValue(value);
 
         if (fieldName is not null)
         {
@@ -312,7 +316,7 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        m_xmlWriter!.WriteValue(value);
+        _xmlWriter!.WriteValue(value);
 
         if (fieldName is not null)
         {
@@ -327,7 +331,7 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        m_xmlWriter!.WriteValue(value);
+        _xmlWriter!.WriteValue(value);
 
         if (fieldName is not null)
         {
@@ -342,7 +346,7 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        m_xmlWriter!.WriteValue(value);
+        _xmlWriter!.WriteValue(value);
 
         if (fieldName is not null)
         {
@@ -357,7 +361,7 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        m_xmlWriter!.WriteValue(value);
+        _xmlWriter!.WriteValue(value);
 
         if (fieldName is not null)
         {
@@ -372,7 +376,7 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        m_xmlWriter!.WriteValue(value.ToString());
+        _xmlWriter!.WriteValue(value.ToString(CultureInfo.InvariantCulture));
 
         if (fieldName is not null)
         {
@@ -387,7 +391,7 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        m_xmlWriter!.WriteValue(((ulong)value).ToString("X"));
+        _xmlWriter!.WriteValue(((ulong)value).ToString("X", CultureInfo.InvariantCulture));
 
         if (fieldName is not null)
         {
@@ -402,7 +406,7 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        m_xmlWriter!.WriteValue(value.ToString());
+        _xmlWriter!.WriteValue(value.ToString());
 
         if (fieldName is not null)
         {
@@ -417,7 +421,7 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        m_xmlWriter!.WriteValue(value.ToString("0.0######"));
+        _xmlWriter!.WriteValue(value.ToString("0.0######", CultureInfo.InvariantCulture));
 
         if (fieldName is not null)
         {
@@ -432,7 +436,7 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        m_xmlWriter!.WriteValue(value.ToString("0.0##############"));
+        _xmlWriter!.WriteValue(value.ToString("0.0##############", CultureInfo.InvariantCulture));
 
         if (fieldName is not null)
         {
@@ -447,7 +451,7 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        m_xmlWriter!.WriteValue(value.ToString());
+        _xmlWriter!.WriteValue(value.ToString(CultureInfo.InvariantCulture));
 
         if (fieldName is not null)
         {
@@ -462,8 +466,8 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        // temp? remove potential garbage from strings before writing them
-        m_xmlWriter!.WriteValue(value?.Replace("\v", string.Empty));
+        // TODO: Temp? Remove potential garbage from strings before writing them
+        _xmlWriter!.WriteValue(value?.Replace("\v", string.Empty, StringComparison.Ordinal));
 
         if (fieldName is not null)
         {
@@ -478,7 +482,7 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        m_xmlWriter!.WriteValue(value.ToString("D"));
+        _xmlWriter!.WriteValue(value.ToString("D", CultureInfo.InvariantCulture));
 
         if (fieldName is not null)
         {
@@ -493,28 +497,34 @@ public sealed class DbxWriter : IDisposable
             WriteFieldStart(fieldName, isArrayField, isTransient, isHidden);
         }
 
-        if (value.Type == PointerRefType.Internal)
+        switch (value.Type)
         {
-            AssetClassGuid classGuid = ((dynamic)value.Internal!).GetInstanceGuid();
-            m_xmlWriter!.WriteAttributeString("ref", classGuid.ToString());
-        }
-        else if (value.Type == PointerRefType.External)
-        {
-            EbxAssetEntry? entry = AssetManager.GetEbxAssetEntry(value.External.PartitionGuid);
-            if (entry is not null)
+            case PointerRefType.Internal:
             {
-                m_xmlWriter!.WriteAttributeString("ref", $"{entry.Name}\\{value.External.InstanceGuid}");
-                m_xmlWriter.WriteAttributeString("partitionGuid", entry.Guid.ToString());
+                AssetClassGuid classGuid = ((dynamic)value.Internal!).GetInstanceGuid();
+                _xmlWriter!.WriteAttributeString("ref", classGuid.ToString());
+                break;
             }
-            else
+            case PointerRefType.External:
             {
-                m_xmlWriter!.WriteAttributeString("ref", "null");
-                m_xmlWriter.WriteAttributeString("partitionGuid", "null");
+                EbxAssetEntry? entry = AssetManager.GetEbxAssetEntry(value.External.PartitionGuid);
+                if (entry is not null)
+                {
+                    _xmlWriter!.WriteAttributeString("ref", $"{entry.Name}\\{value.External.InstanceGuid}");
+                    _xmlWriter.WriteAttributeString("partitionGuid", entry.Guid.ToString());
+                }
+                else
+                {
+                    _xmlWriter!.WriteAttributeString("ref", "null");
+                    _xmlWriter.WriteAttributeString("partitionGuid", "null");
+                }
+
+                break;
             }
-        }
-        else
-        {
-            m_xmlWriter!.WriteAttributeString("ref", "null");
+            case PointerRefType.Null:
+            default:
+                _xmlWriter!.WriteAttributeString("ref", "null");
+                break;
         }
 
         if (fieldName is not null)
@@ -552,21 +562,21 @@ public sealed class DbxWriter : IDisposable
 
     private void WriteArrayStart(string? name, string? memberType = null)
     {
-        m_xmlWriter!.WriteStartElement("array");
+        _xmlWriter!.WriteStartElement("array");
         if (name is not null)
         {
-            m_xmlWriter.WriteAttributeString("name", name);
+            _xmlWriter.WriteAttributeString("name", name);
         }
 
         if (memberType is not null)
         {
-            m_xmlWriter.WriteAttributeString("type", memberType);
+            _xmlWriter.WriteAttributeString("type", memberType);
         }
     }
 
     private void WriteArrayEnd()
     {
-        m_xmlWriter!.WriteEndElement();
+        _xmlWriter!.WriteEndElement();
     }
 
     #endregion
@@ -580,7 +590,7 @@ public sealed class DbxWriter : IDisposable
     {
         WriteStructStart(structName, isArrayItem ? null : structObj.GetType().GetName());
 
-        List<PropertyInfo> structProperties = new();
+        List<PropertyInfo> structProperties = [];
         GetAllProperties(structType, ref structProperties);
 
         foreach (PropertyInfo pi in structProperties)
@@ -601,21 +611,22 @@ public sealed class DbxWriter : IDisposable
 
     private void WriteStructStart(string? name = null, string? type = null)
     {
-        m_xmlWriter!.WriteStartElement("complex");
-        if (type is not null)
+        _xmlWriter!.WriteStartElement("complex");
+        if (type is null)
         {
-            m_xmlWriter.WriteAttributeString("type", type);
+            return;
+        }
 
-            if (name is not null)
-            {
-                m_xmlWriter.WriteAttributeString("name", name);
-            }
+        _xmlWriter.WriteAttributeString("type", type);
+        if (name is not null)
+        {
+            _xmlWriter.WriteAttributeString("name", name);
         }
     }
 
     private void WriteStructEnd()
     {
-        m_xmlWriter!.WriteEndElement();
+        _xmlWriter!.WriteEndElement();
     }
 
     #endregion
@@ -624,17 +635,17 @@ public sealed class DbxWriter : IDisposable
 
     private void WriteBoxedValueRefStart(string name, string? valueType)
     {
-        m_xmlWriter!.WriteStartElement("boxed");
-        m_xmlWriter.WriteAttributeString("name", name);
+        _xmlWriter!.WriteStartElement("boxed");
+        _xmlWriter.WriteAttributeString("name", name);
         if (valueType is not null)
         {
-            m_xmlWriter.WriteAttributeString("typeName", valueType);
+            _xmlWriter.WriteAttributeString("typeName", valueType);
         }
     }
 
     private void WriteBoxedValueRefEnd()
     {
-        m_xmlWriter!.WriteEndElement();
+        _xmlWriter!.WriteEndElement();
     }
 
     private void WriteBoxedValueRef(string name, BoxedValueRef boxedValue)
@@ -645,7 +656,7 @@ public sealed class DbxWriter : IDisposable
             TypeEnum type = boxedValue.Type;
             if (boxedValue.Category == CategoryEnum.Array)
             {
-                // riff ebx stores array in category
+                // RIFF EBX stores array in category
                 type = TypeEnum.Array;
             }
             WriteField(type, boxedValue.Value, boxedValue.Value.GetType(), null);
@@ -659,13 +670,13 @@ public sealed class DbxWriter : IDisposable
 
     private void WriteTypeRefStart(string name)
     {
-        m_xmlWriter!.WriteStartElement("typeref");
-        m_xmlWriter.WriteAttributeString("name", name);
+        _xmlWriter!.WriteStartElement("typeref");
+        _xmlWriter.WriteAttributeString("name", name);
     }
 
     private void WriteTypeRefEnd()
     {
-        m_xmlWriter!.WriteEndElement();
+        _xmlWriter!.WriteEndElement();
     }
 
     private void WriteTypeRef(string name, TypeRef typeRef)
@@ -673,7 +684,7 @@ public sealed class DbxWriter : IDisposable
         WriteTypeRefStart(name);
         if (typeRef.Name is not null)
         {
-            m_xmlWriter!.WriteAttributeString("typeName", typeRef.Name);
+            _xmlWriter!.WriteAttributeString("typeName", typeRef.Name);
         }
 
         WriteTypeRefEnd();
@@ -685,13 +696,13 @@ public sealed class DbxWriter : IDisposable
 
     private void WriteDelegateStart(string name)
     {
-        m_xmlWriter!.WriteStartElement("delegate");
-        m_xmlWriter.WriteAttributeString("name", name);
+        _xmlWriter!.WriteStartElement("delegate");
+        _xmlWriter.WriteAttributeString("name", name);
     }
 
     private void WriteDelegateEnd()
     {
-        m_xmlWriter!.WriteEndElement();
+        _xmlWriter!.WriteEndElement();
     }
 
     private void WriteDelegate(string name, IDelegate @delegate)
@@ -699,7 +710,7 @@ public sealed class DbxWriter : IDisposable
         WriteDelegateStart(name);
         if (@delegate.FunctionType is not null)
         {
-            m_xmlWriter!.WriteAttributeString("typeName", @delegate.FunctionType.Name);
+            _xmlWriter!.WriteAttributeString("typeName", @delegate.FunctionType.Name);
         }
 
         WriteDelegateEnd();
@@ -709,24 +720,16 @@ public sealed class DbxWriter : IDisposable
 
     private void WriteAsset(EbxPartition inPartition)
     {
-#if FROSTY_DEVELOPER
-        //Stopwatch w = new();
-        //w.Start();
-#endif
-        m_xmlWriter!.WriteStartDocument();
+        _xmlWriter!.WriteStartDocument();
 
         WritePartitionStart(inPartition.PartitionGuid, inPartition.PrimaryInstanceGuid);
 
-        foreach (object ebxObj in inPartition.InternalInstances)
+        foreach (IEbxInstance ebxObj in inPartition.InternalInstances)
         {
             WriteInstance(ebxObj);
         }
 
         WritePartitionEnd();
-#if FROSTY_DEVELOPER
-        //w.Stop();
-        //Console.WriteLine($"Finished writing {m_filePath} in {w.ElapsedMilliseconds} ms");
-#endif
     }
 
     /// <summary>
@@ -736,7 +739,7 @@ public sealed class DbxWriter : IDisposable
     /// <param name="classObj"></param>
     private void WriteDbxClass(Type classType, object classObj)
     {
-        List<PropertyInfo> classProperties = new();
+        List<PropertyInfo> classProperties = [];
         GetAllProperties(classType, ref classProperties, true, true);
 
         if (classProperties.Count == 0)
@@ -765,19 +768,13 @@ public sealed class DbxWriter : IDisposable
     /// <param name="properties">List of PropertyInfo to add the properties to.</param>
     /// <param name="checkBaseTypes">If true, recursively gathers all properties from this type and any of it's base types.</param>
     /// <param name="shouldSort">If true, properties will be sorted by the index stored in their FieldIndexAttribute. If the property doesn't have this attribute, it's index will default to -1.</param>
-    private void GetAllProperties(Type classType, ref List<PropertyInfo> properties, bool checkBaseTypes = false, bool shouldSort = false)
+    private static void GetAllProperties(Type classType, ref List<PropertyInfo> properties, bool checkBaseTypes = false, bool shouldSort = false)
     {
         PropertyInfo[] currentTypeProps = classType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-
-        foreach (PropertyInfo pi in currentTypeProps)
-        {
-            if (pi.Name.Equals(s_instanceGuidName) || pi.Name.Equals(s_instanceIdName))
-            {
-                continue;
-            }
-
-            properties.Add(pi);
-        }
+        
+        properties.AddRange(currentTypeProps.Where(static pi =>
+            !pi.Name.Equals(InstanceGuidName, StringComparison.Ordinal) &&
+            !pi.Name.Equals(InstanceIdName, StringComparison.Ordinal)));
 
         if (checkBaseTypes)
         {

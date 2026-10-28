@@ -1,6 +1,6 @@
 namespace Frosty.Sdk.IO.LegacyEbx;
 
-public struct EbxBoxedValue
+internal struct EbxBoxedValue
 {
     public uint Offset;
     public ushort TypeDescriptorRef;

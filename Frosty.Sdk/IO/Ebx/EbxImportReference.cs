@@ -1,51 +1,44 @@
-﻿using System;
-using Frosty.Sdk.Utils;
+﻿using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.IO.Ebx;
 
-public struct EbxImportReference : IEquatable<EbxImportReference>, IComparable<EbxImportReference>
+/// <remarks>
+///     As a <see langword="record" /> <see langword="struct" />,
+///     the compiler generates <see cref="IEquatable{T}" />, <c>==</c>, <c>!=</c> and <see cref="GetHashCode" /> automatically.
+/// </remarks>
+public readonly record struct EbxImportReference(Guid PartitionGuid, Guid InstanceGuid)
+    : IComparable<EbxImportReference>
 {
-    public Guid PartitionGuid;
-    public Guid InstanceGuid;
-
-    public override string ToString() => $"{PartitionGuid}/{InstanceGuid}";
-
-    public static bool operator ==(EbxImportReference a, EbxImportReference b) => a.Equals(b);
-
-    public static bool operator !=(EbxImportReference a, EbxImportReference b) => !a.Equals(b);
-
-    public override bool Equals(object? obj)
+    public static bool operator <(EbxImportReference a, EbxImportReference b)
     {
-        if (obj is EbxImportReference b)
-        {
-            return PartitionGuid == b.PartitionGuid && InstanceGuid == b.InstanceGuid;
-        }
-        return false;
+        return a.CompareTo(b) < 0;
     }
 
-    public override int GetHashCode()
+    public static bool operator <=(EbxImportReference a, EbxImportReference b)
     {
-        unchecked
-        {
-            int hash = (int)2166136261;
-            hash = (hash * 16777619) ^ PartitionGuid.GetHashCode();
-            hash = (hash * 16777619) ^ InstanceGuid.GetHashCode();
-            return hash;
-        }
+        return a.CompareTo(b) <= 0;
     }
 
-    public bool Equals(EbxImportReference other)
+    public static bool operator >(EbxImportReference a, EbxImportReference b)
     {
-        return PartitionGuid.Equals(other.PartitionGuid) && InstanceGuid.Equals(other.InstanceGuid);
+        return a.CompareTo(b) > 0;
+    }
+
+    public static bool operator >=(EbxImportReference a, EbxImportReference b)
+    {
+        return a.CompareTo(b) >= 0;
     }
 
     public int CompareTo(EbxImportReference other)
     {
         int partitionGuidComparison = PartitionGuid.CompareToBigEndian(other.PartitionGuid);
-        if (partitionGuidComparison != 0)
-        {
-            return partitionGuidComparison;
-        }
-        return InstanceGuid.CompareToBigEndian(other.InstanceGuid);
+        return partitionGuidComparison != 0
+            ? partitionGuidComparison
+            : InstanceGuid.CompareToBigEndian(other.InstanceGuid);
+    }
+
+    public override string ToString()
+    {
+        return $"{PartitionGuid}/{InstanceGuid}";
     }
 }

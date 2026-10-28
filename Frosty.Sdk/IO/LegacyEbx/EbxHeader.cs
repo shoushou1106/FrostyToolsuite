@@ -1,7 +1,7 @@
-using System;
-using System.Collections.Generic;
 using Frosty.Sdk.IO.Ebx;
 using Frosty.Sdk.Utils;
+// ReSharper disable MemberCanBePrivate.Global
+// ReSharper disable NotAccessedField.Global
 
 namespace Frosty.Sdk.IO.LegacyEbx;
 
@@ -111,7 +111,7 @@ internal struct EbxHeader
                 Flags = inStream.ReadUInt16(),
                 TypeDescriptorRef = inStream.ReadUInt16(),
                 DataOffset = inStream.ReadUInt32(),
-                SecondOffset = inStream.ReadUInt32(),
+                SecondOffset = inStream.ReadUInt32()
             };
 
             fieldDescriptor.Name = typeNames.TryGetValue((int)fieldDescriptor.NameHash, out string? value)
@@ -146,18 +146,12 @@ internal struct EbxHeader
         header.Instances = new EbxInstance[header.InstanceCount];
         for (int i = 0; i < header.InstanceCount; i++)
         {
-            EbxInstance inst = new()
+            header.Instances[i] = new EbxInstance
             {
                 TypeDescriptorRef = inStream.ReadUInt16(),
-                Count = inStream.ReadUInt16()
+                Count = inStream.ReadUInt16(),
+                IsExported = i < header.ExportedInstanceCount
             };
-
-            if (i < header.ExportedInstanceCount)
-            {
-                inst.IsExported = true;
-            }
-
-            header.Instances[i] = inst;
         }
 
         inStream.Pad(16);

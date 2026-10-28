@@ -77,6 +77,7 @@ public readonly struct FourCc(uint value) : IEquatable<FourCc>
         return (int)_value;
     }
 
+    /// <remarks><b>Encoding:</b> Latin-1 (one byte per char)</remarks>
     public static string FromFourCc(FourCc value)
     {
         ReadOnlySpan<char> result =
@@ -89,11 +90,13 @@ public readonly struct FourCc(uint value) : IEquatable<FourCc>
         return new string(result);
     }
 
+    /// <remarks><b>Encoding:</b> Latin-1 (one byte per char)</remarks>
+    /// <exception cref="ArgumentException"><paramref name="value" /> is not exactly 4 characters.</exception>
     public static FourCc ToFourCc(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
 
-        if (value.Length != 4)
+        if (value.Length != 4 || value.AsSpan().ContainsAnyExceptInRange('\0', '\u00FF'))
         {
             throw new ArgumentException("FourCC string must be exactly 4 characters long.", nameof(value));
         }

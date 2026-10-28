@@ -27,9 +27,9 @@ internal class PrimitiveInfoData : TypeInfoData
             case TypeFlags.TypeEnum.String:
                 break;
             case TypeFlags.TypeEnum.CString:
-                return $"@\"{reader.ReadNullTerminatedString()}\"";
+                return $"@\"{reader.ReadUtf8StringFromPointer()}\"";
             case TypeFlags.TypeEnum.FileRef:
-                return $"new Frosty.Sdk.Ebx.FileRef(\"{reader.ReadNullTerminatedString()}\")"; // TODO: not sure about this
+                return $"new Frosty.Sdk.Ebx.FileRef(\"{reader.ReadUtf8StringFromPointer()}\")"; // TODO: not sure about this
             case TypeFlags.TypeEnum.Boolean:
                 return (reader.ReadByte() != 0) ? "true" : "false";
             case TypeFlags.TypeEnum.Int8:

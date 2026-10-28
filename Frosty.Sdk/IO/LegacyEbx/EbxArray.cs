@@ -1,6 +1,6 @@
 namespace Frosty.Sdk.IO.LegacyEbx;
 
-public struct EbxArray
+internal struct EbxArray
 {
     public uint Offset;
     public int Count;

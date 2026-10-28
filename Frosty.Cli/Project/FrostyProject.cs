@@ -28,7 +28,7 @@ public class FrostyProject
         foreach (Ebx ebx in Ebx)
         {
             using BlockStream stream = BlockStream.FromFile(Path.Combine(BasePath, $"{ebx.Name}.dbx"), false);
-            DbxReader reader = new(stream);
+            DbxReader reader = new(stream.BaseStream);
             EbxPartition ebxAsset = reader.ReadAsset();
             using Block<byte> data = new(0);
             using (BlockStream dataStream = new(data, true))
