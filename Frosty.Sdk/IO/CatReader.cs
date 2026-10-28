@@ -7,10 +7,6 @@ namespace Frosty.Sdk.IO;
 /// </summary>
 public sealed class CatReader : IDisposable
 {
-    public uint ResourceCount { get; }
-    public uint PatchCount { get; }
-    public uint EncryptedCount { get; }
-
     private const string CatMagic = "NyanNyanNyanNyan";
 
     private readonly DataAccessor _accessor;
@@ -55,13 +51,20 @@ public sealed class CatReader : IDisposable
         }
     }
 
+    public uint ResourceCount { get; }
+    public uint PatchCount { get; }
+    public uint EncryptedCount { get; }
+
+    public void Dispose()
+    {
+        _accessor.Dispose();
+    }
+
     public CatResourceEntry ReadResourceEntry()
     {
         CatResourceEntry entry = new()
         {
-            Sha1 = _accessor.ReadSha1(),
-            Offset = _accessor.ReadUInt32(),
-            Size = _accessor.ReadUInt32()
+            Sha1 = _accessor.ReadSha1(), Offset = _accessor.ReadUInt32(), Size = _accessor.ReadUInt32()
         };
 
         if (_isNewFormat)
@@ -95,15 +98,8 @@ public sealed class CatReader : IDisposable
     {
         CatPatchEntry entry = new()
         {
-            Sha1 = _accessor.ReadSha1(),
-            BaseSha1 = _accessor.ReadSha1(),
-            DeltaSha1 = _accessor.ReadSha1()
+            Sha1 = _accessor.ReadSha1(), BaseSha1 = _accessor.ReadSha1(), DeltaSha1 = _accessor.ReadSha1()
         };
         return entry;
-    }
-
-    public void Dispose()
-    {
-        _accessor.Dispose();
     }
 }

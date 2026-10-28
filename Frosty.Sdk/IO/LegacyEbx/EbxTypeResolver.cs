@@ -2,8 +2,8 @@
 
 internal sealed class EbxTypeResolver
 {
-    private readonly IReadOnlyList<EbxTypeDescriptor> _typeDescriptors;
     private readonly IReadOnlyList<EbxFieldDescriptor> _fieldDescriptors;
+    private readonly IReadOnlyList<EbxTypeDescriptor> _typeDescriptors;
 
     internal EbxTypeResolver(IReadOnlyList<EbxTypeDescriptor> inTypeDescriptors,
         IReadOnlyList<EbxFieldDescriptor> inFieldDescriptors)

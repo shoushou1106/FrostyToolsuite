@@ -36,7 +36,10 @@ internal struct EbxTypeDescriptor
     }
 
     // The 9th bit of the field count is stored in the top bit of Alignment
-    public ushort GetFieldCount() => (ushort)(FieldCount | ((Alignment & 0x80) << 1));
+    public ushort GetFieldCount()
+    {
+        return (ushort)(FieldCount | ((Alignment & 0x80) << 1));
+    }
 
     public void SetFieldCount(ushort value)
     {
@@ -44,11 +47,20 @@ internal struct EbxTypeDescriptor
         Alignment = (byte)((Alignment & ~0x80) | ((value & 0x100) >> 1));
     }
 
-    public byte GetAlignment() => (byte)(Alignment & 0x7F);
+    public byte GetAlignment()
+    {
+        return (byte)(Alignment & 0x7F);
+    }
 
-    public void SetAlignment(byte value) => Alignment = (byte)((Alignment & ~0x7F) | value);
+    public void SetAlignment(byte value)
+    {
+        Alignment = (byte)((Alignment & ~0x7F) | value);
+    }
 
-    public bool IsSharedTypeDescriptorKey() => (FieldIndex & 0x80000000) != 0;
+    public bool IsSharedTypeDescriptorKey()
+    {
+        return (FieldIndex & 0x80000000) != 0;
+    }
 
     public Guid ToKey()
     {

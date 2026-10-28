@@ -17,7 +17,8 @@ internal sealed class MemoryReaderTests
     [Test]
     public void ReadExactly_ReadsOwnProcessMemory()
     {
-        Assume.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), "MemoryReader only supports Windows or Linux right now.");
+        Assume.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(),
+            "MemoryReader only supports Windows or Linux right now.");
 
         byte[] expected = GC.AllocateArray<byte>(64, true);
         RandomNumberGenerator.Fill(expected);

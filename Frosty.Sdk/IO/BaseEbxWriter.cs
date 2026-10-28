@@ -1,10 +1,12 @@
 using System.Collections;
 using System.Reflection;
 using System.Text;
+
 using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Ebx;
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO.Ebx;
+using Frosty.Sdk.IO.RiffEbx;
 using Frosty.Sdk.Managers;
 using Frosty.Sdk.Utils;
 
@@ -12,36 +14,37 @@ namespace Frosty.Sdk.IO;
 
 public abstract class BaseEbxWriter(DataAccessor inAccessor)
 {
-    private protected readonly DataAccessor _accessor = inAccessor;
-    private protected readonly List<IEbxInstance> _sortedInstances = [];
-
-    private protected static readonly Type PointerType = typeof(PointerRef);
-    private protected static readonly Type DataContainerType = TypeLibrary.GetType("DataContainer")!.Type;
-    // ReSharper disable once MemberCanBePrivate.Global
-    private protected static readonly Type? BoxedValueRefType = TypeLibrary.GetType("BoxedValueRef")?.Type;
-
     private protected const string EbxNamespace = "Frostbite";
     private protected const string CollectionName = "ObservableCollection`1";
 
-    private protected uint _stringsLength;
-    private protected readonly List<string> _strings = [];
-    private readonly Dictionary<string, uint> _stringOffsets = new(StringComparer.Ordinal);
+    private protected static readonly Type PointerType = typeof(PointerRef);
+    private protected static readonly Type DataContainerType = TypeLibrary.GetType("DataContainer")!.Type;
 
-    private protected readonly Dictionary<uint, int> _typeToDescriptor = new();
-
-    private protected readonly SortedSet<EbxImportReference> _imports = [];
-    private protected readonly Dictionary<EbxImportReference, int> _importOrderFw = new();
+    // ReSharper disable once MemberCanBePrivate.Global
+    private protected static readonly Type? BoxedValueRefType = TypeLibrary.GetType("BoxedValueRef")?.Type;
+    private protected readonly DataAccessor _accessor = inAccessor;
 
     private protected readonly List<Block<byte>> _arrayData = [];
     private protected readonly List<Block<byte>> _boxedValueData = [];
+    private protected readonly Dictionary<EbxImportReference, int> _importOrderFw = new();
 
-    private protected readonly bool _useSharedTypeDescriptors = FileSystemManager.HasFileInMemoryFs("SharedTypeDescriptors.ebx");
+    private protected readonly SortedSet<EbxImportReference> _imports = [];
 
     private readonly HashSet<object> _processedObjects = [];
+    private protected readonly List<IEbxInstance> _sortedInstances = [];
+    private readonly Dictionary<string, uint> _stringOffsets = new(StringComparer.Ordinal);
+    private protected readonly List<string> _strings = [];
+
+    private protected readonly Dictionary<uint, int> _typeToDescriptor = new();
+
+    private protected readonly bool _useSharedTypeDescriptors =
+        FileSystemManager.HasFileInMemoryFs("SharedTypeDescriptors.ebx");
+
+    private protected uint _stringsLength;
 
     public static BaseEbxWriter CreateWriter(DataAccessor inAccessor)
     {
-        return ProfilesLibrary.EbxVersion == 6 ? new RiffEbx.EbxWriter(inAccessor) : new LegacyEbx.EbxWriter(inAccessor);
+        return ProfilesLibrary.EbxVersion == 6 ? new EbxWriter(inAccessor) : new LegacyEbx.EbxWriter(inAccessor);
     }
 
     public void WritePartition(EbxPartition inPartition)
@@ -53,26 +56,29 @@ public abstract class BaseEbxWriter(DataAccessor inAccessor)
 
         foreach (IEbxInstance instance in inPartition.InternalInstances)
         {
-        	if (instance.GetInstanceGuid().IsExported)
-        	{
-        		exportedInstances.Add(instance);
-        	}
-        	else
-        	{
-        		internalInstances.Add(instance);
-        	}
+            if (instance.GetInstanceGuid().IsExported)
+            {
+                exportedInstances.Add(instance);
+            }
+            else
+            {
+                internalInstances.Add(instance);
+            }
         }
 
         int exportedInstanceCount = exportedInstances.Count;
         exportedInstances.Sort((a, b) =>
         {
-        	AssetClassGuid guidA = a.GetInstanceGuid();
-        	AssetClassGuid guidB = b.GetInstanceGuid();
-        	if (guidA.ExportedGuid == inPartition.PrimaryInstanceGuid)
-        	{
-        		return 1;
-        	}
-        	return guidB.ExportedGuid == inPartition.PrimaryInstanceGuid ? -1 : guidA.ExportedGuid.CompareTo(guidB.ExportedGuid);
+            AssetClassGuid guidA = a.GetInstanceGuid();
+            AssetClassGuid guidB = b.GetInstanceGuid();
+            if (guidA.ExportedGuid == inPartition.PrimaryInstanceGuid)
+            {
+                return 1;
+            }
+
+            return guidB.ExportedGuid == inPartition.PrimaryInstanceGuid
+                ? -1
+                : guidA.ExportedGuid.CompareTo(guidB.ExportedGuid);
         });
 
         internalInstances.Sort(CompareInstances);

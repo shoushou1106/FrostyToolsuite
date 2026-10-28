@@ -116,7 +116,7 @@ internal static class EbxSharedTypeDescriptors
             else
             {
                 // Relative offset to the field, calculate the index.
-                typeDescriptor.FieldIndex = (int)((offset - (typeDescriptor.FieldIndex - 0x08)) / 0x10 + startFields);
+                typeDescriptor.FieldIndex = (int)(((offset - (typeDescriptor.FieldIndex - 0x08)) / 0x10) + startFields);
                 KeyTypeMapping[key] = TypeDescriptors.Count;
                 TypeKeyMapping[typeDescriptor.NameHash] = key;
             }

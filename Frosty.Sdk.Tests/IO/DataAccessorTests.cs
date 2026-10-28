@@ -90,7 +90,8 @@ internal sealed class DataAccessorTests
     }
 
     /// <summary>
-    ///     Verify that disposing more than once is harmless, as <see cref="IDisposable" /> requires, and the block stays trimmed.
+    ///     Verify that disposing more than once is harmless, as <see cref="IDisposable" /> requires, and the block stays
+    ///     trimmed.
     /// </summary>
     [Test]
     public void BlockAccessor_DisposeTwice_KeepsTrimmedBlock()

@@ -25,7 +25,8 @@ public sealed class CompressionZstd : ICompressionFormat
         return success ? written : throw new InvalidDataException("A Zstandard block could not be decompressed.");
     }
 
-    public int Compress(ReadOnlySpan<byte> inData, Span<byte> outData, CompressionOptions inOptions = CompressionOptions.None)
+    public int Compress(ReadOnlySpan<byte> inData, Span<byte> outData,
+        CompressionOptions inOptions = CompressionOptions.None)
     {
         return ZstandardEncoder.TryCompress(inData, outData, out int written)
             ? written

@@ -1,7 +1,7 @@
 namespace Frosty.Sdk.Tests.TypeSdk;
 
 /// <summary>
-/// TODO: Replace FrostyTypeSdkGenerator.Example. Directly debug on this test instead.
+///     TODO: Replace FrostyTypeSdkGenerator.Example. Directly debug on this test instead.
 /// </summary>
 internal static class EbxTestSourceGeneratorTests
 {

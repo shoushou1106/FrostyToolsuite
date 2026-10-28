@@ -14,12 +14,16 @@ namespace Frosty.Sdk.Tests.IO;
 internal sealed class CasTests
 {
     private static readonly byte[] Plain =
-        [.. "Frostbite CAS Test. OH NO! The Zombies broke into the EA server room and ate them. Unfortunately that means the servers are currently down. Please try again later."u8];
+    [
+        .. "Frostbite CAS Test. OH NO! The Zombies broke into the EA server room and ate them. Unfortunately that means the servers are currently down. Please try again later."u8
+    ];
 
     // Large enough that Oodle compresses it instead of storing it
     private static readonly byte[] OodlePlain =
-        [.. Enumerable.Range(0, 2048).SelectMany(static i => Encoding.UTF8.GetBytes(
-            $"Frostbite CAS block {i}. The Zombies broke into the EA server room and ate them. Unfortunately that means the servers are currently down. Please try again later.\n"))];
+    [
+        .. Enumerable.Range(0, 2048).SelectMany(static i => Encoding.UTF8.GetBytes(
+            $"Frostbite CAS block {i}. The Zombies broke into the EA server room and ate them. Unfortunately that means the servers are currently down. Please try again later.\n"))
+    ];
 
     private static byte[] CompressWithOodle(byte[] inData, CompressionOptions inOptions)
     {
@@ -90,7 +94,8 @@ internal sealed class CasTests
             CompressionType.ZLib => new CompressionZLib(),
             CompressionType.Zstd => new CompressionZstd(),
             CompressionType.Lz4 => new CompressionLz4(),
-            _ => throw new ArgumentOutOfRangeException(nameof(inType), inType, "How did you passed other compression type to this test?"),
+            _ => throw new ArgumentOutOfRangeException(nameof(inType), inType,
+                "How did you passed other compression type to this test?")
         };
 
         byte[] compressed = new byte[format.GetCompressBounds(Plain.Length)];

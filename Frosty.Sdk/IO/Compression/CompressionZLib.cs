@@ -11,14 +11,16 @@ public sealed class CompressionZLib : ICompressionFormat
 {
     public string Identifier => "ZLib";
 
-    public int Decompress(ReadOnlySpan<byte> inData, Span<byte> outData, CompressionOptions inOptions = CompressionOptions.None)
+    public int Decompress(ReadOnlySpan<byte> inData, Span<byte> outData,
+        CompressionOptions inOptions = CompressionOptions.None)
     {
         return ZLibDecoder.TryDecompress(inData, outData, out int written)
             ? written
             : throw new InvalidDataException("A zlib block could not be decompressed.");
     }
 
-    public int Compress(ReadOnlySpan<byte> inData, Span<byte> outData, CompressionOptions inOptions = CompressionOptions.None)
+    public int Compress(ReadOnlySpan<byte> inData, Span<byte> outData,
+        CompressionOptions inOptions = CompressionOptions.None)
     {
         return ZLibEncoder.TryCompress(inData, outData, out int written)
             ? written

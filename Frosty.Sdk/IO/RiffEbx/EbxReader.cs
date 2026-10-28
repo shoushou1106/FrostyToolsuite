@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Reflection;
+
 using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Ebx;
 using Frosty.Sdk.Interfaces;
@@ -12,13 +13,12 @@ namespace Frosty.Sdk.IO.RiffEbx;
 
 public sealed class EbxReader : BaseEbxReader
 {
-    private long _payloadOffset;
-    private EbxFixup _fixup;
-    private readonly EbxTypeResolver _typeResolver;
+    private const string CollectionName = "ObservableCollection`1";
 
     private readonly Dictionary<uint, EbxExtra> _boxedValues = new();
-
-    private const string CollectionName = "ObservableCollection`1";
+    private readonly EbxTypeResolver _typeResolver;
+    private EbxFixup _fixup;
+    private long _payloadOffset;
 
     public EbxReader(DataAccessor inAccessor)
         : base(inAccessor)
@@ -44,15 +44,22 @@ public sealed class EbxReader : BaseEbxReader
         Debug.Assert(riffReader.Eof);
     }
 
-    public override Guid GetPartitionGuid() => _fixup.PartitionGuid;
+    public override Guid GetPartitionGuid()
+    {
+        return _fixup.PartitionGuid;
+    }
 
     public override string GetRootType()
     {
         _accessor.Position = _payloadOffset + _fixup.InstanceOffsets[0];
-        return TypeLibrary.GetType(_fixup.TypeGuids[_accessor.ReadUInt16()])?.Name ?? throw new InvalidDataException("Unknown EBX root type.");
+        return TypeLibrary.GetType(_fixup.TypeGuids[_accessor.ReadUInt16()])?.Name ??
+               throw new InvalidDataException("Unknown EBX root type.");
     }
 
-    public override HashSet<Guid> GetDependencies() => _fixup.Dependencies;
+    public override HashSet<Guid> GetDependencies()
+    {
+        return _fixup.Dependencies;
+    }
 
     private void ProcessChunk(DataAccessor inAccessor, FourCc inFourCc, uint inSize)
     {
@@ -117,7 +124,8 @@ public sealed class EbxReader : BaseEbxReader
         int boxedValueCount = inAccessor.ReadInt32();
         _boxedValues.EnsureCapacity(boxedValueCount);
 
-        inAccessor.Position += arrayCount * (sizeof(uint) + sizeof(int) + sizeof(uint) + sizeof(ushort) + sizeof(ushort));
+        inAccessor.Position +=
+            arrayCount * (sizeof(uint) + sizeof(int) + sizeof(uint) + sizeof(ushort) + sizeof(ushort));
 
         for (int i = 0; i < boxedValueCount; i++)
         {
@@ -163,6 +171,7 @@ public sealed class EbxReader : BaseEbxReader
                     //FrostyLogger.Logger.LogDebug("Skipping field \"{}.{}\", because it does not exist in the type info", objType.GetName(), fieldDescriptor.NameHash);
                     continue;
                 }
+
                 IList? list = (IList?)propertyInfo.GetValue(obj);
                 Type elementType = propertyInfo.PropertyType.GenericTypeArguments[0];
                 ReadArray(fieldDescriptor, value =>
@@ -177,7 +186,8 @@ public sealed class EbxReader : BaseEbxReader
             {
                 if (type == TypeFlags.TypeEnum.Void)
                 {
-                    ReadType(EbxTypeResolver.ResolveTypeFromField(fieldDescriptor.TypeDescriptorRef), obj, inStartOffset);
+                    ReadType(EbxTypeResolver.ResolveTypeFromField(fieldDescriptor.TypeDescriptorRef), obj,
+                        inStartOffset);
                     continue;
                 }
 
@@ -372,7 +382,10 @@ public sealed class EbxReader : BaseEbxReader
         return retStr;
     }
 
-    private ResourceRef ReadResourceRef() => new(_accessor.ReadUInt64());
+    private ResourceRef ReadResourceRef()
+    {
+        return new ResourceRef(_accessor.ReadUInt64());
+    }
 
     private FileRef ReadFileRef()
     {

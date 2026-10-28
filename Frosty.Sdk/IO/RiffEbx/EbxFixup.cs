@@ -53,8 +53,7 @@ internal struct EbxFixup
         {
             EbxImportReference import = new()
             {
-                PartitionGuid = inAccessor.ReadGuid(),
-                InstanceGuid = inAccessor.ReadGuid()
+                PartitionGuid = inAccessor.ReadGuid(), InstanceGuid = inAccessor.ReadGuid()
             };
 
             fixup.Imports.Add(import);
@@ -77,10 +76,10 @@ internal struct EbxFixup
 
     public static Block<byte> WriteFixup(EbxFixup inFixup)
     {
-        Block<byte> retVal = new((1 + inFixup.TypeGuids.Count + 2 * inFixup.Imports.Count) * 16 + (12 +
+        Block<byte> retVal = new(((1 + inFixup.TypeGuids.Count + (2 * inFixup.Imports.Count)) * 16) + ((12 +
                 inFixup.TypeSignatures.Count + inFixup.InstanceOffsets.Count + inFixup.PointerOffsets.Count +
                 inFixup.ResourceRefOffsets.Count + inFixup.ImportOffsets.Count + inFixup.TypeInfoOffsets.Count) *
-            sizeof(int));
+            sizeof(int)));
         using BlockAccessor accessor = new(retVal, true);
         accessor.WriteGuid(inFixup.PartitionGuid);
 

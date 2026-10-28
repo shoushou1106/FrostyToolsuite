@@ -1,12 +1,15 @@
 using System.Collections;
 using System.Reflection;
+
 using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Ebx;
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO.Ebx;
 using Frosty.Sdk.TypeSdk;
 using Frosty.Sdk.Utils;
+
 using static Frosty.Sdk.TypeSdk.TypeFlags;
+
 using TypeInfo = Frosty.Sdk.TypeSdk.TypeInfo;
 
 namespace Frosty.Sdk.IO.LegacyEbx;
@@ -24,18 +27,18 @@ public sealed class EbxWriter : BaseEbxWriter
 
     private readonly List<EbxArray> _arrays = [];
     private readonly List<EbxBoxedValue> _boxedValues = [];
-
-    private readonly List<EbxTypeDescriptor> _typeDescriptors = [];
     private readonly List<EbxFieldDescriptor> _fieldDescriptors = [];
-    private readonly HashSet<string> _typeNames = [];
-
-    private Block<byte>? _data;
     private readonly List<EbxInstance> _instances = [];
 
-    private ushort _uniqueClassCount;
-    private ushort _numExports;
+    private readonly List<EbxTypeDescriptor> _typeDescriptors = [];
+    private readonly HashSet<string> _typeNames = [];
 
     private readonly EbxTypeResolver _typeResolver;
+
+    private Block<byte>? _data;
+    private ushort _numExports;
+
+    private ushort _uniqueClassCount;
 
     public EbxWriter(DataAccessor inAccessor)
         : base(inAccessor)
@@ -170,6 +173,7 @@ public sealed class EbxWriter : BaseEbxWriter
                 _accessor.Write(_arrayData[j]);
                 _arrayData[j++].Dispose();
             }
+
             _accessor.Pad(16);
         }
 
@@ -184,7 +188,7 @@ public sealed class EbxWriter : BaseEbxWriter
                 _accessor.Pad(16);
 
                 boxedValue.Offset = (uint)(_accessor.Position - boxedValueOffset - _stringsLength - stringsOffset);
-                _accessor.StepIn(boxedValuesPos + i * 8);
+                _accessor.StepIn(boxedValuesPos + (i * 8));
                 _accessor.WriteUInt32(boxedValue.Offset);
                 _accessor.StepOut();
 
@@ -264,7 +268,8 @@ public sealed class EbxWriter : BaseEbxWriter
             {
                 ReserveFields(1);
                 int enumValue = (int)enumValues.GetValue(i)!;
-                AddField(enumNames[i], (uint)Fnv1.HashString(enumNames[i]), new TypeFlags(TypeEnum.Int32, unk: 0), 0, (uint)enumValue,
+                AddField(enumNames[i], (uint)Fnv1.HashString(enumNames[i]), new TypeFlags(TypeEnum.Int32, unk: 0), 0,
+                    (uint)enumValue,
                     (uint)enumValue, _fieldDescriptors.Count - 1);
             }
         }
@@ -283,7 +288,8 @@ public sealed class EbxWriter : BaseEbxWriter
 
             ReserveFields(1);
 
-            ushort arrayClassRef = (ushort)(typeof(IPrimitive).IsAssignableFrom(elementType) ? 0 : FindOrAddType(elementType));
+            ushort arrayClassRef =
+                (ushort)(typeof(IPrimitive).IsAssignableFrom(elementType) ? 0 : FindOrAddType(elementType));
 
             AddField("member", (uint)Fnv1.HashString("member"),
                 elementType.GetCustomAttribute<EbxTypeMetaAttribute>()!.Flags,
@@ -299,7 +305,8 @@ public sealed class EbxWriter : BaseEbxWriter
                 inherited = true;
             }
 
-            PropertyInfo[] allProps = inType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+            PropertyInfo[] allProps =
+                inType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
             // Ignore transients if saving to project
             List<PropertyInfo> classProperties =
                 [.. allProps.Where(static pi => pi.GetCustomAttribute<IsTransientAttribute>() is null)];
@@ -356,7 +363,8 @@ public sealed class EbxWriter : BaseEbxWriter
         }
         else if (inType.IsValueType)
         {
-            PropertyInfo[] allProps = inType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+            PropertyInfo[] allProps =
+                inType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
             // Ignore transients
             List<PropertyInfo> objProperties =
                 [.. allProps.Where(static pi => pi.GetCustomAttribute<IsTransientAttribute>() is null)];
@@ -406,6 +414,7 @@ public sealed class EbxWriter : BaseEbxWriter
         {
             index = AddType(inType);
         }
+
         return (ushort)index;
     }
 
@@ -479,12 +488,7 @@ public sealed class EbxWriter : BaseEbxWriter
             Type type = _sortedInstances[0].GetType();
             int typeDescriptorRef = FindExistingType(type);
 
-            EbxInstance inst = new()
-            {
-                TypeDescriptorRef = (ushort)typeDescriptorRef,
-                Count = 0,
-                IsExported = true
-            };
+            EbxInstance inst = new() { TypeDescriptorRef = (ushort)typeDescriptorRef, Count = 0, IsExported = true };
 
             ushort count = 0;
             _numExports++;
@@ -506,8 +510,7 @@ public sealed class EbxWriter : BaseEbxWriter
 
                     inst = new EbxInstance
                     {
-                        TypeDescriptorRef = (ushort)typeDescriptorRef,
-                        IsExported = guid.IsExported
+                        TypeDescriptorRef = (ushort)typeDescriptorRef, IsExported = guid.IsExported
                     };
                     _numExports += (ushort)(inst.IsExported ? 1 : 0);
 
@@ -641,101 +644,101 @@ public sealed class EbxWriter : BaseEbxWriter
         writer.Position = startPos + inTypeDescriptor.Size;
     }
 
-    private void WriteField(object ebxObj, EbxTypeDescriptor? inParentTypeDescriptor, TypeEnum ebxType, ushort inTypeDescriptorRef, DataAccessor writer)
+    private void WriteField(object ebxObj, EbxTypeDescriptor? inParentTypeDescriptor, TypeEnum ebxType,
+        ushort inTypeDescriptorRef, DataAccessor writer)
     {
         switch (ebxType)
         {
             case TypeEnum.TypeRef:
-            {
-                writer.WriteUInt32(AddString(TypeInfo.Version > 4 ? ((TypeRef)((IPrimitive)ebxObj).ToActualType()).Guid.ToString().ToUpperInvariant() : (TypeRef)((IPrimitive)ebxObj).ToActualType()));
-                break;
-            }
-            case TypeEnum.FileRef:
-            {
-                writer.WriteUInt32(AddString((FileRef)((IPrimitive)ebxObj).ToActualType()));
-                break;
-            }
-            case TypeEnum.CString:
-            {
-                writer.WriteUInt32(AddString((string)((IPrimitive)ebxObj).ToActualType()));
-                break;
-            }
-            case TypeEnum.Class:
-            {
-                PointerRef pointer = (PointerRef)ebxObj;
-                uint pointerIndex = 0;
-
-                switch (pointer.Type)
                 {
-                    case PointerRefType.External:
-                        pointerIndex = (uint)(_importOrderFw[pointer.External] | 0x80000000);
-                        break;
-                    case PointerRefType.Internal:
-                        pointerIndex = (uint)(_sortedInstances.IndexOf(pointer.Internal!) + 1);
-                        break;
-                    case PointerRefType.Null:
-                    default:
-                        break;
+                    writer.WriteUInt32(AddString(TypeInfo.Version > 4
+                        ? ((TypeRef)((IPrimitive)ebxObj).ToActualType()).Guid.ToString().ToUpperInvariant()
+                        : (TypeRef)((IPrimitive)ebxObj).ToActualType()));
+                    break;
                 }
+            case TypeEnum.FileRef:
+                {
+                    writer.WriteUInt32(AddString((FileRef)((IPrimitive)ebxObj).ToActualType()));
+                    break;
+                }
+            case TypeEnum.CString:
+                {
+                    writer.WriteUInt32(AddString((string)((IPrimitive)ebxObj).ToActualType()));
+                    break;
+                }
+            case TypeEnum.Class:
+                {
+                    PointerRef pointer = (PointerRef)ebxObj;
+                    uint pointerIndex = 0;
 
-                writer.WriteUInt32(pointerIndex);
-            }
-            break;
+                    switch (pointer.Type)
+                    {
+                        case PointerRefType.External:
+                            pointerIndex = (uint)(_importOrderFw[pointer.External] | 0x80000000);
+                            break;
+                        case PointerRefType.Internal:
+                            pointerIndex = (uint)(_sortedInstances.IndexOf(pointer.Internal!) + 1);
+                            break;
+                        case PointerRefType.Null:
+                        default:
+                            break;
+                    }
+
+                    writer.WriteUInt32(pointerIndex);
+                }
+                break;
 
             case TypeEnum.Struct:
-            {
-                EbxTypeDescriptor structType = inParentTypeDescriptor.HasValue ? _typeResolver.ResolveType(inParentTypeDescriptor.Value, inTypeDescriptorRef) : _typeResolver.ResolveType(inTypeDescriptorRef);
-                writer.Pad(structType.GetAlignment());
+                {
+                    EbxTypeDescriptor structType = inParentTypeDescriptor.HasValue
+                        ? _typeResolver.ResolveType(inParentTypeDescriptor.Value, inTypeDescriptorRef)
+                        : _typeResolver.ResolveType(inTypeDescriptorRef);
+                    writer.Pad(structType.GetAlignment());
 
-                WriteType(ebxObj, structType, writer, writer.Position);
-            }
-            break;
+                    WriteType(ebxObj, structType, writer, writer.Position);
+                }
+                break;
 
             case TypeEnum.Array:
-            {
-                int typeDescriptorRef = FindExistingType(ebxObj.GetType());
-                int arrayIdx = 0;
-
-                EbxTypeDescriptor arrayTypeDescriptor = _typeResolver.ResolveType(typeDescriptorRef);
-                EbxFieldDescriptor elementFieldDescriptor = _typeResolver.ResolveField(arrayTypeDescriptor.FieldIndex);
-
-                ebxType = elementFieldDescriptor.Flags.GetTypeEnum();
-
-                IList arrayObj = (IList)ebxObj;
-                int count = arrayObj.Count;
-
-                if (_arrays.Count == 0)
                 {
-                    _arrays.Add(
-                        new EbxArray
-                        {
-                            Count = 0,
-                            TypeDescriptorRef = typeDescriptorRef
-                        });
-                }
+                    int typeDescriptorRef = FindExistingType(ebxObj.GetType());
+                    int arrayIdx = 0;
 
-                if (count > 0)
-                {
-                    arrayIdx = _arrays.Count;
-                    _arrays.Add(
-                        new EbxArray
-                        {
-                            Count = count,
-                            TypeDescriptorRef = typeDescriptorRef
-                        });
-                    Block<byte> data = new(0);
-                    _arrayData.Add(data);
-                    using BlockAccessor arrayWriter = new(data, true);
-                    for (int i = 0; i < count; i++)
+                    EbxTypeDescriptor arrayTypeDescriptor = _typeResolver.ResolveType(typeDescriptorRef);
+                    EbxFieldDescriptor elementFieldDescriptor =
+                        _typeResolver.ResolveField(arrayTypeDescriptor.FieldIndex);
+
+                    ebxType = elementFieldDescriptor.Flags.GetTypeEnum();
+
+                    IList arrayObj = (IList)ebxObj;
+                    int count = arrayObj.Count;
+
+                    if (_arrays.Count == 0)
                     {
-                        object subValue = arrayObj[i]!;
-
-                        WriteField(subValue, arrayTypeDescriptor, ebxType, elementFieldDescriptor.TypeDescriptorRef, arrayWriter);
+                        _arrays.Add(
+                            new EbxArray { Count = 0, TypeDescriptorRef = typeDescriptorRef });
                     }
+
+                    if (count > 0)
+                    {
+                        arrayIdx = _arrays.Count;
+                        _arrays.Add(
+                            new EbxArray { Count = count, TypeDescriptorRef = typeDescriptorRef });
+                        Block<byte> data = new(0);
+                        _arrayData.Add(data);
+                        using BlockAccessor arrayWriter = new(data, true);
+                        for (int i = 0; i < count; i++)
+                        {
+                            object subValue = arrayObj[i]!;
+
+                            WriteField(subValue, arrayTypeDescriptor, ebxType, elementFieldDescriptor.TypeDescriptorRef,
+                                arrayWriter);
+                        }
+                    }
+
+                    writer.WriteInt32(arrayIdx);
                 }
-                writer.WriteInt32(arrayIdx);
-            }
-            break;
+                break;
 
             case TypeEnum.Enum:
                 writer.WriteInt32((int)ebxObj);
@@ -786,40 +789,40 @@ public sealed class EbxWriter : BaseEbxWriter
                 writer.WriteUInt64((ResourceRef)((IPrimitive)ebxObj).ToActualType());
                 break;
             case TypeEnum.BoxedValueRef:
-            {
-                BoxedValueRef value = (BoxedValueRef)((IPrimitive)ebxObj).ToActualType();
-                int index = _boxedValues.Count;
-
-                if (value.Type == TypeEnum.Void)
                 {
-                    index = -1;
-                }
-                else
-                {
-                    EbxBoxedValue boxedValue = new()
-                    {
-                        Type = (ushort)value.Type,
-                        // Need to get the correct TypeDescriptorRef
-                        TypeDescriptorRef = value.Type is TypeEnum.Array or TypeEnum.Enum or TypeEnum.Struct
-                            ? (ushort)FindExistingType(value.Value!.GetType())
-                            : default
-                    };
+                    BoxedValueRef value = (BoxedValueRef)((IPrimitive)ebxObj).ToActualType();
+                    int index = _boxedValues.Count;
 
-                    Block<byte> data = new(0);
-                    _boxedValueData.Add(data);
-                    using (BlockAccessor accessor = new(data, true))
+                    if (value.Type == TypeEnum.Void)
                     {
-                        WriteField(value.Value!, null, value.Type, boxedValue.TypeDescriptorRef, accessor);
+                        index = -1;
+                    }
+                    else
+                    {
+                        EbxBoxedValue boxedValue = new()
+                        {
+                            Type = (ushort)value.Type,
+                            // Need to get the correct TypeDescriptorRef
+                            TypeDescriptorRef = value.Type is TypeEnum.Array or TypeEnum.Enum or TypeEnum.Struct
+                                ? (ushort)FindExistingType(value.Value!.GetType())
+                                : default
+                        };
+
+                        Block<byte> data = new(0);
+                        _boxedValueData.Add(data);
+                        using (BlockAccessor accessor = new(data, true))
+                        {
+                            WriteField(value.Value!, null, value.Type, boxedValue.TypeDescriptorRef, accessor);
+                        }
+
+                        _boxedValues.Add(boxedValue);
                     }
 
-                    _boxedValues.Add(boxedValue);
+                    writer.WriteInt32(index);
+                    writer.WriteUInt64(0);
+                    writer.WriteUInt32(0);
                 }
-
-                writer.WriteInt32(index);
-                writer.WriteUInt64(0);
-                writer.WriteUInt32(0);
-            }
-            break;
+                break;
 
             case TypeEnum.Delegate:
             case TypeEnum.Void:

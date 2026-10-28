@@ -1,5 +1,6 @@
 ﻿using System.Buffers.Binary;
 using System.Security.Cryptography;
+
 using Frosty.Sdk.Exceptions;
 using Frosty.Sdk.Managers;
 using Frosty.Sdk.Managers.Entries;
@@ -20,10 +21,6 @@ public class BinaryBundle
         Kelvin = 0xC3889333,
         Encrypted = 0xC3E5D5C3
     }
-
-    public IReadOnlyList<EbxAssetEntry> EbxList { get; }
-    public IReadOnlyList<ResAssetEntry> ResList { get; }
-    public IReadOnlyList<ChunkAssetEntry> ChunkList { get; }
 
     private BinaryBundle(DataAccessor accessor)
     {
@@ -102,9 +99,10 @@ public class BinaryBundle
             accessor.Position = currentPos;
         }
 
-        long resTypeOffset = accessor.Position + resCount * 2 * sizeof(uint);
-        long resMetaOffset = accessor.Position + resCount * 2 * sizeof(uint) + resCount * sizeof(uint);
-        long resRidOffset = accessor.Position + resCount * 2 * sizeof(uint) + resCount * sizeof(uint) + resCount * 0x10;
+        long resTypeOffset = accessor.Position + (resCount * 2 * sizeof(uint));
+        long resMetaOffset = accessor.Position + (resCount * 2 * sizeof(uint)) + (resCount * sizeof(uint));
+        long resRidOffset = accessor.Position + (resCount * 2 * sizeof(uint)) + (resCount * sizeof(uint)) +
+                            (resCount * 0x10);
         for (int i = 0; i < resCount; i++, j++)
         {
             uint nameOffset = accessor.ReadUInt32(endian);
@@ -114,13 +112,13 @@ public class BinaryBundle
             accessor.Position = stringsOffset + nameOffset;
             string name = accessor.ReadNullTerminatedString();
 
-            accessor.Position = resTypeOffset + i * sizeof(uint);
+            accessor.Position = resTypeOffset + (i * sizeof(uint));
             uint resType = accessor.ReadUInt32(endian);
 
-            accessor.Position = resMetaOffset + i * 0x10;
+            accessor.Position = resMetaOffset + (i * 0x10);
             byte[] resMeta = accessor.ReadBytes(0x10);
 
-            accessor.Position = resRidOffset + i * sizeof(ulong);
+            accessor.Position = resRidOffset + (i * sizeof(ulong));
             ulong resRid = accessor.ReadUInt64(endian);
 
             resList[i] = new ResAssetEntry(name, sha1[j], originalSize, resRid, resType, resMeta);
@@ -128,7 +126,7 @@ public class BinaryBundle
             accessor.Position = currentPos;
         }
 
-        accessor.Position = resRidOffset + resCount * sizeof(ulong);
+        accessor.Position = resRidOffset + (resCount * sizeof(ulong));
         for (int i = 0; i < chunkCount; i++, j++)
         {
             chunkList[i] = new ChunkAssetEntry(accessor.ReadGuid(endian), sha1[j], accessor.ReadUInt32(endian),
@@ -143,10 +141,22 @@ public class BinaryBundle
         accessor.Position = startPos + size;
     }
 
+    public IReadOnlyList<EbxAssetEntry> EbxList { get; }
+    public IReadOnlyList<ResAssetEntry> ResList { get; }
+    public IReadOnlyList<ChunkAssetEntry> ChunkList { get; }
+
     /// <summary>
-    /// Dependent on the FB version, games use different salts.
-    /// If the game uses a version newer than 2017, it uses "pecn", else it uses "pecm".
-    /// <see cref="ProfileVersion.Battlefield5"/> is the only game that uses "arie".
+    ///     Only the games using the <see cref="BundleFormat.Kelvin" /> format have their own magic, the rest uses
+    ///     <see cref="Magic.Standard" />.
+    /// </summary>
+    /// <returns>The magic the current game uses.</returns>
+    public static Magic CurrentMagic =>
+        FileSystemManager.BundleFormat == BundleFormat.Kelvin ? Magic.Kelvin : Magic.Standard;
+
+    /// <summary>
+    ///     Dependent on the FB version, games use different salts.
+    ///     If the game uses a version newer than 2017, it uses "pecn", else it uses "pecm".
+    ///     <see cref="ProfileVersion.Battlefield5" /> is the only game that uses "arie".
     /// </summary>
     /// <returns>The salt that the current game uses.</returns>
     public static uint GetSalt()
@@ -163,22 +173,17 @@ public class BinaryBundle
         return ProfilesLibrary.FrostbiteVersion >= "2017" ? pecn : pecm;
     }
 
-    /// <summary>
-    /// Only the games using the <see cref="BundleFormat.Kelvin"/> format have their own magic, the rest uses <see cref="Magic.Standard"/>.
-    /// </summary>
-    /// <returns>The magic the current game uses.</returns>
-    public static Magic CurrentMagic =>
-        FileSystemManager.BundleFormat == BundleFormat.Kelvin ? Magic.Kelvin : Magic.Standard;
-
-    public static bool IsValidMagic(Magic magic) =>
-        magic is Magic.Standard or Magic.Kelvin or Magic.Encrypted;
+    public static bool IsValidMagic(Magic magic)
+    {
+        return magic is Magic.Standard or Magic.Kelvin or Magic.Encrypted;
+    }
 
     /// <summary>
-    /// Deserialize a binary-stored bundle as <see cref="DbObject"/>.
+    ///     Deserialize a binary-stored bundle as <see cref="DbObject" />.
     /// </summary>
-    /// <param name="accessor">The <see cref="DataAccessor"/> from which the bundle should be Deserialized from.</param>
+    /// <param name="accessor">The <see cref="DataAccessor" /> from which the bundle should be Deserialized from.</param>
     /// <returns></returns>
-    /// <exception cref="InvalidDataException">Is thrown when there is no valid <see cref="Magic"/>.</exception>
+    /// <exception cref="InvalidDataException">Is thrown when there is no valid <see cref="Magic" />.</exception>
     public static BinaryBundle Deserialize(DataAccessor accessor)
     {
         ArgumentNullException.ThrowIfNull(accessor);

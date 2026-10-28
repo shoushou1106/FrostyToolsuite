@@ -98,7 +98,7 @@ public class BlockAccessor : DataAccessor
         // So there is nothing needed to degrade into base.ReadNullTerminatedString.
         // Non-ASCII-compatible encodings like UTF-16 and UTF-32 are not supported,
         // but the base method does not support them either.
-        
+
         // "Length - Position" prevent reading trash from an uninitialized Block
         ReadOnlySpan<byte> remaining = _block.ToReadOnlySpan((int)Position, (int)(Length - Position));
         int length = remaining.IndexOf((byte)0);
@@ -119,11 +119,11 @@ public class BlockAccessor : DataAccessor
     }
 
     /// <summary>
-    /// Loads the whole file into memory and deobfuscates it if necessary.
+    ///     Loads the whole file into memory and deobfuscates it if necessary.
     /// </summary>
     /// <param name="inPath">The path of the file</param>
     /// <param name="inShouldDeobfuscate">The boolean if the file needs to be deobfuscated</param>
-    /// <returns>A <see cref="BlockAccessor"/> that has the file loaded.</returns>
+    /// <returns>A <see cref="BlockAccessor" /> that has the file loaded.</returns>
     public static BlockAccessor FromFile(string inPath, bool inShouldDeobfuscate)
     {
         using FileStream stream = new(inPath, FileMode.Open, FileAccess.Read);
@@ -152,12 +152,12 @@ public class BlockAccessor : DataAccessor
     }
 
     /// <summary>
-    /// Loads part of a file into memory.
+    ///     Loads part of a file into memory.
     /// </summary>
     /// <param name="inPath">The path of the file.</param>
     /// <param name="inOffset">The offset of the data to load.</param>
     /// <param name="inSize">The size of the data to load</param>
-    /// <returns>A <see cref="BlockAccessor"/> that has the data loaded.</returns>
+    /// <returns>A <see cref="BlockAccessor" /> that has the data loaded.</returns>
     public static BlockAccessor FromFile(string inPath, long inOffset, int inSize)
     {
         using FileStream stream = new(inPath, FileMode.Open, FileAccess.Read);
@@ -169,10 +169,10 @@ public class BlockAccessor : DataAccessor
     }
 
     /// <summary>
-    /// <see cref="Aes"/> decrypt this <see cref="BlockAccessor"/>.
+    ///     <see cref="Aes" /> decrypt this <see cref="BlockAccessor" />.
     /// </summary>
     /// <param name="inKey">The key to use for the decryption.</param>
-    /// <param name="inPaddingMode">The <see cref="PaddingMode"/> to use for the decryption.</param>
+    /// <param name="inPaddingMode">The <see cref="PaddingMode" /> to use for the decryption.</param>
     public void Decrypt(byte[] inKey, PaddingMode inPaddingMode)
     {
         using Aes aes = Aes.Create();
@@ -182,11 +182,11 @@ public class BlockAccessor : DataAccessor
     }
 
     /// <summary>
-    /// <see cref="Aes"/> decrypt part of this <see cref="BlockAccessor"/>.
+    ///     <see cref="Aes" /> decrypt part of this <see cref="BlockAccessor" />.
     /// </summary>
     /// <param name="inKey">The key to use for the decryption.</param>
     /// <param name="inSize">The size of the data to decrypt.</param>
-    /// <param name="inPaddingMode">The <see cref="PaddingMode"/> to use for the decryption.</param>
+    /// <param name="inPaddingMode">The <see cref="PaddingMode" /> to use for the decryption.</param>
     public void Decrypt(byte[] inKey, int inSize, PaddingMode inPaddingMode)
     {
         using Aes aes = Aes.Create();

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.ObjectModel;
 using System.Reflection;
+
 using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Ebx;
 using Frosty.Sdk.Interfaces;
@@ -21,7 +22,10 @@ public sealed class EbxReader : BaseEbxReader
         _typeResolver = new EbxTypeResolver(_header.TypeDescriptors, _header.FieldDescriptors);
     }
 
-    public override Guid GetPartitionGuid() => _header.PartitionGuid;
+    public override Guid GetPartitionGuid()
+    {
+        return _header.PartitionGuid;
+    }
 
     public override string GetRootType()
     {
@@ -30,7 +34,10 @@ public sealed class EbxReader : BaseEbxReader
         return _header.TypeNameTableLength > 0 ? type.Name : GetType(type).GetName();
     }
 
-    public override HashSet<Guid> GetDependencies() => _header.Dependencies;
+    public override HashSet<Guid> GetDependencies()
+    {
+        return _header.Dependencies;
+    }
 
     protected override void InternalReadObjects()
     {
@@ -102,33 +109,35 @@ public sealed class EbxReader : BaseEbxReader
             {
                 case TypeFlags.TypeEnum.Void:
                     // Read superclass first
-                    ReadType(_typeResolver.ResolveType(inTypeDescriptor, fieldDescriptor.TypeDescriptorRef), obj, inStartOffset);
+                    ReadType(_typeResolver.ResolveType(inTypeDescriptor, fieldDescriptor.TypeDescriptorRef), obj,
+                        inStartOffset);
                     break;
                 case TypeFlags.TypeEnum.Array:
-                {
-                    if (propertyInfo is null)
                     {
-                        //FrostyLogger.Logger.LogDebug("Skipping field \"{}.{}\", because it does not exist in the type info", inTypeDescriptor.Name, fieldDescriptor.Name);
-                        continue;
-                    }
-
-                    IList? list = (IList?)propertyInfo.GetValue(obj);
-                    Type elementType = propertyInfo.PropertyType.GenericTypeArguments[0];
-                    ReadField(inTypeDescriptor, type, fieldDescriptor.TypeDescriptorRef, value =>
-                    {
-                        if (TryWrapValue(elementType, ref value))
+                        if (propertyInfo is null)
                         {
-                            list?.Add(value);
+                            //FrostyLogger.Logger.LogDebug("Skipping field \"{}.{}\", because it does not exist in the type info", inTypeDescriptor.Name, fieldDescriptor.Name);
+                            continue;
                         }
-                    });
-                    break;
-                }
+
+                        IList? list = (IList?)propertyInfo.GetValue(obj);
+                        Type elementType = propertyInfo.PropertyType.GenericTypeArguments[0];
+                        ReadField(inTypeDescriptor, type, fieldDescriptor.TypeDescriptorRef, value =>
+                        {
+                            if (TryWrapValue(elementType, ref value))
+                            {
+                                list?.Add(value);
+                            }
+                        });
+                        break;
+                    }
                 default:
                     if (propertyInfo is null)
                     {
                         //FrostyLogger.Logger.LogDebug("Skipping field \"{}.{}\", because it does not exist in the type info", inTypeDescriptor.Name, fieldDescriptor.Name);
                         continue;
                     }
+
                     ReadField(inTypeDescriptor, type, fieldDescriptor.TypeDescriptorRef, value =>
                     {
                         if (TryWrapValue(propertyInfo.PropertyType, ref value))
@@ -143,7 +152,8 @@ public sealed class EbxReader : BaseEbxReader
         _accessor.Position = inStartOffset + inTypeDescriptor.Size;
     }
 
-    private void ReadField(EbxTypeDescriptor? inParentTypeDescriptor, TypeFlags.TypeEnum inType, ushort inTypeDescriptorRef, Action<object?> inAddFunc)
+    private void ReadField(EbxTypeDescriptor? inParentTypeDescriptor, TypeFlags.TypeEnum inType,
+        ushort inTypeDescriptorRef, Action<object?> inAddFunc)
     {
         switch (inType)
         {
@@ -227,7 +237,8 @@ public sealed class EbxReader : BaseEbxReader
                 ReadArray(inParentTypeDescriptor, inTypeDescriptorRef, inAddFunc);
                 break;
             case TypeFlags.TypeEnum.DbObject:
-                throw new NotImplementedException("DbObject as EBX field type"); // Remove this line and DbObject goes to Unknown
+                throw new NotImplementedException(
+                    "DbObject as EBX field type"); // Remove this line and DbObject goes to Unknown
             case TypeFlags.TypeEnum.Void:
             case TypeFlags.TypeEnum.Function:
             case TypeFlags.TypeEnum.Interface:
@@ -236,7 +247,8 @@ public sealed class EbxReader : BaseEbxReader
         }
     }
 
-    private void ReadArray(EbxTypeDescriptor? inParentTypeDescriptor, ushort inTypeDescriptorRef, Action<object?> inAddFunc)
+    private void ReadArray(EbxTypeDescriptor? inParentTypeDescriptor, ushort inTypeDescriptorRef,
+        Action<object?> inAddFunc)
     {
         EbxTypeDescriptor arrayTypeDescriptor = ResolveType(inParentTypeDescriptor, inTypeDescriptorRef);
 
@@ -248,8 +260,10 @@ public sealed class EbxReader : BaseEbxReader
         EbxFieldDescriptor elementFieldDescriptor = _typeResolver.ResolveField(arrayTypeDescriptor.FieldIndex);
         for (int i = 0; i < array.Count; i++)
         {
-            ReadField(arrayTypeDescriptor, elementFieldDescriptor.Flags.GetTypeEnum(), elementFieldDescriptor.TypeDescriptorRef, inAddFunc);
+            ReadField(arrayTypeDescriptor, elementFieldDescriptor.Flags.GetTypeEnum(),
+                elementFieldDescriptor.TypeDescriptorRef, inAddFunc);
         }
+
         _accessor.StepOut();
     }
 
@@ -277,7 +291,10 @@ public sealed class EbxReader : BaseEbxReader
         return retStr;
     }
 
-    private ResourceRef ReadResourceRef() => new(_accessor.ReadUInt64());
+    private ResourceRef ReadResourceRef()
+    {
+        return new ResourceRef(_accessor.ReadUInt64());
+    }
 
     private FileRef ReadFileRef()
     {
@@ -290,7 +307,7 @@ public sealed class EbxReader : BaseEbxReader
     {
         uint index = _accessor.ReadUInt32();
 
-        if ((index >> 0x1F) == 1)
+        if (index >> 0x1F == 1)
         {
             EbxImportReference import = _header.Imports[(int)(index & 0x7FFFFFFF)];
 
@@ -307,7 +324,7 @@ public sealed class EbxReader : BaseEbxReader
         // if (index - 1 == 1)
         // {
         // }
-        
+
         IEbxInstance? obj = _instances[(int)(index - 1)];
         if (obj is null)
         {
@@ -417,7 +434,9 @@ public sealed class EbxReader : BaseEbxReader
             case TypeFlags.TypeEnum.Array:
                 EbxTypeDescriptor arrayTypeDescriptor = _typeResolver.ResolveType(inTypeDescriptorRef);
                 EbxFieldDescriptor elementFieldDescriptor = _typeResolver.ResolveField(arrayTypeDescriptor.FieldIndex);
-                return typeof(ObservableCollection<>).MakeGenericType(GetTypeFromEbxField(elementFieldDescriptor.Flags.GetTypeEnum(), elementFieldDescriptor.TypeDescriptorRef));
+                return typeof(ObservableCollection<>).MakeGenericType(
+                    GetTypeFromEbxField(elementFieldDescriptor.Flags.GetTypeEnum(),
+                        elementFieldDescriptor.TypeDescriptorRef));
             case TypeFlags.TypeEnum.Enum:
                 return GetType(_typeResolver.ResolveType(inTypeDescriptorRef));
             case TypeFlags.TypeEnum.Delegate:

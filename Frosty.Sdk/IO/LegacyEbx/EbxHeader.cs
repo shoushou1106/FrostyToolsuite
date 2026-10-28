@@ -1,5 +1,6 @@
 using Frosty.Sdk.IO.Ebx;
 using Frosty.Sdk.Utils;
+
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable NotAccessedField.Global
 
@@ -83,8 +84,7 @@ internal struct EbxHeader
         {
             EbxImportReference import = new()
             {
-                PartitionGuid = inAccessor.ReadGuid(),
-                InstanceGuid = inAccessor.ReadGuid()
+                PartitionGuid = inAccessor.ReadGuid(), InstanceGuid = inAccessor.ReadGuid()
             };
 
             header.Imports[i] = import;

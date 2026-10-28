@@ -1,42 +1,46 @@
+using System.Collections;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Globalization;
+using System.Reflection;
+using System.Xml;
+
 using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Ebx;
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO.Ebx;
-using static Frosty.Sdk.TypeSdk.TypeFlags;
-using System.Globalization;
-using System.Collections;
-using System.Diagnostics;
-using System.Reflection;
-using System.Xml;
-using System.Collections.ObjectModel;
 
 using Microsoft.Extensions.Logging;
+
+using static Frosty.Sdk.TypeSdk.TypeFlags;
 
 namespace Frosty.Sdk.IO;
 
 public sealed class DbxReader
 {
+    // Only write out properties with these flags
+    private const BindingFlags PropertyBindingFlags = BindingFlags.Public | BindingFlags.Instance;
     private static readonly Type PointerType = typeof(PointerRef);
     private static readonly Type CollectionType = typeof(ObservableCollection<>);
     private static readonly Type? BoxedValueRefType = TypeLibrary.GetType("BoxedValueRef")?.Type;
     private static readonly Type? TypeRefType = TypeLibrary.GetType("TypeRef")?.Type;
 
-    // Only write out properties with these flags
-    private const BindingFlags PropertyBindingFlags = BindingFlags.Public | BindingFlags.Instance;
+    private readonly string _filepath = string.Empty;
 
-    // The loaded dbx file
-    private readonly XmlDocument _xml = new();
     // Key - Instance guid, value - Instance and its XML representation
     private readonly Dictionary<Guid, (IEbxInstance ebxInstance, XmlNode dbxInstance)> _guidToObjAndXmlNode = new();
+
     // Used to keep track of number of refs pointing to an instance
     private readonly Dictionary<Guid, int> _guidToRefCount = new();
 
+    // The loaded dbx file
+    private readonly XmlDocument _xml = new();
+
     private EbxPartition? _ebx;
     // (Never used) private Guid m_primaryInstGuid;
-    
+
     // Incremented when an internal id is requested
     private int _internalId = -1;
-    private readonly string _filepath = string.Empty;
 
     public DbxReader(string filepath)
     {
@@ -65,7 +69,8 @@ public sealed class DbxReader
         w.Stop();
         if (FrostyLogger.Logger.IsEnabled(LogLevel.Debug))
         {
-            FrostyLogger.Logger.LogDebug("DBX {Filepath} read in {ElapsedMilliseconds} ms", _filepath, w.ElapsedMilliseconds);
+            FrostyLogger.Logger.LogDebug("DBX {Filepath} read in {ElapsedMilliseconds} ms", _filepath,
+                w.ElapsedMilliseconds);
         }
 #endif
         return _ebx!;
@@ -148,13 +153,13 @@ public sealed class DbxReader
 
         _ebx!.PartitionGuid = partitionGuid;
 
-        foreach(XmlNode child in partitionNode.ChildNodes)
+        foreach (XmlNode child in partitionNode.ChildNodes)
         {
             CreateInstance(child);
         }
 
         // Because of PointerRefs, every instance has to exist before any field is read
-        foreach(var kvp in _guidToObjAndXmlNode)
+        foreach (KeyValuePair<Guid, (IEbxInstance ebxInstance, XmlNode dbxInstance)> kvp in _guidToObjAndXmlNode)
         {
             ParseInstance(kvp.Value.dbxInstance, kvp.Value.ebxInstance);
         }
@@ -165,7 +170,7 @@ public sealed class DbxReader
     private void CreateInstance(XmlNode node)
     {
         Type? ebxType = TypeLibrary.GetType(GetAttributeValue(node, "type")!.Split('.')[^1])?.Type;
-        if(ebxType is null)
+        if (ebxType is null)
         {
             return;
         }
@@ -179,7 +184,7 @@ public sealed class DbxReader
         Guid instGuid = Guid.Parse(GetAttributeValue(node, "guid")!);
 
         AssetClassGuid assetGuid = new
-            (isExported ? instGuid : Guid.Empty,
+        (isExported ? instGuid : Guid.Empty,
             ++_internalId);
 
         obj.SetInstanceGuid(assetGuid);
@@ -220,7 +225,7 @@ public sealed class DbxReader
 
     private void ReadInstanceFields(XmlNode node, object obj, Type objType)
     {
-        foreach(XmlNode child in node.ChildNodes)
+        foreach (XmlNode child in node.ChildNodes)
         {
             ReadField(obj, child, objType);
         }
@@ -237,111 +242,122 @@ public sealed class DbxReader
         switch (node.Name)
         {
             case "field":
-            {
-                string? refGuid = GetAttributeValue(node, "ref");
-                if (refGuid is not null)
                 {
-                    SetProperty(obj, objType, GetAttributeValue(node, "name")!, ParseRef(node, refGuid));
-                }
-                else
-                {
-                    SetPropertyFromStringValue(obj, objType, GetAttributeValue(node, "name")!, node.InnerText);
-                }
-                break;
-            }
-            case "item":
-            {
-                if (isRef)
-                {
-                    ((IList)obj).Add(ParseRef(node, GetAttributeValue(node, "ref")!));
-                }
-                else
-                {
-                    ((IList)obj).Add(GetValueFromString(arrayElementType!, node.InnerText, arrayElementTypeEnum));
-                }
-                break;
-            }
-            case "array":
-            {
-                string arrayFieldName = GetAttributeValue(node, "name")!;
-                object array = ReadArray(node);
-                SetProperty(obj, objType, arrayFieldName, array);
-                break;
-            }
-            case "complex":
-            {
-                string structFieldName = GetAttributeValue(node, "name")!;
-                object structObj = ReadStruct(arrayElementType, node);
-                if (isArray)
-                {
-                    ((IList)obj).Add(structObj);
-                }
-                else
-                {
-                    SetProperty(obj, objType, structFieldName, structObj);
-                }
-                break;
-            }
-            case "boxed":
-            {
-                BoxedValueRef boxed;
-
-                string? typeName = GetAttributeValue(node, "typeName");
-                if (typeName is not null)
-                {
-                    object? value;
-
-                    IType? valueType = typeName == "PointerRef" ? new SdkType(typeof(PointerRef)) : TypeLibrary.GetType(typeName);
-                    if (valueType is not SdkType)
-                    {
-                        break;
-                    }
-
                     string? refGuid = GetAttributeValue(node, "ref");
                     if (refGuid is not null)
                     {
-                        value = ParseRef(node, refGuid);
+                        SetProperty(obj, objType, GetAttributeValue(node, "name")!, ParseRef(node, refGuid));
                     }
                     else
                     {
-                        value = node.FirstChild?.Name switch
-                        {
-                            "complex" => ReadStruct(arrayElementType, node.FirstChild),
-                            "array" => ReadArray(node.FirstChild),
-                            _ => GetValueFromString(valueType.Type, node.InnerText, valueType.GetFlags().GetTypeEnum())
-                        };
+                        SetPropertyFromStringValue(obj, objType, GetAttributeValue(node, "name")!, node.InnerText);
                     }
 
-                    boxed = new BoxedValueRef(value, valueType.GetFlags());
+                    break;
                 }
-                else
+            case "item":
                 {
-                    boxed = new BoxedValueRef();
-                }
-                SetProperty(obj, objType, GetAttributeValue(node, "name")!, ValueToPrimitive(boxed, BoxedValueRefType!));
-                break;
-            }
-            case "typeref":
-            {
-                string? typeName = GetAttributeValue(node, "typeName");
-                TypeRef typeRef = typeName is not null ? new TypeRef(TypeLibrary.GetType(typeName)) : new TypeRef();
+                    if (isRef)
+                    {
+                        ((IList)obj).Add(ParseRef(node, GetAttributeValue(node, "ref")!));
+                    }
+                    else
+                    {
+                        ((IList)obj).Add(GetValueFromString(arrayElementType!, node.InnerText, arrayElementTypeEnum));
+                    }
 
-                SetProperty(obj, objType, GetAttributeValue(node, "name")!, ValueToPrimitive(typeRef, TypeRefType!));
-                break;
-            }
-            case "delegate":
-            {
-                string? typeName = GetAttributeValue(node, "typeName");
-                IType? type = typeName is null ? null : TypeLibrary.GetType(typeName);
-                PropertyInfo? property = objType.GetProperty(GetAttributeValue(node, "name")!, PropertyBindingFlags);
-                if (property is not null && property.CanWrite)
-                {
-                    IDelegate del = (IDelegate)Activator.CreateInstance(property.PropertyType)!;
-                    del.FunctionType = type;
-                    property.SetValue(obj, del);
+                    break;
                 }
-                break;
-            }
+            case "array":
+                {
+                    string arrayFieldName = GetAttributeValue(node, "name")!;
+                    object array = ReadArray(node);
+                    SetProperty(obj, objType, arrayFieldName, array);
+                    break;
+                }
+            case "complex":
+                {
+                    string structFieldName = GetAttributeValue(node, "name")!;
+                    object structObj = ReadStruct(arrayElementType, node);
+                    if (isArray)
+                    {
+                        ((IList)obj).Add(structObj);
+                    }
+                    else
+                    {
+                        SetProperty(obj, objType, structFieldName, structObj);
+                    }
+
+                    break;
+                }
+            case "boxed":
+                {
+                    BoxedValueRef boxed;
+
+                    string? typeName = GetAttributeValue(node, "typeName");
+                    if (typeName is not null)
+                    {
+                        object? value;
+
+                        IType? valueType = typeName == "PointerRef"
+                            ? new SdkType(typeof(PointerRef))
+                            : TypeLibrary.GetType(typeName);
+                        if (valueType is not SdkType)
+                        {
+                            break;
+                        }
+
+                        string? refGuid = GetAttributeValue(node, "ref");
+                        if (refGuid is not null)
+                        {
+                            value = ParseRef(node, refGuid);
+                        }
+                        else
+                        {
+                            value = node.FirstChild?.Name switch
+                            {
+                                "complex" => ReadStruct(arrayElementType, node.FirstChild),
+                                "array" => ReadArray(node.FirstChild),
+                                _ => GetValueFromString(valueType.Type, node.InnerText,
+                                    valueType.GetFlags().GetTypeEnum())
+                            };
+                        }
+
+                        boxed = new BoxedValueRef(value, valueType.GetFlags());
+                    }
+                    else
+                    {
+                        boxed = new BoxedValueRef();
+                    }
+
+                    SetProperty(obj, objType, GetAttributeValue(node, "name")!,
+                        ValueToPrimitive(boxed, BoxedValueRefType!));
+                    break;
+                }
+            case "typeref":
+                {
+                    string? typeName = GetAttributeValue(node, "typeName");
+                    TypeRef typeRef = typeName is not null ? new TypeRef(TypeLibrary.GetType(typeName)) : new TypeRef();
+
+                    SetProperty(obj, objType, GetAttributeValue(node, "name")!,
+                        ValueToPrimitive(typeRef, TypeRefType!));
+                    break;
+                }
+            case "delegate":
+                {
+                    string? typeName = GetAttributeValue(node, "typeName");
+                    IType? type = typeName is null ? null : TypeLibrary.GetType(typeName);
+                    PropertyInfo? property =
+                        objType.GetProperty(GetAttributeValue(node, "name")!, PropertyBindingFlags);
+                    if (property is not null && property.CanWrite)
+                    {
+                        IDelegate del = (IDelegate)Activator.CreateInstance(property.PropertyType)!;
+                        del.FunctionType = type;
+                        property.SetValue(obj, del);
+                    }
+
+                    break;
+                }
         }
     }
 
@@ -357,7 +373,8 @@ public sealed class DbxReader
         Type arrayType = CollectionType.MakeGenericType(arrayElementType);
 
         object array = Activator.CreateInstance(arrayType)
-                       ?? throw new ArgumentException($"Failed to create array with element type: {arrayElementType.Name}");
+                       ?? throw new ArgumentException(
+                           $"Failed to create array with element type: {arrayElementType.Name}");
 
         foreach (XmlNode child in node.ChildNodes)
         {
@@ -373,7 +390,7 @@ public sealed class DbxReader
                     ?? throw new ArgumentException("Struct type doesn't exist?");
 
         object obj = Activator.CreateInstance(type)
-                      ?? throw new ArgumentException($"Failed to create struct of type: {type.Name}");
+                     ?? throw new ArgumentException($"Failed to create struct of type: {type.Name}");
 
         foreach (XmlNode child in node.ChildNodes)
         {

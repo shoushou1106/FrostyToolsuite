@@ -193,7 +193,9 @@ public sealed partial class MemoryReader(Process inProcess) : IDisposable
         for (int i = 0; i < parts.Length; i++)
         {
             isWildcard[i] = parts[i].Contains('?', StringComparison.Ordinal);
-            pattern[i] = isWildcard[i] ? (byte)0 : byte.Parse(parts[i], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+            pattern[i] = isWildcard[i]
+                ? (byte)0
+                : byte.Parse(parts[i], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
         }
 
         foreach ((nint address, int size) in GetRegions())
@@ -268,11 +270,13 @@ public sealed partial class MemoryReader(Process inProcess) : IDisposable
                 string[] columns = region.Split(' ');
                 string range = columns[0];
                 int separator = range.IndexOf('-', StringComparison.Ordinal);
-                nint start = nint.Parse(range.AsSpan(0, separator), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-                nint end = nint.Parse(range.AsSpan(separator + 1), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+                nint start = nint.Parse(range.AsSpan(0, separator), NumberStyles.HexNumber,
+                    CultureInfo.InvariantCulture);
+                nint end = nint.Parse(range.AsSpan(separator + 1), NumberStyles.HexNumber,
+                    CultureInfo.InvariantCulture);
 
                 string permissions = columns[1];
-                if (permissions[0] == '-' 
+                if (permissions[0] == '-'
                     // || permissions[1] == '-'
                     || permissions[2] != 'x')
                 {

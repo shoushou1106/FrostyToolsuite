@@ -1,8 +1,8 @@
 using System.Diagnostics;
 
 using Frosty.Sdk.Exceptions;
-using Frosty.Sdk.IO.Compression;
 using Frosty.Sdk.Interfaces;
+using Frosty.Sdk.IO.Compression;
 using Frosty.Sdk.Managers;
 using Frosty.Sdk.Profiles;
 using Frosty.Sdk.Utils;
@@ -84,6 +84,7 @@ public static class Cas
                 inData.Shift(decompressedSize);
             }
         }
+
         inData.ResetShift();
 
         return outData;
@@ -106,7 +107,8 @@ public static class Cas
         return outBuffer;
     }
 
-    public static Block<byte> DecompressData(DataAccessor inDeltaAccessor, DataAccessor? inBaseAccessor, int inOriginalSize)
+    public static Block<byte> DecompressData(DataAccessor inDeltaAccessor, DataAccessor? inBaseAccessor,
+        int inOriginalSize)
     {
         ArgumentNullException.ThrowIfNull(inDeltaAccessor);
 
@@ -120,69 +122,25 @@ public static class Cas
             switch (instructionType)
             {
                 case 0:
-                {
-                    Debug.Assert(inBaseAccessor is not null);
-                    // Read base blocks
-                    while (instructionSize-- > 0)
                     {
-                        ReadBlock(inBaseAccessor, outBuffer);
-                    }
-                    break;
-                }
-                case 1:
-                {
-                    Debug.Assert(inBaseAccessor is not null);
-                    // Make large fixes in base block
-                    using Block<byte> toPatch = ReadBlock(inBaseAccessor);
-                    while (instructionSize-- > 0)
-                    {
-                        ushort offset = inDeltaAccessor.ReadUInt16(Endian.Big);
-                        ushort skipCount = inDeltaAccessor.ReadUInt16(Endian.Big);
-
-                        // Use base
-                        int baseSize = offset - toPatch.ShiftAmount;
-                        if (baseSize > 0)
+                        Debug.Assert(inBaseAccessor is not null);
+                        // Read base blocks
+                        while (instructionSize-- > 0)
                         {
-                            toPatch.CopyTo(outBuffer, baseSize);
-                            toPatch.Shift(baseSize);
-                            outBuffer.Shift(baseSize);
+                            ReadBlock(inBaseAccessor, outBuffer);
                         }
 
-                        // Use delta
-                        ReadBlock(inDeltaAccessor, outBuffer);
-
-                        // Skip base
-                        toPatch.Shift(skipCount);
+                        break;
                     }
-
-                    // Fill rest with base block
-                    if (toPatch.Size > 0)
+                case 1:
                     {
-                        toPatch.CopyTo(outBuffer, toPatch.Size);
-                        outBuffer.Shift(toPatch.Size);
-                        toPatch.Shift(toPatch.Size);
-                    }
-
-                    break;
-                }
-                case 2:
-                {
-                    Debug.Assert(inBaseAccessor is not null);
-
-                    // Make small fixes in base block
-                    int newBlockSize = inDeltaAccessor.ReadUInt16(Endian.Big) + 1;
-                    int currentOffset = outBuffer.ShiftAmount;
-
-                    long curPos = inDeltaAccessor.Position;
-
-                    // Read base block
-                    using (Block<byte> toPatch = ReadBlock(inBaseAccessor))
-                    {
-                        while (inDeltaAccessor.Position < curPos + instructionSize)
+                        Debug.Assert(inBaseAccessor is not null);
+                        // Make large fixes in base block
+                        using Block<byte> toPatch = ReadBlock(inBaseAccessor);
+                        while (instructionSize-- > 0)
                         {
                             ushort offset = inDeltaAccessor.ReadUInt16(Endian.Big);
-                            byte skipCount = inDeltaAccessor.ReadByte();
-                            byte addCount = inDeltaAccessor.ReadByte();
+                            ushort skipCount = inDeltaAccessor.ReadUInt16(Endian.Big);
 
                             // Use base
                             int baseSize = offset - toPatch.ShiftAmount;
@@ -193,50 +151,97 @@ public static class Cas
                                 outBuffer.Shift(baseSize);
                             }
 
+                            // Use delta
+                            ReadBlock(inDeltaAccessor, outBuffer);
+
                             // Skip base
                             toPatch.Shift(skipCount);
-
-                            // Add delta
-                            inDeltaAccessor.ReadExactly(outBuffer.ToSpan(0, addCount));
-                            outBuffer.Shift(addCount);
                         }
 
                         // Fill rest with base block
-                        int restSize = newBlockSize - (outBuffer.ShiftAmount - currentOffset);
-                        if (restSize > 0)
+                        if (toPatch.Size > 0)
                         {
-                            toPatch.CopyTo(outBuffer, restSize);
-                            toPatch.Shift(restSize);
-                            outBuffer.Shift(restSize);
+                            toPatch.CopyTo(outBuffer, toPatch.Size);
+                            outBuffer.Shift(toPatch.Size);
+                            toPatch.Shift(toPatch.Size);
                         }
 
-                        Debug.Assert(toPatch.Size == 0, "Didnt read base block completely");
+                        break;
                     }
+                case 2:
+                    {
+                        Debug.Assert(inBaseAccessor is not null);
 
-                    Debug.Assert(outBuffer.ShiftAmount - currentOffset == newBlockSize, "Fuck");
+                        // Make small fixes in base block
+                        int newBlockSize = inDeltaAccessor.ReadUInt16(Endian.Big) + 1;
+                        int currentOffset = outBuffer.ShiftAmount;
 
-                    break;
-                }
+                        long curPos = inDeltaAccessor.Position;
+
+                        // Read base block
+                        using (Block<byte> toPatch = ReadBlock(inBaseAccessor))
+                        {
+                            while (inDeltaAccessor.Position < curPos + instructionSize)
+                            {
+                                ushort offset = inDeltaAccessor.ReadUInt16(Endian.Big);
+                                byte skipCount = inDeltaAccessor.ReadByte();
+                                byte addCount = inDeltaAccessor.ReadByte();
+
+                                // Use base
+                                int baseSize = offset - toPatch.ShiftAmount;
+                                if (baseSize > 0)
+                                {
+                                    toPatch.CopyTo(outBuffer, baseSize);
+                                    toPatch.Shift(baseSize);
+                                    outBuffer.Shift(baseSize);
+                                }
+
+                                // Skip base
+                                toPatch.Shift(skipCount);
+
+                                // Add delta
+                                inDeltaAccessor.ReadExactly(outBuffer.ToSpan(0, addCount));
+                                outBuffer.Shift(addCount);
+                            }
+
+                            // Fill rest with base block
+                            int restSize = newBlockSize - (outBuffer.ShiftAmount - currentOffset);
+                            if (restSize > 0)
+                            {
+                                toPatch.CopyTo(outBuffer, restSize);
+                                toPatch.Shift(restSize);
+                                outBuffer.Shift(restSize);
+                            }
+
+                            Debug.Assert(toPatch.Size == 0, "Didnt read base block completely");
+                        }
+
+                        Debug.Assert(outBuffer.ShiftAmount - currentOffset == newBlockSize, "Fuck");
+
+                        break;
+                    }
                 case 3:
-                {
-                    // Read delta blocks
-                    while (instructionSize-- > 0)
                     {
-                        ReadBlock(inDeltaAccessor, outBuffer);
-                    }
-                    break;
-                }
-                case 4:
-                {
-                    Debug.Assert(inBaseAccessor is not null);
+                        // Read delta blocks
+                        while (instructionSize-- > 0)
+                        {
+                            ReadBlock(inDeltaAccessor, outBuffer);
+                        }
 
-                    // Skip base blocks
-                    while (instructionSize-- > 0)
-                    {
-                        ReadBlock(inBaseAccessor, null);
+                        break;
                     }
-                    break;
-                }
+                case 4:
+                    {
+                        Debug.Assert(inBaseAccessor is not null);
+
+                        // Skip base blocks
+                        while (instructionSize-- > 0)
+                        {
+                            ReadBlock(inBaseAccessor, null);
+                        }
+
+                        break;
+                    }
                 default:
                     throw new InvalidDataException("block type");
             }
@@ -250,7 +255,8 @@ public static class Cas
         return outBuffer;
     }
 
-    public static Block<byte> DecompressData(DataAccessor inDeltaAccessor, DataAccessor? inBaseAccessor, int inOriginalSize,
+    public static Block<byte> DecompressData(DataAccessor inDeltaAccessor, DataAccessor? inBaseAccessor,
+        int inOriginalSize,
         int inMidInstructionSize)
     {
         ArgumentNullException.ThrowIfNull(inDeltaAccessor);
@@ -270,168 +276,171 @@ public static class Cas
             switch (instructionType)
             {
                 case 0:
-                {
-                    // Read base blocks
-                    Debug.Assert(inBaseAccessor is not null);
-                    while (instructionSize-- > 0)
                     {
-                        if (startBlock && inMidInstructionSize != -1 && instructionSize >= inMidInstructionSize)
+                        // Read base blocks
+                        Debug.Assert(inBaseAccessor is not null);
+                        while (instructionSize-- > 0)
                         {
-                            ReadBlock(inBaseAccessor, null);
-                        }
-                        else
-                        {
-                            ReadBlock(inBaseAccessor, outBuffer);
-                        }
-
-                        if (TryFinish())
-                        {
-                            return outBuffer;
-                        }
-                    }
-                    break;
-                }
-                case 1:
-                {
-                    // Make large fixes in base block
-                    Debug.Assert(inBaseAccessor is not null);
-                    using Block<byte> toPatch = ReadBlock(inBaseAccessor);
-                    while (instructionSize-- > 0)
-                    {
-                        ushort offset = inDeltaAccessor.ReadUInt16(Endian.Big);
-                        ushort skipCount = inDeltaAccessor.ReadUInt16(Endian.Big);
-
-                        // Use base
-                        int baseSize = offset - toPatch.ShiftAmount;
-                        if (baseSize > 0)
-                        {
-                            if (!startBlock || inMidInstructionSize == -1 || instructionSize < inMidInstructionSize)
+                            if (startBlock && inMidInstructionSize != -1 && instructionSize >= inMidInstructionSize)
                             {
-                                toPatch.CopyTo(outBuffer, baseSize);
-                                outBuffer.Shift(baseSize);
+                                ReadBlock(inBaseAccessor, null);
+                            }
+                            else
+                            {
+                                ReadBlock(inBaseAccessor, outBuffer);
                             }
 
-                            toPatch.Shift(baseSize);
+                            if (TryFinish())
+                            {
+                                return outBuffer;
+                            }
                         }
 
-                        // Use delta
-                        if (startBlock && inMidInstructionSize != -1 && instructionSize >= inMidInstructionSize)
-                        {
-                            ReadBlock(inDeltaAccessor, null);
-                        }
-                        else
-                        {
-                            ReadBlock(inDeltaAccessor, outBuffer);
-                        }
-
-                        // Skip base
-                        toPatch.Shift(skipCount);
-
-                        if (instructionSize != 0 && TryFinish())
-                        {
-                            return outBuffer;
-                        }
+                        break;
                     }
-
-                    // fill rest with base block
-                    if (toPatch.Size > 0)
+                case 1:
                     {
-                        toPatch.CopyTo(outBuffer, toPatch.Size);
-                        outBuffer.Shift(toPatch.Size);
-                        toPatch.Shift(toPatch.Size);
-                    }
-
-                    break;
-                }
-                case 2:
-                {
-                    // Make small fixes in base block
-                    Debug.Assert(inBaseAccessor is not null);
-
-                    int newBlockSize = inDeltaAccessor.ReadUInt16(Endian.Big) + 1;
-                    int currentOffset = outBuffer.ShiftAmount;
-
-                    long curPos = inDeltaAccessor.Position;
-
-                    // Read base block
-                    using (Block<byte> toPatch = ReadBlock(inBaseAccessor))
-                    {
-                        while (inDeltaAccessor.Position < curPos + instructionSize)
+                        // Make large fixes in base block
+                        Debug.Assert(inBaseAccessor is not null);
+                        using Block<byte> toPatch = ReadBlock(inBaseAccessor);
+                        while (instructionSize-- > 0)
                         {
                             ushort offset = inDeltaAccessor.ReadUInt16(Endian.Big);
-                            byte skipCount = inDeltaAccessor.ReadByte();
-                            byte addCount = inDeltaAccessor.ReadByte();
+                            ushort skipCount = inDeltaAccessor.ReadUInt16(Endian.Big);
 
                             // Use base
                             int baseSize = offset - toPatch.ShiftAmount;
                             if (baseSize > 0)
                             {
-                                toPatch.CopyTo(outBuffer, baseSize);
+                                if (!startBlock || inMidInstructionSize == -1 || instructionSize < inMidInstructionSize)
+                                {
+                                    toPatch.CopyTo(outBuffer, baseSize);
+                                    outBuffer.Shift(baseSize);
+                                }
+
                                 toPatch.Shift(baseSize);
-                                outBuffer.Shift(baseSize);
+                            }
+
+                            // Use delta
+                            if (startBlock && inMidInstructionSize != -1 && instructionSize >= inMidInstructionSize)
+                            {
+                                ReadBlock(inDeltaAccessor, null);
+                            }
+                            else
+                            {
+                                ReadBlock(inDeltaAccessor, outBuffer);
                             }
 
                             // Skip base
                             toPatch.Shift(skipCount);
 
-                            // Add delta
-                            inDeltaAccessor.ReadExactly(outBuffer.ToSpan(0, addCount));
-                            outBuffer.Shift(addCount);
+                            if (instructionSize != 0 && TryFinish())
+                            {
+                                return outBuffer;
+                            }
                         }
 
-                        // Fill rest with base block
-                        int restSize = newBlockSize - (outBuffer.ShiftAmount - currentOffset);
-                        if (restSize > 0)
+                        // fill rest with base block
+                        if (toPatch.Size > 0)
                         {
-                            toPatch.CopyTo(outBuffer, restSize);
-                            toPatch.Shift(restSize);
-                            outBuffer.Shift(restSize);
+                            toPatch.CopyTo(outBuffer, toPatch.Size);
+                            outBuffer.Shift(toPatch.Size);
+                            toPatch.Shift(toPatch.Size);
                         }
 
-                        Debug.Assert(toPatch.Size == 0, "Didnt read base block completely");
+                        break;
                     }
+                case 2:
+                    {
+                        // Make small fixes in base block
+                        Debug.Assert(inBaseAccessor is not null);
 
-                    Debug.Assert(outBuffer.ShiftAmount - currentOffset == newBlockSize, "Fuck");
+                        int newBlockSize = inDeltaAccessor.ReadUInt16(Endian.Big) + 1;
+                        int currentOffset = outBuffer.ShiftAmount;
 
-                    break;
-                }
+                        long curPos = inDeltaAccessor.Position;
+
+                        // Read base block
+                        using (Block<byte> toPatch = ReadBlock(inBaseAccessor))
+                        {
+                            while (inDeltaAccessor.Position < curPos + instructionSize)
+                            {
+                                ushort offset = inDeltaAccessor.ReadUInt16(Endian.Big);
+                                byte skipCount = inDeltaAccessor.ReadByte();
+                                byte addCount = inDeltaAccessor.ReadByte();
+
+                                // Use base
+                                int baseSize = offset - toPatch.ShiftAmount;
+                                if (baseSize > 0)
+                                {
+                                    toPatch.CopyTo(outBuffer, baseSize);
+                                    toPatch.Shift(baseSize);
+                                    outBuffer.Shift(baseSize);
+                                }
+
+                                // Skip base
+                                toPatch.Shift(skipCount);
+
+                                // Add delta
+                                inDeltaAccessor.ReadExactly(outBuffer.ToSpan(0, addCount));
+                                outBuffer.Shift(addCount);
+                            }
+
+                            // Fill rest with base block
+                            int restSize = newBlockSize - (outBuffer.ShiftAmount - currentOffset);
+                            if (restSize > 0)
+                            {
+                                toPatch.CopyTo(outBuffer, restSize);
+                                toPatch.Shift(restSize);
+                                outBuffer.Shift(restSize);
+                            }
+
+                            Debug.Assert(toPatch.Size == 0, "Didnt read base block completely");
+                        }
+
+                        Debug.Assert(outBuffer.ShiftAmount - currentOffset == newBlockSize, "Fuck");
+
+                        break;
+                    }
                 case 3:
-                {
-                    // Read delta blocks
-                    while (instructionSize-- > 0)
                     {
-                        if (startBlock && inMidInstructionSize != -1 && instructionSize >= inMidInstructionSize)
+                        // Read delta blocks
+                        while (instructionSize-- > 0)
                         {
-                            ReadBlock(inDeltaAccessor, null);
-                        }
-                        else
-                        {
-                            ReadBlock(inDeltaAccessor, outBuffer);
+                            if (startBlock && inMidInstructionSize != -1 && instructionSize >= inMidInstructionSize)
+                            {
+                                ReadBlock(inDeltaAccessor, null);
+                            }
+                            else
+                            {
+                                ReadBlock(inDeltaAccessor, outBuffer);
+                            }
+
+                            if (TryFinish())
+                            {
+                                return outBuffer;
+                            }
                         }
 
-                        if (TryFinish())
-                        {
-                            return outBuffer;
-                        }
+                        break;
                     }
-                    break;
-                }
                 case 4:
-                {
-                    // Skip base blocks
-                    Debug.Assert(inBaseAccessor is not null);
-                    while (instructionSize-- > 0)
                     {
-                        ReadBlock(inBaseAccessor, null);
-
-                        // Probably not needed, add it just in case
-                        if (TryFinish())
+                        // Skip base blocks
+                        Debug.Assert(inBaseAccessor is not null);
+                        while (instructionSize-- > 0)
                         {
-                            return outBuffer;
+                            ReadBlock(inBaseAccessor, null);
+
+                            // Probably not needed, add it just in case
+                            if (TryFinish())
+                            {
+                                return outBuffer;
+                            }
                         }
+
+                        break;
                     }
-                    break;
-                }
                 default:
                     throw new InvalidDataException("block type");
             }
@@ -519,7 +528,8 @@ public static class Cas
         throw new NotImplementedException();
     }
 
-    public static long GetOriginalSize(DataAccessor inDeltaAccessor, DataAccessor? inBaseAccessor, int inMidInstructionSize)
+    public static long GetOriginalSize(DataAccessor inDeltaAccessor, DataAccessor? inBaseAccessor,
+        int inMidInstructionSize)
     {
         throw new NotImplementedException();
     }
@@ -613,7 +623,8 @@ public static class Cas
             // and currently they are at 25. (2023-12-08 by wannkunstbeikor)
             if (!ProfilesLibrary.IsLoaded(ProfileVersion.Fifa19))
             {
-                throw new NotImplementedException("CompressionType.Obfuscated CAS data is only supported for FIFA 19 for now.");
+                throw new NotImplementedException(
+                    "CompressionType.Obfuscated CAS data is only supported for FIFA 19 for now.");
             }
 
             ReadOnlySpan<byte> key = KeyManager.GetKey("CasObfuscationKey");

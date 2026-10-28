@@ -4,7 +4,7 @@ namespace Frosty.Sdk.IO.Compression;
 ///     The compression of a CAS block.
 /// </summary>
 /// <remarks>
-/// The low 7 bits are the format, bit 7 is the <see cref="Obfuscated" /> flag.
+///     The low 7 bits are the format, bit 7 is the <see cref="Obfuscated" /> flag.
 /// </remarks>
 // CA1028: Enum storage should be Int32
 // CA2217: Do not mark enums with FlagsAttribute

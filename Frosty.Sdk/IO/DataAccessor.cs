@@ -13,10 +13,10 @@ namespace Frosty.Sdk.IO;
 /// </summary>
 public class DataAccessor : IDisposable
 {
-    private readonly Stack<long> _steps = new();
     private readonly bool _leaveOpen;
-    private Block<byte>? _stringBuffer;
+    private readonly Stack<long> _steps = new();
     private bool _disposed;
+    private Block<byte>? _stringBuffer;
 
     protected DataAccessor()
     {
@@ -25,7 +25,8 @@ public class DataAccessor : IDisposable
 
     /// <param name="inStream">The stream to read from and write to.</param>
     /// <param name="inLeaveOpen">
-    ///     <see langword="true" /> to leave <paramref name="inStream" /> open when this <see cref="DataAccessor" /> is disposed.
+    ///     <see langword="true" /> to leave <paramref name="inStream" /> open when this <see cref="DataAccessor" /> is
+    ///     disposed.
     /// </param>
     public DataAccessor(Stream inStream, bool inLeaveOpen = false)
     {
@@ -199,7 +200,7 @@ public class DataAccessor : IDisposable
     ///     <b>Encoding:</b> Latin-1 (one byte per char)
     ///     <para>Only for Frostbite fields, do NOT use it for normal usage.</para>
     /// </remarks>
-    /// <seealso cref="WriteLatin1Char"/>
+    /// <seealso cref="WriteLatin1Char" />
     public char ReadLatin1Char()
     {
         return (char)ReadByte();
@@ -287,9 +288,14 @@ public class DataAccessor : IDisposable
     /// <summary>
     ///     Reads bytes up to the next null terminator and decodes them.
     /// </summary>
-    /// <remarks><b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="ReadNullTerminatedString(Encoding)"/></remarks>
+    /// <remarks>
+    ///     <b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="ReadNullTerminatedString(Encoding)" />
+    /// </remarks>
     /// <exception cref="EndOfStreamException">The stream ends before a null terminator.</exception>
-    public string ReadNullTerminatedString() => ReadNullTerminatedString(Encoding.UTF8);
+    public string ReadNullTerminatedString()
+    {
+        return ReadNullTerminatedString(Encoding.UTF8);
+    }
 
     /// <inheritdoc cref="ReadNullTerminatedString()" />
     public virtual string ReadNullTerminatedString(Encoding inEncoding)
@@ -319,8 +325,13 @@ public class DataAccessor : IDisposable
     /// <summary>
     ///     Reads exactly <paramref name="size" /> bytes and decodes them without trailing <c>'\0'</c>.
     /// </summary>
-    /// <remarks><b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="ReadFixedSizedString(int, Encoding)"/></remarks>
-    public string ReadFixedSizedString(int size) => ReadFixedSizedString(size, Encoding.UTF8);
+    /// <remarks>
+    ///     <b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="ReadFixedSizedString(int, Encoding)" />
+    /// </remarks>
+    public string ReadFixedSizedString(int size)
+    {
+        return ReadFixedSizedString(size, Encoding.UTF8);
+    }
 
     /// <inheritdoc cref="ReadFixedSizedString(int)" />
     // ReSharper disable once MemberCanBePrivate.Global
@@ -336,8 +347,11 @@ public class DataAccessor : IDisposable
     /// <summary>
     ///     Reads a size in bytes as a 7-bit encoded int, and pass into <see cref="ReadFixedSizedString(int)" />.
     /// </summary>
-    /// <remarks><b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="ReadSizedString(Encoding)"/></remarks>
-    public string ReadSizedString() => ReadSizedString(Encoding.UTF8);
+    /// <remarks><b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="ReadSizedString(Encoding)" /></remarks>
+    public string ReadSizedString()
+    {
+        return ReadSizedString(Encoding.UTF8);
+    }
 
     /// <inheritdoc cref="ReadSizedString()" />
     // ReSharper disable once MemberCanBePrivate.Global
@@ -437,7 +451,7 @@ public class DataAccessor : IDisposable
     ///     <para>Only for Frostbite fields, do NOT use it for normal usage.</para>
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="value" /> is above U+00FF.</exception>
-    /// <seealso cref="ReadLatin1Char"/>
+    /// <seealso cref="ReadLatin1Char" />
     public void WriteLatin1Char(char value)
     {
         // Fail fast, explicit exception for unwritable char
@@ -565,8 +579,14 @@ public class DataAccessor : IDisposable
     /// <summary>
     ///     Writes the encoded <paramref name="value" /> followed by one null byte.
     /// </summary>
-    /// <remarks><b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="WriteNullTerminatedString(string, Encoding)"/></remarks>
-    public void WriteNullTerminatedString(string value) => WriteNullTerminatedString(value, Encoding.UTF8);
+    /// <remarks>
+    ///     <b>Encoding:</b> UTF-8, or any ASCII-compatible through
+    ///     <see cref="WriteNullTerminatedString(string, Encoding)" />
+    /// </remarks>
+    public void WriteNullTerminatedString(string value)
+    {
+        WriteNullTerminatedString(value, Encoding.UTF8);
+    }
 
     /// <inheritdoc cref="WriteNullTerminatedString(string)" />
     // ReSharper disable once MemberCanBePrivate.Global
@@ -586,9 +606,15 @@ public class DataAccessor : IDisposable
     /// <summary>
     ///     Writes <paramref name="value" /> into exactly <paramref name="size" /> bytes, padded with zeros.
     /// </summary>
-    /// <remarks><b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="WriteFixedSizedString(string, int, Encoding)"/></remarks>
+    /// <remarks>
+    ///     <b>Encoding:</b> UTF-8, or any ASCII-compatible through
+    ///     <see cref="WriteFixedSizedString(string, int, Encoding)" />
+    /// </remarks>
     /// <exception cref="ArgumentException">The encoded string does not fit in <paramref name="size" /> bytes.</exception>
-    public void WriteFixedSizedString(string value, int size) => WriteFixedSizedString(value, size, Encoding.UTF8);
+    public void WriteFixedSizedString(string value, int size)
+    {
+        WriteFixedSizedString(value, size, Encoding.UTF8);
+    }
 
     /// <inheritdoc cref="WriteFixedSizedString(string, int)" />
     // ReSharper disable once MemberCanBePrivate.Global
@@ -610,8 +636,13 @@ public class DataAccessor : IDisposable
     /// <summary>
     ///     Writes the encoded size including a null terminator as a 7-bit encoded int, then the null-terminated string.
     /// </summary>
-    /// <remarks><b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="WriteSizedString(string, Encoding)"/></remarks>
-    public void WriteSizedString(string value) => WriteSizedString(value, Encoding.UTF8);
+    /// <remarks>
+    ///     <b>Encoding:</b> UTF-8, or any ASCII-compatible through <see cref="WriteSizedString(string, Encoding)" />
+    /// </remarks>
+    public void WriteSizedString(string value)
+    {
+        WriteSizedString(value, Encoding.UTF8);
+    }
 
     /// <inheritdoc cref="WriteSizedString(string)" />
     // ReSharper disable once MemberCanBePrivate.Global

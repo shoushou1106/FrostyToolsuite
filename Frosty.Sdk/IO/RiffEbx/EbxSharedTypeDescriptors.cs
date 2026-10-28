@@ -1,4 +1,5 @@
 using System.Diagnostics;
+
 using Frosty.Sdk.Managers;
 using Frosty.Sdk.Utils;
 
@@ -32,11 +33,20 @@ internal static class EbxSharedTypeDescriptors
         s_isInitialized = true;
     }
 
-    public static EbxTypeDescriptor GetTypeDescriptor(Guid inGuid, uint inSignature) => TypeDescriptors[Mapping[(inGuid, inSignature)]];
+    public static EbxTypeDescriptor GetTypeDescriptor(Guid inGuid, uint inSignature)
+    {
+        return TypeDescriptors[Mapping[(inGuid, inSignature)]];
+    }
 
-    public static EbxTypeDescriptor GetTypeDescriptor(ushort inIndex) => TypeDescriptors[inIndex];
+    public static EbxTypeDescriptor GetTypeDescriptor(ushort inIndex)
+    {
+        return TypeDescriptors[inIndex];
+    }
 
-    public static EbxFieldDescriptor GetFieldDescriptors(int inIndex) => FieldDescriptors[inIndex];
+    public static EbxFieldDescriptor GetFieldDescriptors(int inIndex)
+    {
+        return FieldDescriptors[inIndex];
+    }
 
     private static void Read(Block<byte> inFile)
     {
@@ -113,6 +123,7 @@ internal static class EbxSharedTypeDescriptors
                     field.TypeDescriptorRef += (ushort)startTypes;
                 }
             }
+
             FieldDescriptors.Add(field);
         }
 

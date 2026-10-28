@@ -65,10 +65,13 @@ public sealed partial class CompressionOodle : ICompressionFormat
 
     /// <remarks>
     ///     <para>
-    ///     Signatures and enum values follow
-    ///     <see href="https://github.com/WorkingRobot/OodleUE/blob/2026-06-04-1357/Engine/Source/Runtime/OodleDataCompression/Sdks/2.9.16/include/oodle2.h">oodle2.h</see>
-    ///     of Oodle 2.9.16, the version that gets downloaded.
-    ///     Add enum values from there only when needed.
+    ///         Signatures and enum values follow
+    ///         <see
+    ///             href="https://github.com/WorkingRobot/OodleUE/blob/2026-06-04-1357/Engine/Source/Runtime/OodleDataCompression/Sdks/2.9.16/include/oodle2.h">
+    ///             oodle2.h
+    ///         </see>
+    ///         of Oodle 2.9.16, the version that gets downloaded.
+    ///         Add enum values from there only when needed.
     ///     </para>
     ///     <para><c>OO_SINTa</c> is <see cref="nint" />.</para>
     ///     <para>Modern .NET LibraryImport resolves Span{T} automatically with memory pinning.</para>

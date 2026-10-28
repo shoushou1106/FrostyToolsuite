@@ -1,6 +1,7 @@
 using System.Collections;
-using System.Reflection;
 using System.Diagnostics;
+using System.Reflection;
+
 using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Ebx;
 using Frosty.Sdk.Interfaces;
@@ -17,15 +18,6 @@ public sealed class EbxWriter : BaseEbxWriter
     private readonly EbxTypeResolver _typeResolver;
 
     private EbxFixup _fixup;
-
-    [Flags]
-    private enum Flags
-    {
-        Exported = 1 << 8,
-        HasGuid = 1 << 12,
-        Aggregated = 1 << 13,
-        ReadOnly = 1 << 15
-    }
 
     public EbxWriter(DataAccessor inAccessor)
         : base(inAccessor)
@@ -74,8 +66,9 @@ public sealed class EbxWriter : BaseEbxWriter
         riffWriter.WriteChunk("EFIX", fixup);
 
         // Arrays and boxed values are both written as one EbxExtra each
-        using Block<byte> x = new(sizeof(int) * 2 + (_arrays.Count + _boxedValues.Count) *
-                            (sizeof(uint) + sizeof(int) + sizeof(uint) + sizeof(ushort) + sizeof(ushort)));
+        using Block<byte> x = new((sizeof(int) * 2) + ((_arrays.Count + _boxedValues.Count) *
+                                                       (sizeof(uint) + sizeof(int) + sizeof(uint) + sizeof(ushort) +
+                                                        sizeof(ushort))));
 
         using (BlockAccessor subAccessor = new(x, true))
         {
@@ -138,6 +131,7 @@ public sealed class EbxWriter : BaseEbxWriter
         {
             return -1;
         }
+
         return AddType(inType, true);
     }
 
@@ -159,6 +153,7 @@ public sealed class EbxWriter : BaseEbxWriter
             {
                 writer.WriteGuid(guid.ExportedGuid);
             }
+
             _fixup.InstanceOffsets.Add((uint)writer.Position);
             long classStartOffset = writer.Position;
 
@@ -204,6 +199,7 @@ public sealed class EbxWriter : BaseEbxWriter
                 _arrayData[i].Dispose();
                 _arrays[i] = array;
             }
+
             writer.Pad(16);
         }
 
@@ -331,28 +327,28 @@ public sealed class EbxWriter : BaseEbxWriter
                 writer.WriteUInt64(AddString((string)((IPrimitive)ebxObj).ToActualType()));
                 break;
             case TypeFlags.TypeEnum.Class:
-            {
-                PointerRef pointer = (PointerRef)ebxObj;
-                ulong pointerIndex = 0;
-
-                switch (pointer.Type)
                 {
-                    case PointerRefType.External:
-                        // The import list in the EBX counts both GUIDs of each import separately.
-                        // What we want is the index to the class GUID.
-                        pointerIndex = (ulong)((_importOrderFw[pointer.External] * 2) + 1);
-                        break;
-                    case PointerRefType.Internal:
-                        pointerIndex = (ulong)_sortedInstances.IndexOf(pointer.Internal!);
-                        break;
-                    case PointerRefType.Null:
-                    default:
-                        break;
-                }
+                    PointerRef pointer = (PointerRef)ebxObj;
+                    ulong pointerIndex = 0;
 
-                writer.WriteUInt64(pointerIndex);
-                break;
-            }
+                    switch (pointer.Type)
+                    {
+                        case PointerRefType.External:
+                            // The import list in the EBX counts both GUIDs of each import separately.
+                            // What we want is the index to the class GUID.
+                            pointerIndex = (ulong)((_importOrderFw[pointer.External] * 2) + 1);
+                            break;
+                        case PointerRefType.Internal:
+                            pointerIndex = (ulong)_sortedInstances.IndexOf(pointer.Internal!);
+                            break;
+                        case PointerRefType.Null:
+                        default:
+                            break;
+                    }
+
+                    writer.WriteUInt64(pointerIndex);
+                    break;
+                }
             case TypeFlags.TypeEnum.Enum:
                 writer.WriteInt32((int)ebxObj);
                 break;
@@ -424,12 +420,13 @@ public sealed class EbxWriter : BaseEbxWriter
         TypeFlags.TypeEnum type = inFieldDescriptor.Flags.GetTypeEnum();
         if (type == TypeFlags.TypeEnum.Struct)
         {
-            EbxTypeDescriptor typeDescriptor = EbxTypeResolver.ResolveTypeFromField(inFieldDescriptor.TypeDescriptorRef);
+            EbxTypeDescriptor typeDescriptor =
+                EbxTypeResolver.ResolveTypeFromField(inFieldDescriptor.TypeDescriptorRef);
             writer.Pad(typeDescriptor.Alignment);
             WriteType(ebxObj, typeDescriptor, writer, writer.Position);
             return;
         }
-        
+
         SharedWriteField(ebxObj, type, writer);
     }
 
@@ -442,6 +439,7 @@ public sealed class EbxWriter : BaseEbxWriter
             WriteType(ebxObj, typeDescriptor, writer, writer.Position);
             return;
         }
+
         SharedWriteField(ebxObj, inType, writer);
     }
 
@@ -456,9 +454,7 @@ public sealed class EbxWriter : BaseEbxWriter
         {
             EbxExtra boxedValue = new()
             {
-                Count = 1,
-                Flags = tiPair.Flags,
-                TypeDescriptorRef = tiPair.TypeDescriptorRef
+                Count = 1, Flags = tiPair.Flags, TypeDescriptorRef = tiPair.TypeDescriptorRef
             };
             _boxedValues.Add(boxedValue);
 
@@ -546,6 +542,7 @@ public sealed class EbxWriter : BaseEbxWriter
                 WriteField(subValue, inFieldDescriptor, arrayWriter);
             }
         }
+
         writer.WriteInt64(arrayIdx);
     }
 
@@ -577,6 +574,7 @@ public sealed class EbxWriter : BaseEbxWriter
                 WriteBoxedField(subValue, inType, inTypeDescriptorRef, arrayWriter);
             }
         }
+
         writer.WriteInt64(arrayIdx);
     }
 
@@ -734,11 +732,13 @@ public sealed class EbxWriter : BaseEbxWriter
         TypeFlags.TypeEnum type = inFieldDescriptor.Flags.GetTypeEnum();
         if (type != TypeFlags.TypeEnum.Struct)
         {
-            EbxTypeDescriptor typeDescriptor = EbxTypeResolver.ResolveTypeFromField(inFieldDescriptor.TypeDescriptorRef);
+            EbxTypeDescriptor typeDescriptor =
+                EbxTypeResolver.ResolveTypeFromField(inFieldDescriptor.TypeDescriptorRef);
             writer.Pad(typeDescriptor.Alignment);
             FixupType(obj, typeDescriptor, writer, writer.Position);
             return;
         }
+
         SharedFixupField(obj, type, writer);
     }
 
@@ -751,6 +751,7 @@ public sealed class EbxWriter : BaseEbxWriter
             FixupType(obj, typeDescriptor, writer, writer.Position);
             return;
         }
+
         SharedFixupField(obj, inType, writer);
     }
 
@@ -819,6 +820,7 @@ public sealed class EbxWriter : BaseEbxWriter
                 object subValue = arrayObj[i]!;
                 FixupField(subValue, inFieldDescriptor, writer);
             }
+
             writer.StepOut();
         }
     }
@@ -857,6 +859,7 @@ public sealed class EbxWriter : BaseEbxWriter
                 object subValue = arrayObj[i]!;
                 FixupBoxedField(subValue, inType, inTypeDescriptorRef, writer);
             }
+
             writer.StepOut();
         }
     }
@@ -926,5 +929,14 @@ public sealed class EbxWriter : BaseEbxWriter
         }
 
         writer.StepOut();
+    }
+
+    [Flags]
+    private enum Flags
+    {
+        Exported = 1 << 8,
+        HasGuid = 1 << 12,
+        Aggregated = 1 << 13,
+        ReadOnly = 1 << 15
     }
 }
