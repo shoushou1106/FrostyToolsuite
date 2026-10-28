@@ -14,5 +14,7 @@
   <Project Path="Frosty.Sdk/Frosty.Sdk.csproj" />
   <Project Path="Frosty.Sdk.Tests/Frosty.Sdk.Tests.csproj" />
   
-  <Project Path="FrostyEditor/FrostyEditor.csproj" />
+  <Project Path="FrostyEditor/FrostyEditor.csproj">
+    <Build Project="false" />
+  </Project>
 </Solution>

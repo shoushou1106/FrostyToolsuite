@@ -5,12 +5,13 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <PublishSingleFile>true</PublishSingleFile>
+    <IsRestoreable>false</IsRestoreable>
+    <IsPublishable>false</IsPublishable>
   </PropertyGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**"/>
   </ItemGroup>
-
 
   <ItemGroup>
     <PackageReference Include="Avalonia"/>
@@ -26,11 +27,22 @@
     <PackageReference Include="Pastel"/>
   </ItemGroup>
 
+  <!-- Add this to CPM if you want to build it. -->
+  <!--  <ItemGroup>-->
+  <!--    <PackageVersion Include="Avalonia" Version="11.3.22"/>-->
+  <!--    <PackageVersion Include="Avalonia.Controls.TreeDataGrid" Version="11.1.1"/>-->
+  <!--    <PackageVersion Include="Avalonia.Desktop" Version="11.3.22"/>-->
+  <!--    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.22"/>-->
+  <!--    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.3.22"/>-->
+  <!--    <PackageVersion Include="Avalonia.Diagnostics" Version="11.3.22"/>-->
+  <!--    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.2.2"/>-->
+  <!--    <PackageVersion Include="MessageBox.Avalonia" Version="3.3.1.1"/>-->
+  <!--    <PackageVersion Include="Pastel" Version="5.1.0"/>-->
+  <!--  </ItemGroup>-->
 
   <ItemGroup>
     <ProjectReference Include="..\Frosty.Sdk\Frosty.Sdk.csproj"/>
   </ItemGroup>
-
 
   <ItemGroup>
     <None Update="Sdk\*.dll" CopyToOutputDirectory="PreserveNewest"/>
