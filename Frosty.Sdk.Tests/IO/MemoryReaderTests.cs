@@ -17,14 +17,15 @@ internal sealed class MemoryReaderTests
     [Test]
     public void ReadExactly_ReadsOwnProcessMemory()
     {
-        Assume.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), "MemoryReader only support Windows or Linux right now.");
+        Assume.That(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), "MemoryReader only supports Windows or Linux right now.");
 
         byte[] expected = GC.AllocateArray<byte>(64, true);
         RandomNumberGenerator.Fill(expected);
 
         using Process process = Process.GetCurrentProcess();
         using MemoryReader reader = new(process);
-        reader.Position = Marshal.UnsafeAddrOfPinnedArrayElement(expected, 0);
+        long address = Marshal.UnsafeAddrOfPinnedArrayElement(expected, 0);
+        reader.Position = address;
 
         byte[] actual = new byte[expected.Length];
         reader.ReadExactly(actual);
@@ -32,7 +33,7 @@ internal sealed class MemoryReaderTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(actual, Is.EqualTo(expected));
-            Assert.That(reader.Position, Is.EqualTo(Marshal.UnsafeAddrOfPinnedArrayElement(expected, 0) + 64));
+            Assert.That(reader.Position, Is.EqualTo(address + expected.Length));
         }
     }
 }
