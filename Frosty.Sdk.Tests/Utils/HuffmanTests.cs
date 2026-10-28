@@ -5,7 +5,7 @@ using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.Tests.Utils;
 
-internal sealed class HuffmanEncodingTests
+internal sealed class HuffmanTests
 {
     private static HuffmanDecoder CreateDecoderFromTree(IList<uint> encodingTree)
     {
