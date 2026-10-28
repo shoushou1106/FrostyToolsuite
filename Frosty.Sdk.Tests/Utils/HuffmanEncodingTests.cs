@@ -12,16 +12,16 @@ internal sealed class HuffmanEncodingTests
         HuffmanDecoder decoder = new();
 
         using MemoryStream stream = new();
-        using DataStream ds = new(stream);
+        using DataAccessor accessor = new(stream);
 
         foreach (uint value in encodingTree)
         {
-            ds.WriteUInt32(value);
+            accessor.WriteUInt32(value);
         }
 
-        ds.Position = 0;
+        accessor.Position = 0;
 
-        decoder.ReadHuffmanTable(ds, (uint)encodingTree.Count);
+        decoder.ReadHuffmanTable(accessor, (uint)encodingTree.Count);
 
         return decoder;
     }
@@ -29,18 +29,18 @@ internal sealed class HuffmanEncodingTests
     private static void ReadEncodedData(HuffmanDecoder inDecoder, byte[] inData, Endian? inEndian = null)
     {
         using MemoryStream stream = new();
-        using DataStream ds = new(stream);
+        using DataAccessor accessor = new(stream);
 
-        ds.Write(inData);
-        ds.Position = 0;
+        accessor.Write(inData);
+        accessor.Position = 0;
 
         if (inEndian.HasValue)
         {
-            inDecoder.ReadOddSizedEncodedData(ds, (uint)inData.Length, inEndian.Value);
+            inDecoder.ReadOddSizedEncodedData(accessor, (uint)inData.Length, inEndian.Value);
         }
         else
         {
-            inDecoder.ReadOddSizedEncodedData(ds, (uint)inData.Length);
+            inDecoder.ReadOddSizedEncodedData(accessor, (uint)inData.Length);
         }
     }
 
@@ -221,17 +221,17 @@ internal sealed class HuffmanEncodingTests
         const uint textLengthInBytes = 300;
 
         HuffmanDecoder decoder = new();
-        using (DataStream ds = new(stream))
+        using (DataAccessor accessor = new(stream))
         {
             // New Huffman was created when writing the string data ignored endianness and always used little endian.
-            decoder.ReadOddSizedEncodedData(ds, textLengthInBytes, inEndian);
+            decoder.ReadOddSizedEncodedData(accessor, textLengthInBytes, inEndian);
 
-            ds.Position = textLengthInBytes;
+            accessor.Position = textLengthInBytes;
 
-            uint numberOfTreeNodes = (uint)(ds.Length - ds.Position) / 4;
+            uint numberOfTreeNodes = (uint)(accessor.Length - accessor.Position) / 4;
 
             // Both test files were created with big endian as setting.
-            decoder.ReadHuffmanTable(ds, numberOfTreeNodes, Endian.Big);
+            decoder.ReadHuffmanTable(accessor, numberOfTreeNodes, Endian.Big);
         }
 
         return decoder.ReadHuffmanEncodedString(0);

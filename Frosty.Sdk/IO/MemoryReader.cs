@@ -30,6 +30,7 @@ public sealed partial class MemoryReader(Process inProcess) : IDisposable
         _memoryHandle?.Dispose();
     }
 
+    // ReSharper disable once MemberCanBePrivate.Global
     public void Pad(int alignment)
     {
         if (Position % alignment != 0)
@@ -147,7 +148,7 @@ public sealed partial class MemoryReader(Process inProcess) : IDisposable
     }
 
     /// <summary>
-    ///     Reads a pointer to a null terminated string and the string it points to.
+    ///     Reads a pointer to a null-terminated string and the string it points to.
     /// </summary>
     /// <remarks><b>Encoding:</b> UTF-8 (all languages).</remarks>
     public string ReadUtf8StringFromPointer(bool pad = true)
@@ -283,7 +284,7 @@ public sealed partial class MemoryReader(Process inProcess) : IDisposable
         }
         else
         {
-            throw new PlatformNotSupportedException("MemoryReader only support Windows or Linux right now.");
+            throw new PlatformNotSupportedException("MemoryReader only supports Windows or Linux right now.");
         }
     }
 
@@ -302,7 +303,7 @@ public sealed partial class MemoryReader(Process inProcess) : IDisposable
 
         if (!OperatingSystem.IsLinux())
         {
-            throw new PlatformNotSupportedException("MemoryReader only support Windows or Linux right now.");
+            throw new PlatformNotSupportedException("MemoryReader only supports Windows or Linux right now.");
         }
 
         _memoryHandle ??= File.OpenHandle($"/proc/{inProcess.Id}/mem", FileMode.Open, FileAccess.Read,

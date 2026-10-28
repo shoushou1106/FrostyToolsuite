@@ -46,18 +46,18 @@ public class DbObjectInt : DbObject
         return AsUInt();
     }
 
-    protected override void InternalSerialize(DataStream stream)
+    protected override void InternalSerialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        stream.WriteInt32(_value);
+        accessor.WriteInt32(_value);
     }
 
-    protected override void InternalDeserialize(DataStream stream)
+    protected override void InternalDeserialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        _value = stream.ReadInt32();
+        _value = accessor.ReadInt32();
     }
 
     public override string ToString()

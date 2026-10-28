@@ -25,16 +25,16 @@ public class BinaryBundle
     public IReadOnlyList<ResAssetEntry> ResList { get; }
     public IReadOnlyList<ChunkAssetEntry> ChunkList { get; }
 
-    private BinaryBundle(DataStream stream)
+    private BinaryBundle(DataAccessor accessor)
     {
         // Use big endian for default
         Endian endian = Endian.Big;
 
-        uint size = stream.ReadUInt32(Endian.Big);
+        uint size = accessor.ReadUInt32(Endian.Big);
 
-        long startPos = stream.Position;
+        long startPos = accessor.Position;
 
-        Magic magic = (Magic)(stream.ReadUInt32(endian) ^ GetSalt());
+        Magic magic = (Magic)(accessor.ReadUInt32(endian) ^ GetSalt());
 
         // Check which endian is written
         if (!IsValidMagic(magic))
@@ -51,12 +51,12 @@ public class BinaryBundle
 
         bool containsSha1 = magic == Magic.Standard;
 
-        uint totalCount = stream.ReadUInt32(endian);
-        int ebxCount = stream.ReadInt32(endian);
-        int resCount = stream.ReadInt32(endian);
-        int chunkCount = stream.ReadInt32(endian);
-        long stringsOffset = stream.ReadUInt32(endian) + startPos;
-        stream.Position += sizeof(uint) + sizeof(int); // metaOffset + metaSize
+        uint totalCount = accessor.ReadUInt32(endian);
+        int ebxCount = accessor.ReadInt32(endian);
+        int resCount = accessor.ReadInt32(endian);
+        int chunkCount = accessor.ReadInt32(endian);
+        long stringsOffset = accessor.ReadUInt32(endian) + startPos;
+        accessor.Position += sizeof(uint) + sizeof(int); // metaOffset + metaSize
 
         EbxAssetEntry[] ebxList = new EbxAssetEntry[ebxCount];
         ResAssetEntry[] resList = new ResAssetEntry[resCount];
@@ -67,10 +67,10 @@ public class BinaryBundle
         // Decrypt the data
         if (magic == Magic.Encrypted)
         {
-            if (stream is not BlockStream blockStream)
+            if (accessor is not BlockAccessor blockAccessor)
             {
-                throw new ArgumentException("Encrypted bundle. The bundle needs to be passed in as a BlockStream.",
-                    nameof(stream));
+                throw new ArgumentException("Encrypted bundle. The bundle needs to be passed in as a BlockAccessor.",
+                    nameof(accessor));
             }
 
             if (!KeyManager.HasKey("BundleEncryptionKey"))
@@ -78,77 +78,77 @@ public class BinaryBundle
                 throw new MissingEncryptionKeyException("bundles");
             }
 
-            blockStream.Decrypt(KeyManager.GetKey("BundleEncryptionKey"), (int)(size - 0x20), PaddingMode.None);
+            blockAccessor.Decrypt(KeyManager.GetKey("BundleEncryptionKey"), (int)(size - 0x20), PaddingMode.None);
         }
 
         // Read SHA-1s
         for (int i = 0; i < totalCount; i++)
         {
-            sha1[i] = containsSha1 ? stream.ReadSha1() : Sha1.Zero;
+            sha1[i] = containsSha1 ? accessor.ReadSha1() : Sha1.Zero;
         }
 
         int j = 0;
         for (int i = 0; i < ebxCount; i++, j++)
         {
-            uint nameOffset = stream.ReadUInt32(endian);
-            uint originalSize = stream.ReadUInt32(endian);
+            uint nameOffset = accessor.ReadUInt32(endian);
+            uint originalSize = accessor.ReadUInt32(endian);
 
-            long currentPos = stream.Position;
-            stream.Position = stringsOffset + nameOffset;
-            string name = stream.ReadNullTerminatedString();
+            long currentPos = accessor.Position;
+            accessor.Position = stringsOffset + nameOffset;
+            string name = accessor.ReadNullTerminatedString();
 
             ebxList[i] = new EbxAssetEntry(name, sha1[j], originalSize);
 
-            stream.Position = currentPos;
+            accessor.Position = currentPos;
         }
 
-        long resTypeOffset = stream.Position + resCount * 2 * sizeof(uint);
-        long resMetaOffset = stream.Position + resCount * 2 * sizeof(uint) + resCount * sizeof(uint);
-        long resRidOffset = stream.Position + resCount * 2 * sizeof(uint) + resCount * sizeof(uint) + resCount * 0x10;
+        long resTypeOffset = accessor.Position + resCount * 2 * sizeof(uint);
+        long resMetaOffset = accessor.Position + resCount * 2 * sizeof(uint) + resCount * sizeof(uint);
+        long resRidOffset = accessor.Position + resCount * 2 * sizeof(uint) + resCount * sizeof(uint) + resCount * 0x10;
         for (int i = 0; i < resCount; i++, j++)
         {
-            uint nameOffset = stream.ReadUInt32(endian);
-            uint originalSize = stream.ReadUInt32(endian);
+            uint nameOffset = accessor.ReadUInt32(endian);
+            uint originalSize = accessor.ReadUInt32(endian);
 
-            long currentPos = stream.Position;
-            stream.Position = stringsOffset + nameOffset;
-            string name = stream.ReadNullTerminatedString();
+            long currentPos = accessor.Position;
+            accessor.Position = stringsOffset + nameOffset;
+            string name = accessor.ReadNullTerminatedString();
 
-            stream.Position = resTypeOffset + i * sizeof(uint);
-            uint resType = stream.ReadUInt32(endian);
+            accessor.Position = resTypeOffset + i * sizeof(uint);
+            uint resType = accessor.ReadUInt32(endian);
 
-            stream.Position = resMetaOffset + i * 0x10;
-            byte[] resMeta = stream.ReadBytes(0x10);
+            accessor.Position = resMetaOffset + i * 0x10;
+            byte[] resMeta = accessor.ReadBytes(0x10);
 
-            stream.Position = resRidOffset + i * sizeof(ulong);
-            ulong resRid = stream.ReadUInt64(endian);
+            accessor.Position = resRidOffset + i * sizeof(ulong);
+            ulong resRid = accessor.ReadUInt64(endian);
 
             resList[i] = new ResAssetEntry(name, sha1[j], originalSize, resRid, resType, resMeta);
 
-            stream.Position = currentPos;
+            accessor.Position = currentPos;
         }
 
-        stream.Position = resRidOffset + resCount * sizeof(ulong);
+        accessor.Position = resRidOffset + resCount * sizeof(ulong);
         for (int i = 0; i < chunkCount; i++, j++)
         {
-            chunkList[i] = new ChunkAssetEntry(stream.ReadGuid(endian), sha1[j], stream.ReadUInt32(endian),
-                stream.ReadUInt32(endian));
+            chunkList[i] = new ChunkAssetEntry(accessor.ReadGuid(endian), sha1[j], accessor.ReadUInt32(endian),
+                accessor.ReadUInt32(endian));
         }
 
         EbxList = ebxList;
         ResList = resList;
         ChunkList = chunkList;
 
-        // Set the correct position, because the string table comes after the meta
-        stream.Position = startPos + size;
+        // Set the correct position because the string table comes after the meta
+        accessor.Position = startPos + size;
     }
 
     /// <summary>
     /// Dependent on the FB version, games use different salts.
-    /// If the game uses a version newer than 2017 it uses "pecn", else it uses "pecm".
+    /// If the game uses a version newer than 2017, it uses "pecn", else it uses "pecm".
     /// <see cref="ProfileVersion.Battlefield5"/> is the only game that uses "arie".
     /// </summary>
-    /// <returns>The salt, that the current game uses.</returns>
+    /// <returns>The salt that the current game uses.</returns>
     public static uint GetSalt()
     {
         const uint pecm = 0x7065636D;
@@ -174,15 +174,15 @@ public class BinaryBundle
         magic is Magic.Standard or Magic.Kelvin or Magic.Encrypted;
 
     /// <summary>
-    /// Deserialize a binary stored bundle as <see cref="DbObject"/>.
+    /// Deserialize a binary-stored bundle as <see cref="DbObject"/>.
     /// </summary>
-    /// <param name="stream">The <see cref="DataStream"/> from which the bundle should be Deserialized from.</param>
+    /// <param name="accessor">The <see cref="DataAccessor"/> from which the bundle should be Deserialized from.</param>
     /// <returns></returns>
     /// <exception cref="InvalidDataException">Is thrown when there is no valid <see cref="Magic"/>.</exception>
-    public static BinaryBundle Deserialize(DataStream stream)
+    public static BinaryBundle Deserialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        return new BinaryBundle(stream);
+        return new BinaryBundle(accessor);
     }
 }

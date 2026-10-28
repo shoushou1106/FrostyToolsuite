@@ -56,21 +56,21 @@ public class NonCasFileInfo : IFileInfo
     {
         if (m_isDelta)
         {
-            BlockStream? baseStream = null;
+            BlockAccessor? baseAccessor = null;
             if (m_baseSize > 0)
             {
-                baseStream = BlockStream.FromFile(m_fullBasePath!, m_baseOffset, (int)m_baseSize);
+                baseAccessor = BlockAccessor.FromFile(m_fullBasePath!, m_baseOffset, (int)m_baseSize);
             }
 
-            using (BlockStream deltaStream = BlockStream.FromFile(m_fullPath, m_offset, (int)m_size))
+            using (BlockAccessor deltaAccessor = BlockAccessor.FromFile(m_fullPath, m_offset, (int)m_size))
             {
-                return Cas.GetOriginalSize(deltaStream, baseStream, m_midInstructionSize);
+                return Cas.GetOriginalSize(deltaAccessor, baseAccessor, m_midInstructionSize);
             }
         }
 
-        using (BlockStream stream = BlockStream.FromFile(m_fullPath, m_offset, (int)m_size))
+        using (BlockAccessor accessor = BlockAccessor.FromFile(m_fullPath, m_offset, (int)m_size))
         {
-            return Cas.GetOriginalSize(stream);
+            return Cas.GetOriginalSize(accessor);
         }
     }
 
@@ -96,59 +96,59 @@ public class NonCasFileInfo : IFileInfo
     {
         if (m_isDelta)
         {
-            BlockStream? baseStream = null;
+            BlockAccessor? baseAccessor = null;
             if (m_baseSize > 0)
             {
-                baseStream = BlockStream.FromFile(m_fullBasePath!, m_baseOffset, (int)m_baseSize);
+                baseAccessor = BlockAccessor.FromFile(m_fullBasePath!, m_baseOffset, (int)m_baseSize);
             }
 
-            using (BlockStream deltaStream = BlockStream.FromFile(m_fullPath, m_offset, (int)m_size))
+            using (BlockAccessor deltaAccessor = BlockAccessor.FromFile(m_fullPath, m_offset, (int)m_size))
             {
-                Block<byte> retVal = Cas.DecompressData(deltaStream, baseStream, inOriginalSize, m_midInstructionSize);
-                baseStream?.Dispose();
+                Block<byte> retVal = Cas.DecompressData(deltaAccessor, baseAccessor, inOriginalSize, m_midInstructionSize);
+                baseAccessor?.Dispose();
                 return retVal;
             }
         }
 
-        using (BlockStream stream = BlockStream.FromFile(m_fullPath, m_offset, (int)m_size))
+        using (BlockAccessor accessor = BlockAccessor.FromFile(m_fullPath, m_offset, (int)m_size))
         {
-            return Cas.DecompressData(stream, inOriginalSize);
+            return Cas.DecompressData(accessor, inOriginalSize);
         }
     }
 
-    public void SerializeInternal(DataStream stream)
+    public void SerializeInternal(DataAccessor accessor)
     {
-        stream.WriteBoolean(m_isDelta);
-        stream.WriteNullTerminatedString(m_superBundlePath);
+        accessor.WriteBoolean(m_isDelta);
+        accessor.WriteNullTerminatedString(m_superBundlePath);
 
         if (m_isDelta)
         {
-            stream.WriteNullTerminatedString(m_superBundleBasePath ?? string.Empty);
+            accessor.WriteNullTerminatedString(m_superBundleBasePath ?? string.Empty);
         }
 
-        stream.WriteInt64(m_offset);
-        stream.WriteUInt32(m_size);
+        accessor.WriteInt64(m_offset);
+        accessor.WriteUInt32(m_size);
 
         if (m_isDelta)
         {
-            stream.WriteInt64(m_baseOffset);
-            stream.WriteUInt32(m_baseSize);
-            stream.WriteInt32(m_midInstructionSize);
+            accessor.WriteInt64(m_baseOffset);
+            accessor.WriteUInt32(m_baseSize);
+            accessor.WriteInt32(m_midInstructionSize);
         }
 
-        stream.WriteUInt32(m_logicalOffset);
+        accessor.WriteUInt32(m_logicalOffset);
     }
 
-    public static NonCasFileInfo DeserializeInternal(DataStream stream)
+    public static NonCasFileInfo DeserializeInternal(DataAccessor accessor)
     {
-        bool isDelta = stream.ReadBoolean();
+        bool isDelta = accessor.ReadBoolean();
         if (isDelta)
         {
-            return new NonCasFileInfo(stream.ReadNullTerminatedString(), stream.ReadNullTerminatedString(),
-                stream.ReadInt64(), stream.ReadUInt32(), stream.ReadInt64(), stream.ReadUInt32(), stream.ReadInt32(),
-                stream.ReadUInt32());
+            return new NonCasFileInfo(accessor.ReadNullTerminatedString(), accessor.ReadNullTerminatedString(),
+                accessor.ReadInt64(), accessor.ReadUInt32(), accessor.ReadInt64(), accessor.ReadUInt32(), accessor.ReadInt32(),
+                accessor.ReadUInt32());
         }
-        return new NonCasFileInfo(stream.ReadNullTerminatedString(), stream.ReadInt64(), stream.ReadUInt32(),
-            stream.ReadUInt32());
+        return new NonCasFileInfo(accessor.ReadNullTerminatedString(), accessor.ReadInt64(), accessor.ReadUInt32(),
+            accessor.ReadUInt32());
     }
 }

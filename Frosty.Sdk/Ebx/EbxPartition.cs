@@ -47,15 +47,15 @@ public class EbxPartition
     internal List<int> InternalRefCounts { get; set; } = [];
     internal HashSet<Guid> InternalDependencies { get; set; } = [];
 
-    public static EbxPartition Deserialize(DataStream ebxStream)
+    public static EbxPartition Deserialize(DataAccessor ebxAccessor)
     {
-        BaseEbxReader reader = BaseEbxReader.CreateReader(ebxStream);
+        BaseEbxReader reader = BaseEbxReader.CreateReader(ebxAccessor);
         return reader.ReadPartition<EbxPartition>();
     }
 
-    public static void Serialize(DataStream ebxStream, EbxPartition inPartition)
+    public static void Serialize(DataAccessor ebxAccessor, EbxPartition inPartition)
     {
-        BaseEbxWriter writer = BaseEbxWriter.CreateWriter(ebxStream);
+        BaseEbxWriter writer = BaseEbxWriter.CreateWriter(ebxAccessor);
         writer.WritePartition(inPartition);
     }
 

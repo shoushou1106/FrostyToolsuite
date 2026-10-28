@@ -60,16 +60,16 @@ internal static class EbxSharedTypeDescriptors
     private static void Read(Block<byte> file)
     {
         // Left open because the block belongs to the memory fs
-        using BlockStream stream = new(file, true);
-        EbxVersion magic = (EbxVersion)stream.ReadUInt32();
+        using BlockAccessor accessor = new(file, true);
+        EbxVersion magic = (EbxVersion)accessor.ReadUInt32();
 
         if (magic != EbxVersion.Version4)
         {
             throw new InvalidDataException("magic");
         }
 
-        ushort typeDescriptorCount = stream.ReadUInt16();
-        ushort fieldDescriptorCount = stream.ReadUInt16();
+        ushort typeDescriptorCount = accessor.ReadUInt16();
+        ushort fieldDescriptorCount = accessor.ReadUInt16();
 
         TypeDescriptors.Capacity = typeDescriptorCount + TypeDescriptors.Count;
         FieldDescriptors.Capacity = fieldDescriptorCount + FieldDescriptors.Count;
@@ -80,29 +80,29 @@ internal static class EbxSharedTypeDescriptors
         {
             FieldDescriptors.Add(new EbxFieldDescriptor
             {
-                NameHash = stream.ReadUInt32(),
-                Flags = stream.ReadUInt16(),
-                TypeDescriptorRef = stream.ReadUInt16(),
-                DataOffset = stream.ReadUInt32(),
-                SecondOffset = stream.ReadUInt32()
+                NameHash = accessor.ReadUInt32(),
+                Flags = accessor.ReadUInt16(),
+                TypeDescriptorRef = accessor.ReadUInt16(),
+                DataOffset = accessor.ReadUInt32(),
+                SecondOffset = accessor.ReadUInt32()
             });
         }
 
         for (int i = 0; i < typeDescriptorCount; i++)
         {
-            long offset = stream.Position;
+            long offset = accessor.Position;
 
-            Guid key = stream.ReadGuid();
+            Guid key = accessor.ReadGuid();
 
             EbxTypeDescriptor typeDescriptor = new()
             {
-                NameHash = stream.ReadUInt32(),
-                FieldIndex = stream.ReadInt32(),
-                FieldCount = stream.ReadByte(),
-                Alignment = stream.ReadByte(),
-                Flags = stream.ReadUInt16(),
-                Size = stream.ReadUInt16(),
-                SecondSize = stream.ReadUInt16(),
+                NameHash = accessor.ReadUInt32(),
+                FieldIndex = accessor.ReadInt32(),
+                FieldCount = accessor.ReadByte(),
+                Alignment = accessor.ReadByte(),
+                Flags = accessor.ReadUInt16(),
+                Size = accessor.ReadUInt16(),
+                SecondSize = accessor.ReadUInt16(),
                 Index = TypeDescriptors.Count
             };
 

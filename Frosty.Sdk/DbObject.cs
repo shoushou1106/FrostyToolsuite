@@ -24,28 +24,28 @@ public abstract class DbObject(DbObject.Type inType)
     /// <param name="value">The <see cref="DbObject" /> to serialize.</param>
     public static void Serialize(string path, DbObject value)
     {
-        using DataStream stream = new(new FileStream(path, FileMode.Create, FileAccess.ReadWrite));
-        Serialize(stream, value);
+        using DataAccessor accessor = new(new FileStream(path, FileMode.Create, FileAccess.ReadWrite));
+        Serialize(accessor, value);
     }
 
     /// <summary>
-    ///     Serializes a <see cref="DbObject" /> to a <see cref="DataStream" />.
+    ///     Serializes a <see cref="DbObject" /> to a <see cref="DataAccessor" />.
     /// </summary>
-    /// <param name="stream">The <see cref="DataStream" /> to serialize the <see cref="DbObject" /> to.</param>
+    /// <param name="accessor">The <see cref="DataAccessor" /> to serialize the <see cref="DbObject" /> to.</param>
     /// <param name="value">The <see cref="DbObject" /> to serialize.</param>
-    public static void Serialize(DataStream stream, DbObject value)
+    public static void Serialize(DataAccessor accessor, DbObject value)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
         ArgumentNullException.ThrowIfNull(value);
 
-        stream.WriteByte((byte)value._type);
+        accessor.WriteByte((byte)value._type);
 
         if (!value._type.HasFlag(Type.Anonymous))
         {
-            stream.WriteNullTerminatedString(value.Name);
+            accessor.WriteNullTerminatedString(value.Name);
         }
 
-        value.InternalSerialize(stream);
+        value.InternalSerialize(accessor);
     }
 
     /// <summary>
@@ -55,20 +55,20 @@ public abstract class DbObject(DbObject.Type inType)
     /// <returns>The deserialized <see cref="DbObject" />.</returns>
     public static DbObject? Deserialize(string path)
     {
-        using BlockStream stream = BlockStream.FromFile(path, true);
-        return Deserialize(stream);
+        using BlockAccessor accessor = BlockAccessor.FromFile(path, true);
+        return Deserialize(accessor);
     }
 
     /// <summary>
-    ///     Deserializes a <see cref="DbObject" /> from a <see cref="DataStream" />.
+    ///     Deserializes a <see cref="DbObject" /> from a <see cref="DataAccessor" />.
     /// </summary>
-    /// <param name="stream">The <see cref="DataStream" /> to deserialize the <see cref="DbObject" /> from.</param>
+    /// <param name="accessor">The <see cref="DataAccessor" /> to deserialize the <see cref="DbObject" /> from.</param>
     /// <returns>The deserialized <see cref="DbObject" />.</returns>
-    public static DbObject? Deserialize(DataStream stream)
+    public static DbObject? Deserialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        Type type = (Type)stream.ReadByte();
+        Type type = (Type)accessor.ReadByte();
 
         DbObject? obj = CreateDbObject(type);
 
@@ -79,10 +79,10 @@ public abstract class DbObject(DbObject.Type inType)
 
         if (!type.HasFlag(Type.Anonymous))
         {
-            obj.Name = stream.ReadNullTerminatedString();
+            obj.Name = accessor.ReadNullTerminatedString();
         }
 
-        obj.InternalDeserialize(stream);
+        obj.InternalDeserialize(accessor);
 
         return obj;
     }
@@ -182,9 +182,9 @@ public abstract class DbObject(DbObject.Type inType)
         return new DbObjectList(name, capacity);
     }
 
-    protected abstract void InternalSerialize(DataStream stream);
+    protected abstract void InternalSerialize(DataAccessor accessor);
 
-    protected abstract void InternalDeserialize(DataStream stream);
+    protected abstract void InternalDeserialize(DataAccessor accessor);
 
     private static DbObject? CreateDbObject(Type type)
     {

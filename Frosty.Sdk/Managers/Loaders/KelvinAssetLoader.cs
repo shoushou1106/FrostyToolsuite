@@ -68,42 +68,42 @@ public class KelvinAssetLoader : IAssetLoader
             return Code.NotFound;
         }
 
-        using (BlockStream stream = BlockStream.FromFile(path, true))
+        using (BlockAccessor accessor = BlockAccessor.FromFile(path, true))
         {
-            uint magic = stream.ReadUInt32();
-            uint bundlesOffset = stream.ReadUInt32();
-            uint chunksOffset = stream.ReadUInt32();
+            uint magic = accessor.ReadUInt32();
+            uint bundlesOffset = accessor.ReadUInt32();
+            uint chunksOffset = accessor.ReadUInt32();
 
             if (magic == 0xC3E5D5C3)
             {
-                stream.Decrypt(KeyManager.GetKey("BundleEncryptionKey"), PaddingMode.None);
+                accessor.Decrypt(KeyManager.GetKey("BundleEncryptionKey"), PaddingMode.None);
             }
 
             if (bundlesOffset != 0xFFFFFFFF)
             {
-                stream.Position = bundlesOffset;
+                accessor.Position = bundlesOffset;
 
-                int bundleCount = stream.ReadInt32();
+                int bundleCount = accessor.ReadInt32();
 
                 // bundle hashmap
-                stream.Position += sizeof(int) * bundleCount;
+                accessor.Position += sizeof(int) * bundleCount;
 
                 for (int i = 0; i < bundleCount; i++)
                 {
-                    uint bundleOffset = stream.ReadUInt32();
+                    uint bundleOffset = accessor.ReadUInt32();
 
-                    long curPos = stream.Position;
+                    long curPos = accessor.Position;
 
-                    stream.Position = bundleOffset;
+                    accessor.Position = bundleOffset;
 
-                    string name = ReadString(stream, stream.ReadInt32());
+                    string name = ReadString(accessor, accessor.ReadInt32());
 
                     List<FileIdentifier> files = new();
                     while (true)
                     {
-                        int file = stream.ReadInt32();
-                        uint fileOffset = stream.ReadUInt32();
-                        uint fileSize = stream.ReadUInt32();
+                        int file = accessor.ReadInt32();
+                        uint fileOffset = accessor.ReadUInt32();
+                        uint fileSize = accessor.ReadUInt32();
 
                         files.Add(new FileIdentifier(file & 0x7FFFFFFF, fileOffset, fileSize));
                         if ((file & 0x80000000) == 0)
@@ -112,7 +112,7 @@ public class KelvinAssetLoader : IAssetLoader
                         }
                     }
 
-                    stream.Position = curPos;
+                    accessor.Position = curPos;
 
                     if (inSbIc.BundleMapping.ContainsKey(name))
                     {
@@ -124,23 +124,23 @@ public class KelvinAssetLoader : IAssetLoader
                     int index = 0;
                     FileIdentifier resourceInfo = files[index];
 
-                    BlockStream dataStream = BlockStream.FromFile(FileSystemManager.GetFilePath(resourceInfo.FileIndex),
+                    BlockAccessor dataAccessor = BlockAccessor.FromFile(FileSystemManager.GetFilePath(resourceInfo.FileIndex),
                         resourceInfo.Offset, (int)resourceInfo.Size);
 
-                    BinaryBundle bundleMeta = BinaryBundle.Deserialize(dataStream);
+                    BinaryBundle bundleMeta = BinaryBundle.Deserialize(dataAccessor);
 
                     foreach (EbxAssetEntry ebx in bundleMeta.EbxList)
                     {
-                         if (dataStream.Position == resourceInfo.Size)
+                         if (dataAccessor.Position == resourceInfo.Size)
                          {
-                             dataStream.Dispose();
+                             dataAccessor.Dispose();
                              resourceInfo = files[++index];
-                             dataStream = BlockStream.FromFile(FileSystemManager.GetFilePath(resourceInfo.FileIndex),
+                             dataAccessor = BlockAccessor.FromFile(FileSystemManager.GetFilePath(resourceInfo.FileIndex),
                                  resourceInfo.Offset, (int)resourceInfo.Size);
                          }
 
-                         uint offset = (uint)dataStream.Position;
-                         uint size = (uint)Cas.GetCompressedSize(dataStream, ebx.OriginalSize);
+                         uint offset = (uint)dataAccessor.Position;
+                         uint size = (uint)Cas.GetCompressedSize(dataAccessor, ebx.OriginalSize);
 
                          ebx.AddFileInfo(new KelvinFileInfo(resourceInfo.FileIndex,
                              resourceInfo.Offset + offset, size, 0));
@@ -149,16 +149,16 @@ public class KelvinAssetLoader : IAssetLoader
                     }
                     foreach (ResAssetEntry res in bundleMeta.ResList)
                     {
-                         if (dataStream.Position == resourceInfo.Size)
+                         if (dataAccessor.Position == resourceInfo.Size)
                          {
-                             dataStream.Dispose();
+                             dataAccessor.Dispose();
                              resourceInfo = files[++index];
-                             dataStream = BlockStream.FromFile(FileSystemManager.GetFilePath(resourceInfo.FileIndex),
+                             dataAccessor = BlockAccessor.FromFile(FileSystemManager.GetFilePath(resourceInfo.FileIndex),
                                  resourceInfo.Offset, (int)resourceInfo.Size);
                          }
 
-                         uint offset = (uint)dataStream.Position;
-                         uint size = (uint)Cas.GetCompressedSize(dataStream, res.OriginalSize);
+                         uint offset = (uint)dataAccessor.Position;
+                         uint size = (uint)Cas.GetCompressedSize(dataAccessor, res.OriginalSize);
 
                          res.AddFileInfo(new KelvinFileInfo(resourceInfo.FileIndex,
                              resourceInfo.Offset + offset, size, 0));
@@ -167,16 +167,16 @@ public class KelvinAssetLoader : IAssetLoader
                     }
                     foreach (ChunkAssetEntry chunk in bundleMeta.ChunkList)
                     {
-                         if (dataStream.Position == resourceInfo.Size)
+                         if (dataAccessor.Position == resourceInfo.Size)
                          {
-                             dataStream.Dispose();
+                             dataAccessor.Dispose();
                              resourceInfo = files[++index];
-                             dataStream = BlockStream.FromFile(FileSystemManager.GetFilePath(resourceInfo.FileIndex),
+                             dataAccessor = BlockAccessor.FromFile(FileSystemManager.GetFilePath(resourceInfo.FileIndex),
                                  resourceInfo.Offset, (int)resourceInfo.Size);
                          }
 
-                         uint offset = (uint)dataStream.Position;
-                         uint size = (uint)Cas.GetCompressedSize(dataStream,
+                         uint offset = (uint)dataAccessor.Position;
+                         uint size = (uint)Cas.GetCompressedSize(dataAccessor,
                              (chunk.LogicalOffset & 0xFFFF) | chunk.LogicalSize);
 
                          chunk.AddFileInfo(new KelvinFileInfo(resourceInfo.FileIndex,
@@ -185,29 +185,29 @@ public class KelvinAssetLoader : IAssetLoader
                          AssetManager.AddChunk(chunk, bundle.Id);
                     }
 
-                    dataStream.Dispose();
+                    dataAccessor.Dispose();
                 }
             }
 
             if (chunksOffset != 0xFFFFFFFF)
             {
-                stream.Position = chunksOffset;
-                int chunksCount = stream.ReadInt32();
+                accessor.Position = chunksOffset;
+                int chunksCount = accessor.ReadInt32();
 
                 // hashmap
-                stream.Position += sizeof(int) * chunksCount;
+                accessor.Position += sizeof(int) * chunksCount;
 
                 for (int i = 0; i < chunksCount; i++)
                 {
-                    int offset = stream.ReadInt32();
+                    int offset = accessor.ReadInt32();
 
-                    long pos = stream.Position;
-                    stream.Position = offset;
+                    long pos = accessor.Position;
+                    accessor.Position = offset;
 
-                    Guid guid = stream.ReadGuid();
-                    int fileIndex = stream.ReadInt32();
-                    uint dataOffset = stream.ReadUInt32();
-                    uint dataSize = stream.ReadUInt32();
+                    Guid guid = accessor.ReadGuid();
+                    int fileIndex = accessor.ReadInt32();
+                    uint dataOffset = accessor.ReadUInt32();
+                    uint dataSize = accessor.ReadUInt32();
 
                     ChunkAssetEntry chunk = new(guid, Sha1.Zero, 0, 0, inSbIc.Id);
 
@@ -215,7 +215,7 @@ public class KelvinAssetLoader : IAssetLoader
 
                     AssetManager.AddSuperBundleChunk(chunk);
 
-                    stream.Position = pos;
+                    accessor.Position = pos;
                 }
             }
         }
@@ -223,7 +223,7 @@ public class KelvinAssetLoader : IAssetLoader
         return Code.Stop;
     }
 
-    private string ReadString(DataStream reader, int offset)
+    private string ReadString(DataAccessor reader, int offset)
     {
         long curPos = reader.Position;
         StringBuilder sb = new();

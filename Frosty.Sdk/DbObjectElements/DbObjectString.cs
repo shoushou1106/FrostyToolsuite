@@ -29,18 +29,18 @@ public class DbObjectString : DbObject
         return _value;
     }
 
-    protected override void InternalSerialize(DataStream stream)
+    protected override void InternalSerialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        stream.WriteSizedString(_value);
+        accessor.WriteSizedString(_value);
     }
 
-    protected override void InternalDeserialize(DataStream stream)
+    protected override void InternalDeserialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        _value = stream.ReadSizedString();
+        _value = accessor.ReadSizedString();
     }
 
     public override string ToString()

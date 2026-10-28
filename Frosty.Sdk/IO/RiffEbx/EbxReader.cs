@@ -20,11 +20,11 @@ public sealed class EbxReader : BaseEbxReader
 
     private const string CollectionName = "ObservableCollection`1";
 
-    public EbxReader(DataStream inStream)
-        : base(inStream)
+    public EbxReader(DataAccessor inAccessor)
+        : base(inAccessor)
     {
-        RiffStream riffStream = new(_stream);
-        riffStream.ReadHeader(out FourCc fourCc, out uint size);
+        RiffReader riffReader = new(_accessor);
+        riffReader.ReadHeader(out FourCc fourCc, out uint size);
 
         if (fourCc != "EBX\0" && fourCc != "EBXS")
         {
@@ -32,40 +32,40 @@ public sealed class EbxReader : BaseEbxReader
         }
 
         // Read EBXD chunk
-        riffStream.ReadNextChunk(ref size, ProcessChunk);
+        riffReader.ReadNextChunk(ref size, ProcessChunk);
         // Read EFIX chunk
-        riffStream.ReadNextChunk(ref size, ProcessChunk);
+        riffReader.ReadNextChunk(ref size, ProcessChunk);
 
         _typeResolver = new EbxTypeResolver(_fixup.TypeGuids, _fixup.TypeSignatures);
 
         // Read EBXX chunk
-        riffStream.ReadNextChunk(ref size, ProcessChunk);
+        riffReader.ReadNextChunk(ref size, ProcessChunk);
 
-        Debug.Assert(riffStream.Eof);
+        Debug.Assert(riffReader.Eof);
     }
 
     public override Guid GetPartitionGuid() => _fixup.PartitionGuid;
 
     public override string GetRootType()
     {
-        _stream.Position = _payloadOffset + _fixup.InstanceOffsets[0];
-        return TypeLibrary.GetType(_fixup.TypeGuids[_stream.ReadUInt16()])?.Name ?? throw new InvalidDataException("Unknown EBX root type.");
+        _accessor.Position = _payloadOffset + _fixup.InstanceOffsets[0];
+        return TypeLibrary.GetType(_fixup.TypeGuids[_accessor.ReadUInt16()])?.Name ?? throw new InvalidDataException("Unknown EBX root type.");
     }
 
     public override HashSet<Guid> GetDependencies() => _fixup.Dependencies;
 
-    private void ProcessChunk(DataStream inStream, FourCc inFourCc, uint inSize)
+    private void ProcessChunk(DataAccessor inAccessor, FourCc inFourCc, uint inSize)
     {
         switch ((string)inFourCc)
         {
             case "EBXD":
-                ReadDataChunk(inStream);
+                ReadDataChunk(inAccessor);
                 break;
             case "EFIX":
-                ReadFixupChunk(inStream);
+                ReadFixupChunk(inAccessor);
                 break;
             case "EBXX":
-                ReadXChunk(inStream);
+                ReadXChunk(inAccessor);
                 break;
         }
     }
@@ -75,59 +75,59 @@ public sealed class EbxReader : BaseEbxReader
         int[] typeRefs = new int[_fixup.InstanceOffsets.Count];
         for (int i = 0; i < typeRefs.Length; i++)
         {
-            _stream.Position = _payloadOffset + _fixup.InstanceOffsets[i];
-            typeRefs[i] = _stream.ReadUInt16();
+            _accessor.Position = _payloadOffset + _fixup.InstanceOffsets[i];
+            typeRefs[i] = _accessor.ReadUInt16();
 
             _instances.Add((IEbxInstance?)TypeLibrary.CreateObject(_typeResolver.ResolveType(typeRefs[i]).NameHash));
             _refCounts.Add(0);
         }
 
-        _stream.Position = _payloadOffset;
+        _accessor.Position = _payloadOffset;
 
         for (int i = 0; i < _fixup.InstanceOffsets.Count; i++)
         {
             EbxTypeDescriptor typeDescriptor = _typeResolver.ResolveType(typeRefs[i]);
 
-            _stream.Pad(typeDescriptor.Alignment);
+            _accessor.Pad(typeDescriptor.Alignment);
 
-            Guid instanceGuid = i < _fixup.ExportedInstanceCount ? _stream.ReadGuid() : Guid.Empty;
+            Guid instanceGuid = i < _fixup.ExportedInstanceCount ? _accessor.ReadGuid() : Guid.Empty;
 
-            Debug.Assert(_stream.Position - _payloadOffset == _fixup.InstanceOffsets[i]);
+            Debug.Assert(_accessor.Position - _payloadOffset == _fixup.InstanceOffsets[i]);
 
             IEbxInstance? obj = _instances[i];
             obj?.SetInstanceGuid(new AssetClassGuid(instanceGuid, i));
-            ReadType(typeDescriptor, obj, _stream.Position);
+            ReadType(typeDescriptor, obj, _accessor.Position);
         }
     }
 
-    private void ReadFixupChunk(DataStream inStream)
+    private void ReadFixupChunk(DataAccessor inAccessor)
     {
-        _fixup = EbxFixup.ReadFixup(inStream);
+        _fixup = EbxFixup.ReadFixup(inAccessor);
     }
 
-    private void ReadDataChunk(DataStream inStream)
+    private void ReadDataChunk(DataAccessor inAccessor)
     {
-        inStream.Pad(16);
-        _payloadOffset = inStream.Position;
+        inAccessor.Pad(16);
+        _payloadOffset = inAccessor.Position;
     }
 
-    private void ReadXChunk(DataStream inStream)
+    private void ReadXChunk(DataAccessor inAccessor)
     {
-        int arrayCount = inStream.ReadInt32();
-        int boxedValueCount = inStream.ReadInt32();
+        int arrayCount = inAccessor.ReadInt32();
+        int boxedValueCount = inAccessor.ReadInt32();
         _boxedValues.EnsureCapacity(boxedValueCount);
 
-        inStream.Position += arrayCount * (sizeof(uint) + sizeof(int) + sizeof(uint) + sizeof(ushort) + sizeof(ushort));
+        inAccessor.Position += arrayCount * (sizeof(uint) + sizeof(int) + sizeof(uint) + sizeof(ushort) + sizeof(ushort));
 
         for (int i = 0; i < boxedValueCount; i++)
         {
             EbxExtra b = new()
             {
-                Offset = inStream.ReadUInt32(),
-                Count = inStream.ReadInt32(),
-                Hash = inStream.ReadUInt32(),
-                Flags = inStream.ReadUInt16(),
-                TypeDescriptorRef = inStream.ReadUInt16()
+                Offset = inAccessor.ReadUInt32(),
+                Count = inAccessor.ReadInt32(),
+                Hash = inAccessor.ReadUInt32(),
+                Flags = inAccessor.ReadUInt16(),
+                TypeDescriptorRef = inAccessor.ReadUInt16()
             };
 
             _boxedValues.Add(b.Offset, b);
@@ -138,8 +138,8 @@ public sealed class EbxReader : BaseEbxReader
     {
         if (obj is null)
         {
-            _stream.Position = inStartOffset + inTypeDescriptor.Size;
-            _stream.Pad(inTypeDescriptor.Alignment);
+            _accessor.Position = inStartOffset + inTypeDescriptor.Size;
+            _accessor.Pad(inTypeDescriptor.Alignment);
             return;
         }
 
@@ -152,7 +152,7 @@ public sealed class EbxReader : BaseEbxReader
             PropertyInfo? propertyInfo = properties.FirstOrDefault(prop =>
                 prop.GetCustomAttribute<NameHashAttribute>()?.Hash == fieldDescriptor.NameHash);
 
-            _stream.Position = inStartOffset + fieldDescriptor.DataOffset;
+            _accessor.Position = inStartOffset + fieldDescriptor.DataOffset;
 
             TypeFlags.TypeEnum type = fieldDescriptor.Flags.GetTypeEnum();
 
@@ -198,7 +198,7 @@ public sealed class EbxReader : BaseEbxReader
         }
 
         // Ordering of fields is weird
-        _stream.Position = inStartOffset + inTypeDescriptor.Size;
+        _accessor.Position = inStartOffset + inTypeDescriptor.Size;
     }
 
     private void SharedReadField(TypeFlags.TypeEnum inType, Action<object?> inAddFunc)
@@ -206,52 +206,52 @@ public sealed class EbxReader : BaseEbxReader
         switch (inType)
         {
             case TypeFlags.TypeEnum.Boolean:
-                inAddFunc(_stream.ReadBoolean());
+                inAddFunc(_accessor.ReadBoolean());
                 break;
             case TypeFlags.TypeEnum.Int8:
-                inAddFunc((sbyte)_stream.ReadByte());
+                inAddFunc((sbyte)_accessor.ReadByte());
                 break;
             case TypeFlags.TypeEnum.UInt8:
-                inAddFunc(_stream.ReadByte());
+                inAddFunc(_accessor.ReadByte());
                 break;
             case TypeFlags.TypeEnum.Int16:
-                inAddFunc(_stream.ReadInt16());
+                inAddFunc(_accessor.ReadInt16());
                 break;
             case TypeFlags.TypeEnum.UInt16:
-                inAddFunc(_stream.ReadUInt16());
+                inAddFunc(_accessor.ReadUInt16());
                 break;
             case TypeFlags.TypeEnum.Int32:
-                inAddFunc(_stream.ReadInt32());
+                inAddFunc(_accessor.ReadInt32());
                 break;
             case TypeFlags.TypeEnum.UInt32:
-                inAddFunc(_stream.ReadUInt32());
+                inAddFunc(_accessor.ReadUInt32());
                 break;
             case TypeFlags.TypeEnum.Int64:
-                inAddFunc(_stream.ReadInt64());
+                inAddFunc(_accessor.ReadInt64());
                 break;
             case TypeFlags.TypeEnum.UInt64:
-                inAddFunc(_stream.ReadUInt64());
+                inAddFunc(_accessor.ReadUInt64());
                 break;
             case TypeFlags.TypeEnum.Float32:
-                inAddFunc(_stream.ReadSingle());
+                inAddFunc(_accessor.ReadSingle());
                 break;
             case TypeFlags.TypeEnum.Float64:
-                inAddFunc(_stream.ReadDouble());
+                inAddFunc(_accessor.ReadDouble());
                 break;
             case TypeFlags.TypeEnum.Guid:
-                inAddFunc(_stream.ReadGuid());
+                inAddFunc(_accessor.ReadGuid());
                 break;
             case TypeFlags.TypeEnum.ResourceRef:
                 inAddFunc(ReadResourceRef());
                 break;
             case TypeFlags.TypeEnum.Sha1:
-                inAddFunc(_stream.ReadSha1());
+                inAddFunc(_accessor.ReadSha1());
                 break;
             case TypeFlags.TypeEnum.String:
-                inAddFunc(_stream.ReadFixedSizedString(32));
+                inAddFunc(_accessor.ReadFixedSizedString(32));
                 break;
             case TypeFlags.TypeEnum.CString:
-                inAddFunc(ReadString(_stream.ReadInt64()));
+                inAddFunc(ReadString(_accessor.ReadInt64()));
                 break;
             case TypeFlags.TypeEnum.FileRef:
                 inAddFunc(ReadFileRef());
@@ -266,7 +266,7 @@ public sealed class EbxReader : BaseEbxReader
                 inAddFunc(ReadBoxedValueRef());
                 break;
             case TypeFlags.TypeEnum.Enum:
-                inAddFunc(_stream.ReadInt32());
+                inAddFunc(_accessor.ReadInt32());
                 break;
             case TypeFlags.TypeEnum.Class:
                 inAddFunc(ReadPointerRef());
@@ -295,9 +295,9 @@ public sealed class EbxReader : BaseEbxReader
         }
 
         EbxTypeDescriptor structType = EbxTypeResolver.ResolveTypeFromField(inFieldDescriptor.TypeDescriptorRef);
-        _stream.Pad(structType.Alignment);
+        _accessor.Pad(structType.Alignment);
         object? obj = TypeLibrary.CreateObject(structType.NameHash);
-        ReadType(structType, obj, _stream.Position);
+        ReadType(structType, obj, _accessor.Position);
         inAddFunc(obj);
     }
 
@@ -311,48 +311,48 @@ public sealed class EbxReader : BaseEbxReader
         }
 
         EbxTypeDescriptor structType = _typeResolver.ResolveType(inTypeDescriptorRef);
-        _stream.Pad(structType.Alignment);
+        _accessor.Pad(structType.Alignment);
         object? obj = TypeLibrary.CreateObject(structType.NameHash);
-        ReadType(structType, obj, _stream.Position);
+        ReadType(structType, obj, _accessor.Position);
         inAddFunc(obj);
     }
 
     private void ReadArray(EbxFieldDescriptor inFieldDescriptor,
         Action<object?> inAddFunc)
     {
-        int offset = _stream.ReadInt32();
+        int offset = _accessor.ReadInt32();
 
-        long arrayPos = _stream.Position;
+        long arrayPos = _accessor.Position;
 
-        _stream.Position += offset - 8;
+        _accessor.Position += offset - 8;
 
-        int count = _stream.ReadInt32();
+        int count = _accessor.ReadInt32();
 
         for (int i = 0; i < count; i++)
         {
             ReadField(inFieldDescriptor, inAddFunc);
         }
 
-        _stream.Position = arrayPos;
+        _accessor.Position = arrayPos;
     }
 
     private void ReadBoxedArray(TypeFlags.TypeEnum inType, int inTypeDescriptorRef,
         Action<object?> inAddFunc)
     {
-        int offset = _stream.ReadInt32();
+        int offset = _accessor.ReadInt32();
 
-        long arrayPos = _stream.Position;
+        long arrayPos = _accessor.Position;
 
-        _stream.Position += offset - 8;
+        _accessor.Position += offset - 8;
 
-        int count = _stream.ReadInt32();
+        int count = _accessor.ReadInt32();
 
         for (int i = 0; i < count; i++)
         {
             ReadBoxedField(inType, inTypeDescriptorRef, inAddFunc);
         }
 
-        _stream.Position = arrayPos;
+        _accessor.Position = arrayPos;
     }
 
     /// <remarks><b>Encoding:</b> UTF-8</remarks>
@@ -363,25 +363,25 @@ public sealed class EbxReader : BaseEbxReader
             return string.Empty;
         }
 
-        long pos = _stream.Position;
-        _stream.Position += offset - 8;
+        long pos = _accessor.Position;
+        _accessor.Position += offset - 8;
 
-        string retStr = _stream.ReadNullTerminatedString();
-        _stream.Position = pos;
+        string retStr = _accessor.ReadNullTerminatedString();
+        _accessor.Position = pos;
 
         return retStr;
     }
 
-    private ResourceRef ReadResourceRef() => new(_stream.ReadUInt64());
+    private ResourceRef ReadResourceRef() => new(_accessor.ReadUInt64());
 
     private FileRef ReadFileRef()
     {
-        return new FileRef(ReadString(_stream.ReadInt64()));
+        return new FileRef(ReadString(_accessor.ReadInt64()));
     }
 
     private PointerRef ReadPointerRef()
     {
-        int index = (int)_stream.ReadInt64();
+        int index = (int)_accessor.ReadInt64();
 
         if (index == 0)
         {
@@ -393,7 +393,7 @@ public sealed class EbxReader : BaseEbxReader
             return new PointerRef(_fixup.Imports[index >> 1]);
         }
 
-        long instanceOffset = _stream.Position - 8 + index - _payloadOffset;
+        long instanceOffset = _accessor.Position - 8 + index - _payloadOffset;
         int objIndex = _fixup.InstanceMapping[(uint)instanceOffset];
 
         IEbxInstance? obj = _instances[objIndex];
@@ -408,8 +408,8 @@ public sealed class EbxReader : BaseEbxReader
 
     private TypeRef ReadTypeRef()
     {
-        uint packed = _stream.ReadUInt32();
-        _stream.Position += 4; // 0 (index in packed) or -1 (primitive)
+        uint packed = _accessor.ReadUInt32();
+        _accessor.Position += 4; // 0 (index in packed) or -1 (primitive)
 
         if (packed == 0)
         {
@@ -428,8 +428,8 @@ public sealed class EbxReader : BaseEbxReader
 
     private IType? ReadDelegate()
     {
-        uint packed = _stream.ReadUInt32();
-        _stream.Position += 4;
+        uint packed = _accessor.ReadUInt32();
+        _accessor.Position += 4;
 
         if (packed == 0)
         {
@@ -449,17 +449,17 @@ public sealed class EbxReader : BaseEbxReader
     private BoxedValueRef ReadBoxedValueRef()
     {
         TypeRef typeRef = ReadTypeRef();
-        long offset = _stream.ReadInt64();
+        long offset = _accessor.ReadInt64();
 
         if (typeRef.IsNull())
         {
             return new BoxedValueRef();
         }
 
-        _stream.StepIn(_stream.Position + offset - 8);
+        _accessor.StepIn(_accessor.Position + offset - 8);
 
         object? value = null;
-        EbxExtra b = _boxedValues[(uint)(_stream.Position - _payloadOffset)];
+        EbxExtra b = _boxedValues[(uint)(_accessor.Position - _payloadOffset)];
 
         if (typeRef.Type!.Name == CollectionName)
         {
@@ -495,7 +495,7 @@ public sealed class EbxReader : BaseEbxReader
             }
         }
 
-        _stream.StepOut();
+        _accessor.StepOut();
 
         return new BoxedValueRef(value, b.Flags);
     }

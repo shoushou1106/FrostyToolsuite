@@ -12,12 +12,12 @@ public class ResModResource : BaseModResource
     public ulong ResRid { get; }
     public byte[] ResMeta { get; }
 
-    public ResModResource(DataStream inStream)
-        : base(inStream)
+    public ResModResource(DataAccessor inAccessor)
+        : base(inAccessor)
     {
-        ResType = inStream.ReadUInt32();
-        ResRid = inStream.ReadUInt64();
-        ResMeta = inStream.ReadBytes(inStream.ReadInt32());
+        ResType = inAccessor.ReadUInt32();
+        ResRid = inAccessor.ReadUInt64();
+        ResMeta = inAccessor.ReadBytes(inAccessor.ReadInt32());
     }
     
     public ResModResource(int inResourceIndex, string inName, Sha1 inSha1, long inOriginalSize,
@@ -31,13 +31,13 @@ public class ResModResource : BaseModResource
         ResMeta = inResMeta;
     }
 
-    public override void Write(DataStream stream)
+    public override void Write(DataAccessor accessor)
     {
-        base.Write(stream);
+        base.Write(accessor);
         
-        stream.WriteUInt32(ResType);
-        stream.WriteUInt64(ResRid);
-        stream.WriteInt32(ResMeta.Length);
-        stream.Write(ResMeta);
+        accessor.WriteUInt32(ResType);
+        accessor.WriteUInt64(ResRid);
+        accessor.WriteInt32(ResMeta.Length);
+        accessor.Write(ResMeta);
     }
 }

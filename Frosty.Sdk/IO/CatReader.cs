@@ -5,7 +5,7 @@ namespace Frosty.Sdk.IO;
 /// <summary>
 ///     Reads the entries of a <c>cas.cat</c> file.
 /// </summary>
-public sealed class CatStream : IDisposable
+public sealed class CatReader : IDisposable
 {
     public uint ResourceCount { get; }
     public uint PatchCount { get; }
@@ -13,21 +13,21 @@ public sealed class CatStream : IDisposable
 
     private const string CatMagic = "NyanNyanNyanNyan";
 
-    private readonly DataStream _stream;
+    private readonly DataAccessor _accessor;
     private readonly bool _isNewFormat;
 
-    public CatStream(string inFilename)
+    public CatReader(string inFilename)
     {
         _isNewFormat = ProfilesLibrary.FrostbiteVersion > "2014.4.11";
-        _stream = BlockStream.FromFile(inFilename, _isNewFormat);
+        _accessor = BlockAccessor.FromFile(inFilename, _isNewFormat);
 
-        string magic = _stream.ReadFixedSizedString(16);
+        string magic = _accessor.ReadFixedSizedString(16);
         if (magic != CatMagic)
         {
             return;
         }
 
-        ResourceCount = (uint)(_stream.Length - _stream.Position) / 0x20;
+        ResourceCount = (uint)(_accessor.Length - _accessor.Position) / 0x20;
         PatchCount = 0;
         EncryptedCount = 0;
 
@@ -37,19 +37,19 @@ public sealed class CatStream : IDisposable
             return;
         }
 
-        ResourceCount = _stream.ReadUInt32();
-        PatchCount = _stream.ReadUInt32();
+        ResourceCount = _accessor.ReadUInt32();
+        PatchCount = _accessor.ReadUInt32();
 
         // 2015.4.6, 2019-PR5, 2016.4.7, 2016.4.4, 2018.0
         if (ProfilesLibrary.FrostbiteVersion >= "2015")
         {
-            EncryptedCount = _stream.ReadUInt32();
-            _stream.Position += 12;
+            EncryptedCount = _accessor.ReadUInt32();
+            _accessor.Position += 12;
         }
 
         // Some games have encryption disabled
         if ((ResourceCount * 0x24) + (PatchCount * 0x3C) + (EncryptedCount * 0x50)
-            != _stream.Length - _stream.Position)
+            != _accessor.Length - _accessor.Position)
         {
             EncryptedCount = 0;
         }
@@ -59,17 +59,17 @@ public sealed class CatStream : IDisposable
     {
         CatResourceEntry entry = new()
         {
-            Sha1 = _stream.ReadSha1(),
-            Offset = _stream.ReadUInt32(),
-            Size = _stream.ReadUInt32()
+            Sha1 = _accessor.ReadSha1(),
+            Offset = _accessor.ReadUInt32(),
+            Size = _accessor.ReadUInt32()
         };
 
         if (_isNewFormat)
         {
-            entry.LogicalOffset = _stream.ReadUInt32();
+            entry.LogicalOffset = _accessor.ReadUInt32();
         }
 
-        entry.ArchiveIndex = _stream.ReadInt32() & 0xFF;
+        entry.ArchiveIndex = _accessor.ReadInt32() & 0xFF;
         return entry;
     }
 
@@ -77,15 +77,15 @@ public sealed class CatStream : IDisposable
     {
         CatResourceEntry entry = new()
         {
-            Sha1 = _stream.ReadSha1(),
-            Offset = _stream.ReadUInt32(),
-            Size = _stream.ReadUInt32(),
-            LogicalOffset = _stream.ReadUInt32(),
-            ArchiveIndex = _stream.ReadInt32() & 0xFF,
-            OriginalSize = _stream.ReadUInt32(),
+            Sha1 = _accessor.ReadSha1(),
+            Offset = _accessor.ReadUInt32(),
+            Size = _accessor.ReadUInt32(),
+            LogicalOffset = _accessor.ReadUInt32(),
+            ArchiveIndex = _accessor.ReadInt32() & 0xFF,
+            OriginalSize = _accessor.ReadUInt32(),
             IsEncrypted = true,
-            KeyId = _stream.ReadFixedSizedString(8),
-            Checksum = _stream.ReadBytes(32)
+            KeyId = _accessor.ReadFixedSizedString(8),
+            Checksum = _accessor.ReadBytes(32)
         };
 
         return entry;
@@ -95,15 +95,15 @@ public sealed class CatStream : IDisposable
     {
         CatPatchEntry entry = new()
         {
-            Sha1 = _stream.ReadSha1(),
-            BaseSha1 = _stream.ReadSha1(),
-            DeltaSha1 = _stream.ReadSha1()
+            Sha1 = _accessor.ReadSha1(),
+            BaseSha1 = _accessor.ReadSha1(),
+            DeltaSha1 = _accessor.ReadSha1()
         };
         return entry;
     }
 
     public void Dispose()
     {
-        _stream.Dispose();
+        _accessor.Dispose();
     }
 }

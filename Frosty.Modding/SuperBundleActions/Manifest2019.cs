@@ -74,13 +74,13 @@ internal class Manifest2019 : IDisposable
             Data = result.EncodedTexts;
         }
 
-        public void Write(DataStream inStream)
+        public void Write(DataAccessor inAccessor)
         {
             List<String> sorted = new(m_mapping.Values);
             sorted.Sort(((a, b) => a.Offset.CompareTo(b.Offset)));
             foreach (String s in sorted)
             {
-                inStream.WriteNullTerminatedString(s.Value);
+                inAccessor.WriteNullTerminatedString(s.Value);
             }
         }
     }
@@ -111,15 +111,15 @@ internal class Manifest2019 : IDisposable
         stringHelper = new StringHelper();
 
         Block<byte> modifiedSuperBundle = new(0);
-        using (BlockStream modifiedStream = new(modifiedSuperBundle, true))
+        using (BlockAccessor modifiedAccessor = new(modifiedSuperBundle, true))
         {
-            bundleLoadFlag = ProcessBundles(inPath, inCreateNewPatch, inSbIc, inModInfo, inInstallChunkWriter, stringHelper, modifiedStream, bundles, chunks);
+            bundleLoadFlag = ProcessBundles(inPath, inCreateNewPatch, inSbIc, inModInfo, inInstallChunkWriter, stringHelper, modifiedAccessor, bundles, chunks);
 
             // if we modify some bundles that are not in the patch we need to parse the base superbundle as well
             if (inModInfo.Modified.Bundles.Count > 0 || inModInfo.Modified.Chunks.Count > 0)
             {
                 string basePath = FileSystemManager.ResolvePath(false, $"{inSbIc.Name}.toc");
-                ProcessBundles(basePath, true, inSbIc, inModInfo, inInstallChunkWriter, stringHelper, modifiedStream, bundles, chunks);
+                ProcessBundles(basePath, true, inSbIc, inModInfo, inInstallChunkWriter, stringHelper, modifiedAccessor, bundles, chunks);
             }
 
             Debug.Assert(inModInfo.Modified.Bundles.Count == 0 && inModInfo.Modified.Chunks.Count == 0);
@@ -134,23 +134,23 @@ internal class Manifest2019 : IDisposable
 
         TocData = new Block<byte>(44 + (stringHelper.EncodeStrings ? 12 : 0) + bundles.Count * 20 + chunks.Count * (36) + (bundleLoadFlag == 1 ? modifiedSuperBundle.Size : 0));
         TocData.Clear();
-        using (BlockStream stream = new(TocData, true))
+        using (BlockAccessor accessor = new(TocData, true))
         {
-            stream.WriteUInt32(stringHelper.EncodeStrings ? 0x3Cu : 0x30u, Endian.Big); // bundleHashMap
-            stream.WriteUInt32(0xdeadbeef); // bundles
-            stream.WriteInt32(bundles.Count, Endian.Big);
+            accessor.WriteUInt32(stringHelper.EncodeStrings ? 0x3Cu : 0x30u, Endian.Big); // bundleHashMap
+            accessor.WriteUInt32(0xdeadbeef); // bundles
+            accessor.WriteInt32(bundles.Count, Endian.Big);
 
-            stream.WriteUInt32(0xdeadbeef); // chunkHashMap
-            stream.WriteUInt32(0xdeadbeef); // chunks
-            stream.WriteInt32(chunks.Count, Endian.Big);
+            accessor.WriteUInt32(0xdeadbeef); // chunkHashMap
+            accessor.WriteUInt32(0xdeadbeef); // chunks
+            accessor.WriteInt32(chunks.Count, Endian.Big);
 
-            stream.WriteUInt32(0xdeadbeef); // unused
-            stream.WriteUInt32(0xdeadbeef); // unused
+            accessor.WriteUInt32(0xdeadbeef); // unused
+            accessor.WriteUInt32(0xdeadbeef); // unused
 
-            stream.WriteUInt32(0xdeadbeef); // stringsOffset
+            accessor.WriteUInt32(0xdeadbeef); // stringsOffset
 
-            stream.WriteUInt32(0xdeadbeef); // chunkData
-            stream.WriteUInt32(0xdeadbeef); // dataCount
+            accessor.WriteUInt32(0xdeadbeef); // chunkData
+            accessor.WriteUInt32(0xdeadbeef); // dataCount
 
             Manifest2019AssetLoader.Flags flags = 0;
             if (stringHelper.EncodeStrings)
@@ -162,13 +162,13 @@ internal class Manifest2019 : IDisposable
                 flags |= Manifest2019AssetLoader.Flags.HasBaseBundles | Manifest2019AssetLoader.Flags.HasBaseChunks;
             }
 
-            stream.WriteInt32((int)flags, Endian.Big);
+            accessor.WriteInt32((int)flags, Endian.Big);
 
             if (stringHelper.EncodeStrings)
             {
-                stream.WriteUInt32(0xdeadbeef); // stringCount
-                stream.WriteUInt32(0xdeadbeef); // tableCount
-                stream.WriteUInt32(0xdeadbeef); // tableOffset
+                accessor.WriteUInt32(0xdeadbeef); // stringCount
+                accessor.WriteUInt32(0xdeadbeef); // tableCount
+                accessor.WriteUInt32(0xdeadbeef); // tableOffset
             }
 
             List<int> hashMap = HashMap.CreateHashMap(ref bundles, (bundle, count, initial) =>
@@ -180,21 +180,21 @@ internal class Manifest2019 : IDisposable
 
             foreach (int hash in hashMap)
             {
-                stream.WriteInt32(hash, Endian.Big);
+                accessor.WriteInt32(hash, Endian.Big);
             }
 
-            stream.Pad(8);
+            accessor.Pad(8);
 
-            uint bundlesOffset = (uint)stream.Position;
+            uint bundlesOffset = (uint)accessor.Position;
             foreach ((StringHelper.String, uint, long) bundle in bundles)
             {
-                stream.WriteUInt32(bundle.Item1.Offset, Endian.Big);
-                stream.WriteUInt32(bundle.Item2 | (uint)(bundleLoadFlag << 30), Endian.Big);
-                stream.WriteInt64(bundle.Item3, Endian.Big);
+                accessor.WriteUInt32(bundle.Item1.Offset, Endian.Big);
+                accessor.WriteUInt32(bundle.Item2 | (uint)(bundleLoadFlag << 30), Endian.Big);
+                accessor.WriteInt64(bundle.Item3, Endian.Big);
             }
 
-            stream.Pad(4);
-            uint chunkHashMapOffset = (uint)stream.Position;
+            accessor.Pad(4);
+            uint chunkHashMapOffset = (uint)accessor.Position;
 
             hashMap = HashMap.CreateHashMap(ref chunks, (chunk, count, initial) =>
             {
@@ -204,11 +204,11 @@ internal class Manifest2019 : IDisposable
 
             foreach (int hash in hashMap)
             {
-                stream.WriteInt32(hash, Endian.Big);
+                accessor.WriteInt32(hash, Endian.Big);
             }
 
-            stream.Pad(8);
-            uint chunksOffset = (uint)stream.Position;
+            accessor.Pad(8);
+            uint chunksOffset = (uint)accessor.Position;
 
             List<uint> chunkData = new(chunks.Count * 4);
             foreach ((Guid Id, CasFileIdentifier Identifier, uint Offset, uint Size) chunk in chunks)
@@ -216,7 +216,7 @@ internal class Manifest2019 : IDisposable
                 // TODO: maybe write some helper that does this better
                 Span<byte> buffer = chunk.Id.ToByteArray();
                 buffer.Reverse();
-                stream.Write(buffer);
+                accessor.Write(buffer);
 
                 int index = chunkData.Count;
 
@@ -234,101 +234,101 @@ internal class Manifest2019 : IDisposable
                     flag = 1;
                 }
 
-                stream.WriteInt32(index | (flag << 24), Endian.Big);
+                accessor.WriteInt32(index | (flag << 24), Endian.Big);
 
                 chunkData.Add(chunk.Offset);
                 chunkData.Add(chunk.Size);
 
             }
 
-            stream.Pad(8);
-            uint chunkDataOffset = (uint)stream.Position;
+            accessor.Pad(8);
+            uint chunkDataOffset = (uint)accessor.Position;
 
             foreach (uint data in chunkData)
             {
-                stream.WriteUInt32(data, Endian.Big);
+                accessor.WriteUInt32(data, Endian.Big);
             }
 
-            uint stringsOffset = (uint)stream.Position;
+            uint stringsOffset = (uint)accessor.Position;
             if (stringHelper.EncodeStrings)
             {
-                stream.Write(stringHelper.Data!);
+                accessor.Write(stringHelper.Data!);
 
                 Debug.Assert((stringHelper.Data!.Length & 3) == 0, "Huffman not padded!");
 
                 foreach (uint node in stringHelper.Tree!)
                 {
-                    stream.WriteUInt32(node, Endian.Big);
+                    accessor.WriteUInt32(node, Endian.Big);
                 }
             }
             else
             {
-                stringHelper.Write(stream);
+                stringHelper.Write(accessor);
             }
 
             if (bundleLoadFlag == 1)
             {
-                stream.Pad(4);
-                long sbOffset = stream.Position;
-                stream.Write(modifiedSuperBundle);
+                accessor.Pad(4);
+                long sbOffset = accessor.Position;
+                accessor.Write(modifiedSuperBundle);
 
                 // fixup bundle offset if its inline
-                stream.Position = bundlesOffset;
+                accessor.Position = bundlesOffset;
                 foreach ((StringHelper.String, uint, long) bundle in bundles)
                 {
-                    stream.Position += 8;
-                    stream.WriteInt64(bundle.Item3 + sbOffset, Endian.Big);
+                    accessor.Position += 8;
+                    accessor.WriteInt64(bundle.Item3 + sbOffset, Endian.Big);
                 }
             }
 
             // fixup offsets
-            stream.Position = 4; // bundleHashMap
-            stream.WriteUInt32(bundlesOffset, Endian.Big);
-            stream.Position += 4; // bundleCount
-            stream.WriteUInt32(chunkHashMapOffset, Endian.Big);
-            stream.WriteUInt32(chunksOffset, Endian.Big);
-            stream.Position += 4; // chunkCount
-            stream.WriteUInt32(chunkDataOffset, Endian.Big); // unused
-            stream.WriteUInt32(chunkDataOffset, Endian.Big); // unused
-            stream.WriteUInt32(stringsOffset, Endian.Big);
-            stream.WriteUInt32(chunkDataOffset, Endian.Big); // unused
-            stream.WriteInt32(chunkData.Count, Endian.Big);
+            accessor.Position = 4; // bundleHashMap
+            accessor.WriteUInt32(bundlesOffset, Endian.Big);
+            accessor.Position += 4; // bundleCount
+            accessor.WriteUInt32(chunkHashMapOffset, Endian.Big);
+            accessor.WriteUInt32(chunksOffset, Endian.Big);
+            accessor.Position += 4; // chunkCount
+            accessor.WriteUInt32(chunkDataOffset, Endian.Big); // unused
+            accessor.WriteUInt32(chunkDataOffset, Endian.Big); // unused
+            accessor.WriteUInt32(stringsOffset, Endian.Big);
+            accessor.WriteUInt32(chunkDataOffset, Endian.Big); // unused
+            accessor.WriteInt32(chunkData.Count, Endian.Big);
 
             if (stringHelper.EncodeStrings)
             {
-                stream.Position += 4;
-                stream.WriteInt32((stringHelper.Data!.Length + 3 & ~3) / 4, Endian.Big);
-                stream.WriteInt32(stringHelper.Tree!.Count, Endian.Big);
-                stream.WriteUInt32(stringsOffset + ((uint)stringHelper.Data!.Length + 3u & ~3u), Endian.Big);
+                accessor.Position += 4;
+                accessor.WriteInt32((stringHelper.Data!.Length + 3 & ~3) / 4, Endian.Big);
+                accessor.WriteInt32(stringHelper.Tree!.Count, Endian.Big);
+                accessor.WriteUInt32(stringsOffset + ((uint)stringHelper.Data!.Length + 3u & ~3u), Endian.Big);
             }
         }
     }
 
     private byte ProcessBundles(string inPath, bool inOnlyUseModified, SuperBundleInstallChunk inSbIc,
         SuperBundleModInfo inModInfo, InstallChunkWriter inInstallChunkWriter, StringHelper inStringHelper,
-        BlockStream inModifiedStream, List<(StringHelper.String, uint, long)> inBundles, List<(Guid, CasFileIdentifier, uint, uint)> inChunks)
+        BlockAccessor inModifiedAccessor, List<(StringHelper.String, uint, long)> inBundles, List<(Guid, CasFileIdentifier, uint, uint)> inChunks)
     {
         byte bundleLoadFlag = 0;
-        using (BlockStream stream = BlockStream.FromFile(inPath, true))
+        using (BlockAccessor accessor = BlockAccessor.FromFile(inPath, true))
         {
-            stream.Position += sizeof(uint); // bundleHashMapOffset
-            uint bundleDataOffset = stream.ReadUInt32(Endian.Big);
-            int bundlesCount = stream.ReadInt32(Endian.Big);
+            accessor.Position += sizeof(uint); // bundleHashMapOffset
+            uint bundleDataOffset = accessor.ReadUInt32(Endian.Big);
+            int bundlesCount = accessor.ReadInt32(Endian.Big);
 
-            stream.Position += sizeof(uint); // chunkHashMapOffset
-            uint chunkGuidOffset = stream.ReadUInt32(Endian.Big);
-            int chunksCount = stream.ReadInt32(Endian.Big);
+            accessor.Position += sizeof(uint); // chunkHashMapOffset
+            uint chunkGuidOffset = accessor.ReadUInt32(Endian.Big);
+            int chunksCount = accessor.ReadInt32(Endian.Big);
 
             // not used by any game rn, maybe crypto stuff
-            stream.Position += sizeof(uint);
-            stream.Position += sizeof(uint);
+            accessor.Position += sizeof(uint);
+            accessor.Position += sizeof(uint);
 
-            uint namesOffset = stream.ReadUInt32(Endian.Big);
+            uint namesOffset = accessor.ReadUInt32(Endian.Big);
 
-            uint chunkDataOffset = stream.ReadUInt32(Endian.Big);
-            int dataCount = stream.ReadInt32(Endian.Big);
+            uint chunkDataOffset = accessor.ReadUInt32(Endian.Big);
+            int dataCount = accessor.ReadInt32(Endian.Big);
 
-            Manifest2019AssetLoader.Flags flags = (Manifest2019AssetLoader.Flags)stream.ReadInt32(Endian.Big);
+            Manifest2019AssetLoader.Flags flags = (Manifest2019AssetLoader.Flags)accessor.ReadInt32(Endian.Big);
 
             uint namesCount = 0;
             uint tableCount = 0;
@@ -340,29 +340,29 @@ internal class Manifest2019 : IDisposable
                 // TODO: encoding broken atm fix it then add this again
                 // inStringHelper.EncodeStrings = true;
                 huffmanDecoder = new HuffmanDecoder();
-                namesCount = stream.ReadUInt32(Endian.Big);
-                tableCount = stream.ReadUInt32(Endian.Big);
-                tableOffset = stream.ReadUInt32(Endian.Big);
+                namesCount = accessor.ReadUInt32(Endian.Big);
+                tableCount = accessor.ReadUInt32(Endian.Big);
+                tableOffset = accessor.ReadUInt32(Endian.Big);
             }
 
             if (bundlesCount != 0)
             {
                 if (flags.HasFlag(Manifest2019AssetLoader.Flags.HasCompressedNames))
                 {
-                    stream.Position = namesOffset;
-                    huffmanDecoder!.ReadEncodedData(stream, namesCount, Endian.Big);
+                    accessor.Position = namesOffset;
+                    huffmanDecoder!.ReadEncodedData(accessor, namesCount, Endian.Big);
 
-                    stream.Position = tableOffset;
-                    huffmanDecoder.ReadHuffmanTable(stream, tableCount, Endian.Big);
+                    accessor.Position = tableOffset;
+                    huffmanDecoder.ReadHuffmanTable(accessor, tableCount, Endian.Big);
                 }
 
-                stream.Position = bundleDataOffset;
-                BlockStream? sbStream = null;
+                accessor.Position = bundleDataOffset;
+                BlockAccessor? sbAccessor = null;
                 for (int i = 0; i < bundlesCount; i++)
                 {
-                    int nameOffset = stream.ReadInt32(Endian.Big);
-                    uint bundleSize = stream.ReadUInt32(Endian.Big);
-                    long bundleOffset = stream.ReadInt64(Endian.Big);
+                    int nameOffset = accessor.ReadInt32(Endian.Big);
+                    uint bundleSize = accessor.ReadUInt32(Endian.Big);
+                    long bundleOffset = accessor.ReadInt64(Endian.Big);
 
                     // get name either from huffman table or raw string table at the end
                     string name;
@@ -372,18 +372,18 @@ internal class Manifest2019 : IDisposable
                     }
                     else
                     {
-                        long curPos = stream.Position;
-                        stream.Position = namesOffset + nameOffset;
-                        name = stream.ReadNullTerminatedString();
-                        stream.Position = curPos;
+                        long curPos = accessor.Position;
+                        accessor.Position = namesOffset + nameOffset;
+                        name = accessor.ReadNullTerminatedString();
+                        accessor.Position = curPos;
                     }
 
                     int id = Fnv1.HashString(name + inSbIc.Name, true);
                     bundleLoadFlag = (byte)(bundleSize >> 30);
                     bundleSize &= 0x3FFFFFFFU;
 
-                    inModifiedStream.Pad(4);
-                    long newOffset = inModifiedStream.Position;
+                    inModifiedAccessor.Pad(4);
+                    long newOffset = inModifiedAccessor.Position;
                     uint newBundleSize;
 
                     if (!inModInfo.Modified.Bundles.TryGetValue(id, out BundleModInfo? bundleModInfo))
@@ -399,15 +399,15 @@ internal class Manifest2019 : IDisposable
                         switch (bundleLoadFlag)
                         {
                             case 0:
-                                sbStream ??= BlockStream.FromFile(inPath.Replace(".toc", ".sb"), false);
-                                sbStream.Position = bundleOffset;
-                                sbStream.CopyTo(inModifiedStream, (int)bundleSize);
+                                sbAccessor ??= BlockAccessor.FromFile(inPath.Replace(".toc", ".sb"), false);
+                                sbAccessor.Position = bundleOffset;
+                                sbAccessor.CopyTo(inModifiedAccessor, (int)bundleSize);
                                 break;
                             case 1:
-                                long curPos = stream.Position;
-                                stream.Position = bundleOffset;
-                                stream.CopyTo(inModifiedStream, (int)bundleSize);
-                                stream.Position = curPos;
+                                long curPos = accessor.Position;
+                                accessor.Position = bundleOffset;
+                                accessor.CopyTo(inModifiedAccessor, (int)bundleSize);
+                                accessor.Position = curPos;
                                 break;
                             default:
                                 throw new UnknownValueException<byte>("bundle load flag", bundleLoadFlag);
@@ -416,26 +416,26 @@ internal class Manifest2019 : IDisposable
                     else
                     {
                         // load, modify and write bundle
-                        BlockStream bundleStream;
+                        BlockAccessor bundleAccessor;
                         switch (bundleLoadFlag)
                         {
                             case 0:
-                                sbStream ??= BlockStream.FromFile(inPath.Replace(".toc", ".sb"), false);
-                                bundleStream = sbStream;
+                                sbAccessor ??= BlockAccessor.FromFile(inPath.Replace(".toc", ".sb"), false);
+                                bundleAccessor = sbAccessor;
                                 break;
                             case 1:
-                                bundleStream = stream;
+                                bundleAccessor = accessor;
                                 break;
                             default:
                                 throw new UnknownValueException<byte>("bundle load flag", bundleLoadFlag);
                         }
 
                         (Block<byte> BundleMeta, List<(CasFileIdentifier, uint, uint)> Files, bool IsInline)
-                            bundle = ModifyBundle(bundleStream, bundleOffset, bundleModInfo,
+                            bundle = ModifyBundle(bundleAccessor, bundleOffset, bundleModInfo,
                                 inInstallChunkWriter);
 
                         Block<byte> data = WriteModifiedBundle(bundle, inInstallChunkWriter);
-                        inModifiedStream.Write(data);
+                        inModifiedAccessor.Write(data);
                         newBundleSize = (uint)data.Size;
                         data.Dispose();
 
@@ -447,7 +447,7 @@ internal class Manifest2019 : IDisposable
                     inBundles.Add((inStringHelper.AddString(name), newBundleSize, newOffset));
                 }
                 huffmanDecoder?.Dispose();
-                sbStream?.Dispose();
+                sbAccessor?.Dispose();
             }
 
             foreach (BundleModInfo bundleModInfo in inModInfo.Added.Bundles.Values)
@@ -457,20 +457,20 @@ internal class Manifest2019 : IDisposable
 
             if (chunksCount != 0)
             {
-                stream.Position = chunkDataOffset;
+                accessor.Position = chunkDataOffset;
                 Block<uint> chunkData = Block<uint>.CreateUninitialized(dataCount);
-                stream.ReadExactly(chunkData.ToBlock<byte>());
+                accessor.ReadExactly(chunkData.ToBlock<byte>());
 
-                stream.Position = chunkGuidOffset;
+                accessor.Position = chunkGuidOffset;
                 Span<byte> b = stackalloc byte[16];
                 for (int i = 0; i < chunksCount; i++)
                 {
-                    stream.ReadExactly(b);
+                    accessor.ReadExactly(b);
                     b.Reverse();
 
                     Guid id = new(b);
 
-                    int index = stream.ReadInt32(Endian.Big);
+                    int index = accessor.ReadInt32(Endian.Big);
 
                     if (index == -1)
                     {
@@ -542,7 +542,7 @@ internal class Manifest2019 : IDisposable
     private static Block<byte> WriteModifiedBundle((Block<byte> BundleMeta, List<(CasFileIdentifier, uint, uint)> Files, bool IsInline) inBundle, InstallChunkWriter inInstallChunkWriter)
     {
         Block<byte> retVal = new(0);
-        using (BlockStream bundleWriter = new(retVal, true))
+        using (BlockAccessor bundleWriter = new(retVal, true))
         {
             bundleWriter.WriteUInt32(inBundle.IsInline ? 0xDEADBEEF : 0, Endian.Big);
             bundleWriter.WriteInt32(inBundle.IsInline ? inBundle.BundleMeta.Size : 0, Endian.Big);
@@ -623,49 +623,49 @@ internal class Manifest2019 : IDisposable
         return retVal;
     }
 
-    private (Block<byte>, List<(CasFileIdentifier, uint, uint)>, bool) ModifyBundle(BlockStream inStream,
+    private (Block<byte>, List<(CasFileIdentifier, uint, uint)>, bool) ModifyBundle(BlockAccessor inAccessor,
         long inOffset, BundleModInfo inModInfo, InstallChunkWriter inInstallChunkWriter)
     {
-        long curPos = inStream.Position;
+        long curPos = inAccessor.Position;
 
-        inStream.Position = inOffset;
+        inAccessor.Position = inOffset;
 
-        int bundleOffset = inStream.ReadInt32(Endian.Big);
-        int bundleSize = inStream.ReadInt32(Endian.Big);
-        uint locationOffset = inStream.ReadUInt32(Endian.Big);
-        int totalCount = inStream.ReadInt32(Endian.Big);
-        uint dataOffset = inStream.ReadUInt32(Endian.Big);
+        int bundleOffset = inAccessor.ReadInt32(Endian.Big);
+        int bundleSize = inAccessor.ReadInt32(Endian.Big);
+        uint locationOffset = inAccessor.ReadUInt32(Endian.Big);
+        int totalCount = inAccessor.ReadInt32(Endian.Big);
+        uint dataOffset = inAccessor.ReadUInt32(Endian.Big);
 
         // not used by any game rn, again maybe crypto stuff
-        inStream.Position += sizeof(uint);
-        inStream.Position += sizeof(uint);
+        inAccessor.Position += sizeof(uint);
+        inAccessor.Position += sizeof(uint);
         // maybe count for the offsets above
-        inStream.Position += sizeof(int);
+        inAccessor.Position += sizeof(int);
 
         bool inlineBundle = !(bundleOffset == 0 && bundleSize == 0);
 
-        inStream.Position = inOffset + locationOffset;
+        inAccessor.Position = inOffset + locationOffset;
 
         Block<byte> fileIdentifierFlags = Block<byte>.CreateUninitialized(totalCount);
-        inStream.ReadExactly(fileIdentifierFlags);
+        inAccessor.ReadExactly(fileIdentifierFlags);
 
-        inStream.Position = inOffset + dataOffset;
+        inAccessor.Position = inOffset + dataOffset;
 
         CasFileIdentifier file = default;
 
         List<(CasFileIdentifier, uint, uint)> files = new(totalCount);
         for (int i = 0; i < totalCount; i++)
         {
-            file = ReadCasFileIdentifier(inStream, fileIdentifierFlags[i], file);
+            file = ReadCasFileIdentifier(inAccessor, fileIdentifierFlags[i], file);
 
-            files.Add((file, inStream.ReadUInt32(Endian.Big), inStream.ReadUInt32(Endian.Big)));
+            files.Add((file, inAccessor.ReadUInt32(Endian.Big), inAccessor.ReadUInt32(Endian.Big)));
         }
 
         Block<byte> bundleMeta;
         if (inlineBundle)
         {
-            inStream.Position = inOffset + bundleOffset;
-            bundleMeta = BinaryBundle.Modify(inStream, inModInfo, m_modifiedEbx, m_modifiedRes, m_modifiedChunks,
+            inAccessor.Position = inOffset + bundleOffset;
+            bundleMeta = BinaryBundle.Modify(inAccessor, inModInfo, m_modifiedEbx, m_modifiedRes, m_modifiedChunks,
                 (entry, i, isAdded, isModified, _) =>
                 {
                     if (!isModified)
@@ -697,9 +697,9 @@ internal class Manifest2019 : IDisposable
             {
                 throw new Exception("Corrupted data. File for bundle does not exist.");
             }
-            using (BlockStream bundleStream = BlockStream.FromFile(path, files[0].Item2, (int)files[0].Item3))
+            using (BlockAccessor bundleAccessor = BlockAccessor.FromFile(path, files[0].Item2, (int)files[0].Item3))
             {
-                bundleMeta = BinaryBundle.Modify(bundleStream, inModInfo, m_modifiedEbx, m_modifiedRes, m_modifiedChunks,
+                bundleMeta = BinaryBundle.Modify(bundleAccessor, inModInfo, m_modifiedEbx, m_modifiedRes, m_modifiedChunks,
                     (entry, i, isAdded, isModified, _) =>
                     {
                         if (!isModified)
@@ -722,27 +722,27 @@ internal class Manifest2019 : IDisposable
                             files[i + 1] = info;
                         }
                     });
-                Debug.Assert(bundleStream.Position == bundleStream.Length, "We did not read the bundle meta completely");
+                Debug.Assert(bundleAccessor.Position == bundleAccessor.Length, "We did not read the bundle meta completely");
             }
         }
 
         fileIdentifierFlags.Dispose();
 
-        inStream.Position = curPos;
+        inAccessor.Position = curPos;
 
         return (bundleMeta, files, inlineBundle);
     }
 
-    private CasFileIdentifier ReadCasFileIdentifier(DataStream stream, byte inFlag, CasFileIdentifier current)
+    private CasFileIdentifier ReadCasFileIdentifier(DataAccessor accessor, byte inFlag, CasFileIdentifier current)
     {
         switch (inFlag)
         {
             case 0:
                 return current;
             case 1:
-                return CasFileIdentifier.FromFileIdentifier(stream.ReadUInt32(Endian.Big));
+                return CasFileIdentifier.FromFileIdentifier(accessor.ReadUInt32(Endian.Big));
             case 0x80:
-                return CasFileIdentifier.FromFileIdentifier(stream.ReadUInt32(Endian.Big), stream.ReadUInt32(Endian.Big));
+                return CasFileIdentifier.FromFileIdentifier(accessor.ReadUInt32(Endian.Big), accessor.ReadUInt32(Endian.Big));
             default:
                 throw new UnknownValueException<byte>("file identifier flag", inFlag);
         }

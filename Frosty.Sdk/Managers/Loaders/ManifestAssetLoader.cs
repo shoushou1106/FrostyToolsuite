@@ -26,30 +26,30 @@ public class ManifestAssetLoader : IAssetLoader
 
         string path = FileSystemManager.GetFilePath(file);
 
-        using (BlockStream stream = BlockStream.FromFile(path, manifest.AsUInt("offset"), manifest.AsInt("size")))
+        using (BlockAccessor accessor = BlockAccessor.FromFile(path, manifest.AsUInt("offset"), manifest.AsInt("size")))
         {
-            uint resourceInfoCount = stream.ReadUInt32();
-            uint bundleCount = stream.ReadUInt32();
-            uint chunkCount = stream.ReadUInt32();
+            uint resourceInfoCount = accessor.ReadUInt32();
+            uint bundleCount = accessor.ReadUInt32();
+            uint chunkCount = accessor.ReadUInt32();
 
             (CasFileIdentifier, uint, long)[] files = new (CasFileIdentifier, uint, long)[resourceInfoCount];
 
             // resource infos
             for (int i = 0; i < resourceInfoCount; i++)
             {
-                files[i] = (CasFileIdentifier.FromManifestFileIdentifier(stream.ReadUInt32()), stream.ReadUInt32(),
-                    (uint)stream.ReadInt64());
+                files[i] = (CasFileIdentifier.FromManifestFileIdentifier(accessor.ReadUInt32()), accessor.ReadUInt32(),
+                    (uint)accessor.ReadInt64());
             }
 
             // bundles
             for (int i = 0; i < bundleCount; i++)
             {
-                int nameHash = stream.ReadInt32();
-                int startIndex = stream.ReadInt32();
-                int resourceCount = stream.ReadInt32();
+                int nameHash = accessor.ReadInt32();
+                int startIndex = accessor.ReadInt32();
+                int resourceCount = accessor.ReadInt32();
 
                 // unknown, always 0
-                stream.Position += sizeof(ulong);
+                accessor.Position += sizeof(ulong);
 
                 (CasFileIdentifier Identifier, uint Offset, long Size) resourceInfo = files[startIndex];
 
@@ -61,11 +61,11 @@ public class ManifestAssetLoader : IAssetLoader
                 SuperBundleInstallChunk sbIc = FileSystemManager.GetSuperBundleInstallChunk(superbundle);
 
                 BinaryBundle bundleMeta;
-                using (BlockStream bundleStream = BlockStream.FromFile(
+                using (BlockAccessor bundleAccessor = BlockAccessor.FromFile(
                            FileSystemManager.GetFilePath(resourceInfo.Identifier), resourceInfo.Offset,
                            (int)resourceInfo.Size))
                 {
-                     bundleMeta = BinaryBundle.Deserialize(bundleStream);
+                     bundleMeta = BinaryBundle.Deserialize(bundleAccessor);
                 }
 
                 // get name since they are hashed
@@ -119,8 +119,8 @@ public class ManifestAssetLoader : IAssetLoader
             // chunks
             for (int i = 0; i < chunkCount; i++)
             {
-                Guid chunkId = stream.ReadGuid();
-                (CasFileIdentifier, uint, long) resourceInfo = files[stream.ReadInt32()];
+                Guid chunkId = accessor.ReadGuid();
+                (CasFileIdentifier, uint, long) resourceInfo = files[accessor.ReadInt32()];
 
                 InstallChunkInfo ic = FileSystemManager.GetInstallChunkInfo(resourceInfo.Item1.InstallChunkIndex);
                 string superbundle = ic.SuperBundles.FirstOrDefault() ?? string.Empty;

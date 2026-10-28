@@ -136,7 +136,7 @@ public partial class ProfileSelectViewModel : WindowViewModel
                 string keyPath = "Keys/initFs.key";
                 if (File.Exists(keyPath))
                 {
-                    using (BlockStream stream = BlockStream.FromFile(keyPath, false))
+                    using (BlockAccessor stream = BlockAccessor.FromFile(keyPath, false))
                     {
                         if (stream.Length != 0x10)
                         {

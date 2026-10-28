@@ -3,9 +3,9 @@ using Frosty.Sdk.Interfaces;
 
 namespace Frosty.Sdk.IO;
 
-public abstract class BaseEbxReader(DataStream inStream)
+public abstract class BaseEbxReader(DataAccessor inAccessor)
 {
-    private protected readonly DataStream _stream = inStream;
+    private protected readonly DataAccessor _accessor = inAccessor;
     private protected readonly List<IEbxInstance?> _instances = [];
     private protected readonly List<int> _refCounts = [];
 
@@ -35,9 +35,9 @@ public abstract class BaseEbxReader(DataStream inStream)
 
     #endregion
 
-    public static BaseEbxReader CreateReader(DataStream inStream)
+    public static BaseEbxReader CreateReader(DataAccessor inAccessor)
     {
-        return ProfilesLibrary.EbxVersion == 6 ? new RiffEbx.EbxReader(inStream) : new LegacyEbx.EbxReader(inStream);
+        return ProfilesLibrary.EbxVersion == 6 ? new RiffEbx.EbxReader(inAccessor) : new LegacyEbx.EbxReader(inAccessor);
     }
 
     public T ReadPartition<T>() where T : EbxPartition, new()

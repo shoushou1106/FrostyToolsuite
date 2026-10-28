@@ -26,12 +26,12 @@ public class CasCryptoResourceInfo : CasResourceInfo
         int size = (int)GetSize();
         size = size + 15 & ~15;
 
-        using (BlockStream stream = BlockStream.FromFile(m_path, GetOffset(), size))
+        using (BlockAccessor accessor = BlockAccessor.FromFile(m_path, GetOffset(), size))
         {
-            stream.Decrypt(KeyManager.GetKey(m_keyId), PaddingMode.None);
+            accessor.Decrypt(KeyManager.GetKey(m_keyId), PaddingMode.None);
 
             Block<byte> retVal = Block<byte>.CreateUninitialized((int)GetSize());
-            stream.ReadExactly(retVal);
+            accessor.ReadExactly(retVal);
             return retVal;
         }
     }
@@ -41,27 +41,27 @@ public class CasCryptoResourceInfo : CasResourceInfo
         // we need to align the size to 16
         int size = (int)GetSize();
         size = size + 15 & ~15;
-        using (BlockStream stream = BlockStream.FromFile(m_path, GetOffset(), size))
+        using (BlockAccessor accessor = BlockAccessor.FromFile(m_path, GetOffset(), size))
         {
-            stream.Decrypt(KeyManager.GetKey(m_keyId), PaddingMode.None);
-            stream.SetLength((int)GetSize());
-            return Cas.DecompressData(stream, inOriginalSize);
+            accessor.Decrypt(KeyManager.GetKey(m_keyId), PaddingMode.None);
+            accessor.SetLength((int)GetSize());
+            return Cas.DecompressData(accessor, inOriginalSize);
         }
     }
 
-    internal static void SerializeInternal(DataStream stream, CasCryptoResourceInfo info)
+    internal static void SerializeInternal(DataAccessor accessor, CasCryptoResourceInfo info)
     {
-        CasResourceInfo.SerializeInternal(stream, info);
-        stream.WriteNullTerminatedString(info.m_keyId);
+        CasResourceInfo.SerializeInternal(accessor, info);
+        accessor.WriteNullTerminatedString(info.m_keyId);
     }
 
-    internal static CasCryptoResourceInfo DeserializeInternal(DataStream stream)
+    internal static CasCryptoResourceInfo DeserializeInternal(DataAccessor accessor)
     {
-        CasFileIdentifier file = CasFileIdentifier.FromFileIdentifier(stream.ReadUInt32());
-        uint offset = stream.ReadUInt32();
-        uint size = stream.ReadUInt32();
-        uint logicalOffset = stream.ReadUInt32();
-        string keyId = stream.ReadNullTerminatedString();
+        CasFileIdentifier file = CasFileIdentifier.FromFileIdentifier(accessor.ReadUInt32());
+        uint offset = accessor.ReadUInt32();
+        uint size = accessor.ReadUInt32();
+        uint logicalOffset = accessor.ReadUInt32();
+        string keyId = accessor.ReadNullTerminatedString();
 
         return new CasCryptoResourceInfo(file, offset, size, logicalOffset, keyId);
     }

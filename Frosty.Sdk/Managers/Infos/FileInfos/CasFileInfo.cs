@@ -60,20 +60,20 @@ public class CasFileInfo : IFileInfo
 
         if (m_delta is null)
         {
-            using (BlockStream stream = new(m_base.GetRawData()))
+            using (BlockAccessor accessor = new(m_base.GetRawData()))
             {
-                return Cas.GetOriginalSize(stream);
+                return Cas.GetOriginalSize(accessor);
             }
         }
 
-        using (BlockStream deltaStream = new(m_delta.GetRawData()))
+        using (BlockAccessor deltaAccessor = new(m_delta.GetRawData()))
         {
-            BlockStream? baseStream = null;
+            BlockAccessor? baseAccessor = null;
             if (m_base is not null)
             {
-                baseStream = new BlockStream(m_base.GetRawData());
+                baseAccessor = new BlockAccessor(m_base.GetRawData());
             }
-            return Cas.GetOriginalSize(deltaStream, baseStream);
+            return Cas.GetOriginalSize(deltaAccessor, baseAccessor);
         }
     }
 
@@ -104,26 +104,26 @@ public class CasFileInfo : IFileInfo
             return m_base.GetData(inOriginalSize);
         }
 
-        using (BlockStream deltaStream = new(m_delta.GetRawData()))
+        using (BlockAccessor deltaAccessor = new(m_delta.GetRawData()))
         {
-            BlockStream? baseStream = null;
+            BlockAccessor? baseAccessor = null;
             if (m_base is not null)
             {
-                baseStream = new BlockStream(m_base.GetRawData());
+                baseAccessor = new BlockAccessor(m_base.GetRawData());
             }
-            return Cas.DecompressData(deltaStream, baseStream, inOriginalSize);
+            return Cas.DecompressData(deltaAccessor, baseAccessor, inOriginalSize);
         }
     }
 
-    void IFileInfo.SerializeInternal(DataStream stream)
+    void IFileInfo.SerializeInternal(DataAccessor accessor)
     {
-        CasResourceInfo.Serialize(stream, m_base);
-        CasResourceInfo.Serialize(stream, m_delta);
+        CasResourceInfo.Serialize(accessor, m_base);
+        CasResourceInfo.Serialize(accessor, m_delta);
     }
 
-    internal static CasFileInfo DeserializeInternal(DataStream stream)
+    internal static CasFileInfo DeserializeInternal(DataAccessor accessor)
     {
-        return new CasFileInfo(CasResourceInfo.Deserialize(stream), CasResourceInfo.Deserialize(stream));
+        return new CasFileInfo(CasResourceInfo.Deserialize(accessor), CasResourceInfo.Deserialize(accessor));
     }
 
     public bool Equals(CasFileInfo b)

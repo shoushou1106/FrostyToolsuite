@@ -8,8 +8,8 @@ public class EbxModResource : BaseModResource
 {
     public override ModResourceType Type => ModResourceType.Ebx;
 
-    public EbxModResource(DataStream inStream)
-        : base(inStream)
+    public EbxModResource(DataAccessor inAccessor)
+        : base(inAccessor)
     {
     }
 

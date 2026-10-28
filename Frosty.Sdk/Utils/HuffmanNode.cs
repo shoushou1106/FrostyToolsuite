@@ -18,9 +18,9 @@ internal class HuffmanNode : IComparable<HuffmanNode>
         SetRightNode(inRight);
     }
 
-    public HuffmanNode(DataStream stream, Endian endian)
+    public HuffmanNode(DataAccessor accessor, Endian endian)
     {
-        Value = stream.ReadUInt32(endian);
+        Value = accessor.ReadUInt32(endian);
     }
 
     public bool IsLeaf => Left is null && Right is null;

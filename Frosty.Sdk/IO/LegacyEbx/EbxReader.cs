@@ -14,10 +14,10 @@ public sealed class EbxReader : BaseEbxReader
     private readonly EbxHeader _header;
     private readonly EbxTypeResolver _typeResolver;
 
-    internal EbxReader(DataStream inStream)
-        : base(inStream)
+    internal EbxReader(DataAccessor inAccessor)
+        : base(inAccessor)
     {
-        _header = EbxHeader.ReadHeader(_stream);
+        _header = EbxHeader.ReadHeader(_accessor);
         _typeResolver = new EbxTypeResolver(_header.TypeDescriptors, _header.FieldDescriptors);
     }
 
@@ -34,7 +34,7 @@ public sealed class EbxReader : BaseEbxReader
 
     protected override void InternalReadObjects()
     {
-        _stream.Position = _header.StringsOffset + _header.StringTableLength;
+        _accessor.Position = _header.StringsOffset + _header.StringTableLength;
 
         foreach (EbxInstance instance in _header.Instances)
         {
@@ -52,19 +52,19 @@ public sealed class EbxReader : BaseEbxReader
             EbxTypeDescriptor typeDescriptor = _typeResolver.ResolveType(instance.TypeDescriptorRef);
             for (int j = 0; j < instance.Count; j++)
             {
-                _stream.Pad(typeDescriptor.GetAlignment());
+                _accessor.Pad(typeDescriptor.GetAlignment());
 
-                Guid instanceGuid = instance.IsExported ? _stream.ReadGuid() : Guid.Empty;
+                Guid instanceGuid = instance.IsExported ? _accessor.ReadGuid() : Guid.Empty;
 
                 if (typeDescriptor.GetAlignment() != 0x04)
                 {
-                    _stream.Position += 8;
+                    _accessor.Position += 8;
                 }
 
                 IEbxInstance? obj = _instances[objectIndex];
                 obj?.SetInstanceGuid(new AssetClassGuid(instanceGuid, objectIndex));
                 objectIndex++; // Do not put this i++ inside ?.
-                ReadType(typeDescriptor, obj, _stream.Position - 8);
+                ReadType(typeDescriptor, obj, _accessor.Position - 8);
             }
         }
     }
@@ -73,8 +73,8 @@ public sealed class EbxReader : BaseEbxReader
     {
         if (obj is null)
         {
-            _stream.Position += inTypeDescriptor.Size;
-            _stream.Pad(inTypeDescriptor.GetAlignment());
+            _accessor.Position += inTypeDescriptor.Size;
+            _accessor.Pad(inTypeDescriptor.GetAlignment());
             return;
         }
 
@@ -94,7 +94,7 @@ public sealed class EbxReader : BaseEbxReader
                 return prop.GetName() == fieldDescriptor.Name;
             });
 
-            _stream.Position = inStartOffset + fieldDescriptor.DataOffset;
+            _accessor.Position = inStartOffset + fieldDescriptor.DataOffset;
 
             TypeFlags.TypeEnum type = fieldDescriptor.Flags.GetTypeEnum();
             // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
@@ -140,7 +140,7 @@ public sealed class EbxReader : BaseEbxReader
             }
         }
 
-        _stream.Position = inStartOffset + inTypeDescriptor.Size;
+        _accessor.Position = inStartOffset + inTypeDescriptor.Size;
     }
 
     private void ReadField(EbxTypeDescriptor? inParentTypeDescriptor, TypeFlags.TypeEnum inType, ushort inTypeDescriptorRef, Action<object?> inAddFunc)
@@ -148,52 +148,52 @@ public sealed class EbxReader : BaseEbxReader
         switch (inType)
         {
             case TypeFlags.TypeEnum.Boolean:
-                inAddFunc(_stream.ReadBoolean());
+                inAddFunc(_accessor.ReadBoolean());
                 break;
             case TypeFlags.TypeEnum.Int8:
-                inAddFunc((sbyte)_stream.ReadByte());
+                inAddFunc((sbyte)_accessor.ReadByte());
                 break;
             case TypeFlags.TypeEnum.UInt8:
-                inAddFunc(_stream.ReadByte());
+                inAddFunc(_accessor.ReadByte());
                 break;
             case TypeFlags.TypeEnum.Int16:
-                inAddFunc(_stream.ReadInt16());
+                inAddFunc(_accessor.ReadInt16());
                 break;
             case TypeFlags.TypeEnum.UInt16:
-                inAddFunc(_stream.ReadUInt16());
+                inAddFunc(_accessor.ReadUInt16());
                 break;
             case TypeFlags.TypeEnum.Int32:
-                inAddFunc(_stream.ReadInt32());
+                inAddFunc(_accessor.ReadInt32());
                 break;
             case TypeFlags.TypeEnum.UInt32:
-                inAddFunc(_stream.ReadUInt32());
+                inAddFunc(_accessor.ReadUInt32());
                 break;
             case TypeFlags.TypeEnum.Int64:
-                inAddFunc(_stream.ReadInt64());
+                inAddFunc(_accessor.ReadInt64());
                 break;
             case TypeFlags.TypeEnum.UInt64:
-                inAddFunc(_stream.ReadUInt64());
+                inAddFunc(_accessor.ReadUInt64());
                 break;
             case TypeFlags.TypeEnum.Float32:
-                inAddFunc(_stream.ReadSingle());
+                inAddFunc(_accessor.ReadSingle());
                 break;
             case TypeFlags.TypeEnum.Float64:
-                inAddFunc(_stream.ReadDouble());
+                inAddFunc(_accessor.ReadDouble());
                 break;
             case TypeFlags.TypeEnum.Guid:
-                inAddFunc(_stream.ReadGuid());
+                inAddFunc(_accessor.ReadGuid());
                 break;
             case TypeFlags.TypeEnum.ResourceRef:
                 inAddFunc(ReadResourceRef());
                 break;
             case TypeFlags.TypeEnum.Sha1:
-                inAddFunc(_stream.ReadSha1());
+                inAddFunc(_accessor.ReadSha1());
                 break;
             case TypeFlags.TypeEnum.String:
-                inAddFunc(_stream.ReadFixedSizedString(32));
+                inAddFunc(_accessor.ReadFixedSizedString(32));
                 break;
             case TypeFlags.TypeEnum.CString:
-                inAddFunc(ReadString(_stream.ReadUInt32()));
+                inAddFunc(ReadString(_accessor.ReadUInt32()));
                 break;
             case TypeFlags.TypeEnum.FileRef:
                 inAddFunc(ReadFileRef());
@@ -212,13 +212,13 @@ public sealed class EbxReader : BaseEbxReader
                 break;
             case TypeFlags.TypeEnum.Struct:
                 EbxTypeDescriptor structType = ResolveType(inParentTypeDescriptor, inTypeDescriptorRef);
-                _stream.Pad(structType.GetAlignment());
+                _accessor.Pad(structType.GetAlignment());
                 object? obj = CreateObject(structType);
-                ReadType(structType, obj, _stream.Position);
+                ReadType(structType, obj, _accessor.Position);
                 inAddFunc(obj);
                 break;
             case TypeFlags.TypeEnum.Enum:
-                inAddFunc(_stream.ReadInt32());
+                inAddFunc(_accessor.ReadInt32());
                 break;
             case TypeFlags.TypeEnum.Class:
                 inAddFunc(ReadPointerRef());
@@ -240,17 +240,17 @@ public sealed class EbxReader : BaseEbxReader
     {
         EbxTypeDescriptor arrayTypeDescriptor = ResolveType(inParentTypeDescriptor, inTypeDescriptorRef);
 
-        int index = _stream.ReadInt32();
+        int index = _accessor.ReadInt32();
         EbxArray array = _header.Arrays[index];
 
-        _stream.StepIn(_header.ArrayOffset + array.Offset);
+        _accessor.StepIn(_header.ArrayOffset + array.Offset);
 
         EbxFieldDescriptor elementFieldDescriptor = _typeResolver.ResolveField(arrayTypeDescriptor.FieldIndex);
         for (int i = 0; i < array.Count; i++)
         {
             ReadField(arrayTypeDescriptor, elementFieldDescriptor.Flags.GetTypeEnum(), elementFieldDescriptor.TypeDescriptorRef, inAddFunc);
         }
-        _stream.StepOut();
+        _accessor.StepOut();
     }
 
     private EbxTypeDescriptor ResolveType(EbxTypeDescriptor? inParentTypeDescriptor, ushort inTypeDescriptorRef)
@@ -268,27 +268,27 @@ public sealed class EbxReader : BaseEbxReader
             return string.Empty;
         }
 
-        long pos = _stream.Position;
-        _stream.Position = _header.StringsOffset + offset;
+        long pos = _accessor.Position;
+        _accessor.Position = _header.StringsOffset + offset;
 
-        string retStr = _stream.ReadNullTerminatedString();
-        _stream.Position = pos;
+        string retStr = _accessor.ReadNullTerminatedString();
+        _accessor.Position = pos;
 
         return retStr;
     }
 
-    private ResourceRef ReadResourceRef() => new(_stream.ReadUInt64());
+    private ResourceRef ReadResourceRef() => new(_accessor.ReadUInt64());
 
     private FileRef ReadFileRef()
     {
-        uint index = (uint)_stream.ReadUInt64();
+        uint index = (uint)_accessor.ReadUInt64();
 
         return new FileRef(ReadString(index));
     }
 
     private PointerRef ReadPointerRef()
     {
-        uint index = _stream.ReadUInt32();
+        uint index = _accessor.ReadUInt32();
 
         if ((index >> 0x1F) == 1)
         {
@@ -320,7 +320,7 @@ public sealed class EbxReader : BaseEbxReader
 
     private TypeRef ReadTypeRef()
     {
-        string str = ReadString(_stream.ReadUInt32());
+        string str = ReadString(_accessor.ReadUInt32());
 
         if (string.IsNullOrEmpty(str))
         {
@@ -337,8 +337,8 @@ public sealed class EbxReader : BaseEbxReader
 
     private BoxedValueRef ReadBoxedValueRef()
     {
-        int index = _stream.ReadInt32();
-        _stream.Position += 12;
+        int index = _accessor.ReadInt32();
+        _accessor.Position += 12;
 
         if (index == -1)
         {
@@ -347,8 +347,8 @@ public sealed class EbxReader : BaseEbxReader
 
         EbxBoxedValue boxedValue = _header.BoxedValues[index];
 
-        long pos = _stream.Position;
-        _stream.Position = _header.BoxedValueOffset + boxedValue.Offset;
+        long pos = _accessor.Position;
+        _accessor.Position = _header.BoxedValueOffset + boxedValue.Offset;
 
         object? value = null;
         TypeFlags.TypeEnum type = (TypeFlags.TypeEnum)boxedValue.Type;
@@ -384,7 +384,7 @@ public sealed class EbxReader : BaseEbxReader
             });
         }
 
-        _stream.Position = pos;
+        _accessor.Position = pos;
 
         return new BoxedValueRef(value, new TypeFlags((TypeFlags.TypeEnum)boxedValue.Type));
     }

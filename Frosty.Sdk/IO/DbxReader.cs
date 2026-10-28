@@ -63,7 +63,10 @@ public sealed class DbxReader
         ReadPartition(rootNode);
 #if DEBUG
         w.Stop();
-        FrostyLogger.Logger.LogDebug("DBX {Filepath} read in {ElapsedMilliseconds} ms", _filepath, w.ElapsedMilliseconds);
+        if (FrostyLogger.Logger.IsEnabled(LogLevel.Debug))
+        {
+            FrostyLogger.Logger.LogDebug("DBX {Filepath} read in {ElapsedMilliseconds} ms", _filepath, w.ElapsedMilliseconds);
+        }
 #endif
         return _ebx!;
     }

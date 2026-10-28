@@ -23,7 +23,7 @@ public static class Cas
         int blockCount = (inData.Size + ProfilesLibrary.MaxBufferSize - 1) / ProfilesLibrary.MaxBufferSize;
 
         Block<byte> outData = new(0);
-        using (BlockStream stream = new(outData, true))
+        using (BlockAccessor accessor = new(outData, true))
         {
             for (int i = 0; i < blockCount; i++)
             {
@@ -66,9 +66,9 @@ public static class Cas
                 byte flags = (byte)(inOptions == CompressionOptions.ZstdWithDict ? 1 : 0);
                 if (compressor is null)
                 {
-                    stream.WriteUInt64(
+                    accessor.WriteUInt64(
                         new BlockHeader(flags, decompressedSize, inType, decompressedSize).ToPacked(), Endian.Big);
-                    stream.Write(data);
+                    accessor.Write(data);
                 }
                 else
                 {
@@ -76,9 +76,9 @@ public static class Cas
                         Block<byte>.CreateUninitialized(compressor.GetCompressBounds(decompressedSize, inOptions));
                     int compressedSize = compressor.Compress(data, compBuffer, inOptions);
 
-                    stream.WriteUInt64(
+                    accessor.WriteUInt64(
                         new BlockHeader(flags, decompressedSize, inType, compressedSize).ToPacked(), Endian.Big);
-                    stream.Write(compBuffer.ToSpan(0, compressedSize));
+                    accessor.Write(compBuffer.ToSpan(0, compressedSize));
                 }
 
                 inData.Shift(decompressedSize);
@@ -89,14 +89,14 @@ public static class Cas
         return outData;
     }
 
-    public static Block<byte> DecompressData(DataStream inStream, int inOriginalSize)
+    public static Block<byte> DecompressData(DataAccessor inAccessor, int inOriginalSize)
     {
-        ArgumentNullException.ThrowIfNull(inStream);
+        ArgumentNullException.ThrowIfNull(inAccessor);
 
         Block<byte> outBuffer = new(inOriginalSize);
-        while (inStream.Position < inStream.Length)
+        while (inAccessor.Position < inAccessor.Length)
         {
-            ReadBlock(inStream, outBuffer);
+            ReadBlock(inAccessor, outBuffer);
         }
 
         Debug.Assert(outBuffer.Size == 0);
@@ -106,14 +106,14 @@ public static class Cas
         return outBuffer;
     }
 
-    public static Block<byte> DecompressData(DataStream inDeltaStream, DataStream? inBaseStream, int inOriginalSize)
+    public static Block<byte> DecompressData(DataAccessor inDeltaAccessor, DataAccessor? inBaseAccessor, int inOriginalSize)
     {
-        ArgumentNullException.ThrowIfNull(inDeltaStream);
+        ArgumentNullException.ThrowIfNull(inDeltaAccessor);
 
         Block<byte> outBuffer = new(inOriginalSize);
-        while (inDeltaStream.Position < inDeltaStream.Length)
+        while (inDeltaAccessor.Position < inDeltaAccessor.Length)
         {
-            uint packed = inDeltaStream.ReadUInt32(Endian.Big);
+            uint packed = inDeltaAccessor.ReadUInt32(Endian.Big);
             int instructionType = (int)(packed & 0xF0000000) >> 28;
             int instructionSize = (int)(packed & 0x0FFFFFFF);
 
@@ -121,23 +121,23 @@ public static class Cas
             {
                 case 0:
                 {
-                    Debug.Assert(inBaseStream is not null);
+                    Debug.Assert(inBaseAccessor is not null);
                     // Read base blocks
                     while (instructionSize-- > 0)
                     {
-                        ReadBlock(inBaseStream, outBuffer);
+                        ReadBlock(inBaseAccessor, outBuffer);
                     }
                     break;
                 }
                 case 1:
                 {
-                    Debug.Assert(inBaseStream is not null);
+                    Debug.Assert(inBaseAccessor is not null);
                     // Make large fixes in base block
-                    using Block<byte> toPatch = ReadBlock(inBaseStream);
+                    using Block<byte> toPatch = ReadBlock(inBaseAccessor);
                     while (instructionSize-- > 0)
                     {
-                        ushort offset = inDeltaStream.ReadUInt16(Endian.Big);
-                        ushort skipCount = inDeltaStream.ReadUInt16(Endian.Big);
+                        ushort offset = inDeltaAccessor.ReadUInt16(Endian.Big);
+                        ushort skipCount = inDeltaAccessor.ReadUInt16(Endian.Big);
 
                         // Use base
                         int baseSize = offset - toPatch.ShiftAmount;
@@ -149,7 +149,7 @@ public static class Cas
                         }
 
                         // Use delta
-                        ReadBlock(inDeltaStream, outBuffer);
+                        ReadBlock(inDeltaAccessor, outBuffer);
 
                         // Skip base
                         toPatch.Shift(skipCount);
@@ -167,22 +167,22 @@ public static class Cas
                 }
                 case 2:
                 {
-                    Debug.Assert(inBaseStream is not null);
+                    Debug.Assert(inBaseAccessor is not null);
 
                     // Make small fixes in base block
-                    int newBlockSize = inDeltaStream.ReadUInt16(Endian.Big) + 1;
+                    int newBlockSize = inDeltaAccessor.ReadUInt16(Endian.Big) + 1;
                     int currentOffset = outBuffer.ShiftAmount;
 
-                    long curPos = inDeltaStream.Position;
+                    long curPos = inDeltaAccessor.Position;
 
                     // Read base block
-                    using (Block<byte> toPatch = ReadBlock(inBaseStream))
+                    using (Block<byte> toPatch = ReadBlock(inBaseAccessor))
                     {
-                        while (inDeltaStream.Position < curPos + instructionSize)
+                        while (inDeltaAccessor.Position < curPos + instructionSize)
                         {
-                            ushort offset = inDeltaStream.ReadUInt16(Endian.Big);
-                            byte skipCount = inDeltaStream.ReadByte();
-                            byte addCount = inDeltaStream.ReadByte();
+                            ushort offset = inDeltaAccessor.ReadUInt16(Endian.Big);
+                            byte skipCount = inDeltaAccessor.ReadByte();
+                            byte addCount = inDeltaAccessor.ReadByte();
 
                             // Use base
                             int baseSize = offset - toPatch.ShiftAmount;
@@ -197,7 +197,7 @@ public static class Cas
                             toPatch.Shift(skipCount);
 
                             // Add delta
-                            inDeltaStream.ReadExactly(outBuffer.ToSpan(0, addCount));
+                            inDeltaAccessor.ReadExactly(outBuffer.ToSpan(0, addCount));
                             outBuffer.Shift(addCount);
                         }
 
@@ -222,18 +222,18 @@ public static class Cas
                     // Read delta blocks
                     while (instructionSize-- > 0)
                     {
-                        ReadBlock(inDeltaStream, outBuffer);
+                        ReadBlock(inDeltaAccessor, outBuffer);
                     }
                     break;
                 }
                 case 4:
                 {
-                    Debug.Assert(inBaseStream is not null);
+                    Debug.Assert(inBaseAccessor is not null);
 
                     // Skip base blocks
                     while (instructionSize-- > 0)
                     {
-                        ReadBlock(inBaseStream, null);
+                        ReadBlock(inBaseAccessor, null);
                     }
                     break;
                 }
@@ -242,7 +242,7 @@ public static class Cas
             }
         }
 
-        Debug.Assert(inBaseStream?.Position == inBaseStream?.Length);
+        Debug.Assert(inBaseAccessor?.Position == inBaseAccessor?.Length);
         Debug.Assert(outBuffer.Size == 0);
 
         outBuffer.ResetShift();
@@ -250,10 +250,10 @@ public static class Cas
         return outBuffer;
     }
 
-    public static Block<byte> DecompressData(DataStream inDeltaStream, DataStream? inBaseStream, int inOriginalSize,
+    public static Block<byte> DecompressData(DataAccessor inDeltaAccessor, DataAccessor? inBaseAccessor, int inOriginalSize,
         int inMidInstructionSize)
     {
-        ArgumentNullException.ThrowIfNull(inDeltaStream);
+        ArgumentNullException.ThrowIfNull(inDeltaAccessor);
 
         // outBuffer is returned to the caller
         // CA2000: Dispose objects before losing scope
@@ -261,9 +261,9 @@ public static class Cas
         Block<byte> outBuffer = new(inOriginalSize);
 #pragma warning restore CA2000
         bool startBlock = true;
-        while (inDeltaStream.Position < inDeltaStream.Length)
+        while (inDeltaAccessor.Position < inDeltaAccessor.Length)
         {
-            uint packed = inDeltaStream.ReadUInt32(Endian.Big);
+            uint packed = inDeltaAccessor.ReadUInt32(Endian.Big);
             int instructionType = (int)(packed & 0xF0000000) >> 28;
             int instructionSize = (int)(packed & 0x0FFFFFFF);
 
@@ -272,16 +272,16 @@ public static class Cas
                 case 0:
                 {
                     // Read base blocks
-                    Debug.Assert(inBaseStream is not null);
+                    Debug.Assert(inBaseAccessor is not null);
                     while (instructionSize-- > 0)
                     {
                         if (startBlock && inMidInstructionSize != -1 && instructionSize >= inMidInstructionSize)
                         {
-                            ReadBlock(inBaseStream, null);
+                            ReadBlock(inBaseAccessor, null);
                         }
                         else
                         {
-                            ReadBlock(inBaseStream, outBuffer);
+                            ReadBlock(inBaseAccessor, outBuffer);
                         }
 
                         if (TryFinish())
@@ -294,12 +294,12 @@ public static class Cas
                 case 1:
                 {
                     // Make large fixes in base block
-                    Debug.Assert(inBaseStream is not null);
-                    using Block<byte> toPatch = ReadBlock(inBaseStream);
+                    Debug.Assert(inBaseAccessor is not null);
+                    using Block<byte> toPatch = ReadBlock(inBaseAccessor);
                     while (instructionSize-- > 0)
                     {
-                        ushort offset = inDeltaStream.ReadUInt16(Endian.Big);
-                        ushort skipCount = inDeltaStream.ReadUInt16(Endian.Big);
+                        ushort offset = inDeltaAccessor.ReadUInt16(Endian.Big);
+                        ushort skipCount = inDeltaAccessor.ReadUInt16(Endian.Big);
 
                         // Use base
                         int baseSize = offset - toPatch.ShiftAmount;
@@ -317,11 +317,11 @@ public static class Cas
                         // Use delta
                         if (startBlock && inMidInstructionSize != -1 && instructionSize >= inMidInstructionSize)
                         {
-                            ReadBlock(inDeltaStream, null);
+                            ReadBlock(inDeltaAccessor, null);
                         }
                         else
                         {
-                            ReadBlock(inDeltaStream, outBuffer);
+                            ReadBlock(inDeltaAccessor, outBuffer);
                         }
 
                         // Skip base
@@ -346,21 +346,21 @@ public static class Cas
                 case 2:
                 {
                     // Make small fixes in base block
-                    Debug.Assert(inBaseStream is not null);
+                    Debug.Assert(inBaseAccessor is not null);
 
-                    int newBlockSize = inDeltaStream.ReadUInt16(Endian.Big) + 1;
+                    int newBlockSize = inDeltaAccessor.ReadUInt16(Endian.Big) + 1;
                     int currentOffset = outBuffer.ShiftAmount;
 
-                    long curPos = inDeltaStream.Position;
+                    long curPos = inDeltaAccessor.Position;
 
                     // Read base block
-                    using (Block<byte> toPatch = ReadBlock(inBaseStream))
+                    using (Block<byte> toPatch = ReadBlock(inBaseAccessor))
                     {
-                        while (inDeltaStream.Position < curPos + instructionSize)
+                        while (inDeltaAccessor.Position < curPos + instructionSize)
                         {
-                            ushort offset = inDeltaStream.ReadUInt16(Endian.Big);
-                            byte skipCount = inDeltaStream.ReadByte();
-                            byte addCount = inDeltaStream.ReadByte();
+                            ushort offset = inDeltaAccessor.ReadUInt16(Endian.Big);
+                            byte skipCount = inDeltaAccessor.ReadByte();
+                            byte addCount = inDeltaAccessor.ReadByte();
 
                             // Use base
                             int baseSize = offset - toPatch.ShiftAmount;
@@ -375,7 +375,7 @@ public static class Cas
                             toPatch.Shift(skipCount);
 
                             // Add delta
-                            inDeltaStream.ReadExactly(outBuffer.ToSpan(0, addCount));
+                            inDeltaAccessor.ReadExactly(outBuffer.ToSpan(0, addCount));
                             outBuffer.Shift(addCount);
                         }
 
@@ -402,11 +402,11 @@ public static class Cas
                     {
                         if (startBlock && inMidInstructionSize != -1 && instructionSize >= inMidInstructionSize)
                         {
-                            ReadBlock(inDeltaStream, null);
+                            ReadBlock(inDeltaAccessor, null);
                         }
                         else
                         {
-                            ReadBlock(inDeltaStream, outBuffer);
+                            ReadBlock(inDeltaAccessor, outBuffer);
                         }
 
                         if (TryFinish())
@@ -419,10 +419,10 @@ public static class Cas
                 case 4:
                 {
                     // Skip base blocks
-                    Debug.Assert(inBaseStream is not null);
+                    Debug.Assert(inBaseAccessor is not null);
                     while (instructionSize-- > 0)
                     {
-                        ReadBlock(inBaseStream, null);
+                        ReadBlock(inBaseAccessor, null);
 
                         // Probably not needed, add it just in case
                         if (TryFinish())
@@ -444,9 +444,9 @@ public static class Cas
             }
         }
 
-        while ((inBaseStream?.Position ?? 0) < (inBaseStream?.Length ?? 0))
+        while ((inBaseAccessor?.Position ?? 0) < (inBaseAccessor?.Length ?? 0))
         {
-            ReadBlock(inBaseStream!, outBuffer);
+            ReadBlock(inBaseAccessor!, outBuffer);
         }
 
         Debug.Assert(outBuffer.Size == 0);
@@ -457,25 +457,25 @@ public static class Cas
 
         bool TryFinish()
         {
-            if ((inBaseStream?.Position ?? 0) < (inBaseStream?.Length ?? 0) ||
-                inDeltaStream.Position < inDeltaStream.Length)
+            if ((inBaseAccessor?.Position ?? 0) < (inBaseAccessor?.Length ?? 0) ||
+                inDeltaAccessor.Position < inDeltaAccessor.Length)
             {
                 return false;
             }
 
-            Debug.Assert(inBaseStream?.Position == inBaseStream?.Length);
-            Debug.Assert(inDeltaStream.Position == inDeltaStream.Length);
+            Debug.Assert(inBaseAccessor?.Position == inBaseAccessor?.Length);
+            Debug.Assert(inDeltaAccessor.Position == inDeltaAccessor.Length);
 
             outBuffer.ResetShift();
             return true;
         }
     }
 
-    public static long GetUncompressedSize(DataStream inStream)
+    public static long GetUncompressedSize(DataAccessor inAccessor)
     {
-        ArgumentNullException.ThrowIfNull(inStream);
+        ArgumentNullException.ThrowIfNull(inAccessor);
 
-        ulong packed = inStream.ReadUInt64(Endian.Big);
+        ulong packed = inAccessor.ReadUInt64(Endian.Big);
 
         if (packed == 0)
         {
@@ -484,20 +484,20 @@ public static class Cas
 
         BlockHeader header = BlockHeader.FromPacked(packed);
 
-        inStream.Position += header.BufferSize;
+        inAccessor.Position += header.BufferSize;
 
         return header.DecompressedSize;
     }
 
-    public static long GetOriginalSize(DataStream inStream)
+    public static long GetOriginalSize(DataAccessor inAccessor)
     {
-        ArgumentNullException.ThrowIfNull(inStream);
+        ArgumentNullException.ThrowIfNull(inAccessor);
 
         long uncompressedSize = 0;
 
-        while (inStream.Position < inStream.Length)
+        while (inAccessor.Position < inAccessor.Length)
         {
-            ulong packed = inStream.ReadUInt64(Endian.Big);
+            ulong packed = inAccessor.ReadUInt64(Endian.Big);
 
             if (packed == 0)
             {
@@ -506,7 +506,7 @@ public static class Cas
 
             BlockHeader header = BlockHeader.FromPacked(packed);
 
-            inStream.Position += header.BufferSize;
+            inAccessor.Position += header.BufferSize;
 
             uncompressedSize += header.DecompressedSize;
         }
@@ -514,24 +514,24 @@ public static class Cas
         return uncompressedSize;
     }
 
-    public static long GetOriginalSize(DataStream inDeltaStream, DataStream? inBaseStream)
+    public static long GetOriginalSize(DataAccessor inDeltaAccessor, DataAccessor? inBaseAccessor)
     {
         throw new NotImplementedException();
     }
 
-    public static long GetOriginalSize(DataStream inDeltaStream, DataStream? inBaseStream, int inMidInstructionSize)
+    public static long GetOriginalSize(DataAccessor inDeltaAccessor, DataAccessor? inBaseAccessor, int inMidInstructionSize)
     {
         throw new NotImplementedException();
     }
 
-    public static long GetCompressedSize(DataStream inStream, long inUncompressedSize)
+    public static long GetCompressedSize(DataAccessor inAccessor, long inUncompressedSize)
     {
-        ArgumentNullException.ThrowIfNull(inStream);
+        ArgumentNullException.ThrowIfNull(inAccessor);
 
         long compressedSize = 0;
-        while (inStream.Position < inStream.Length)
+        while (inAccessor.Position < inAccessor.Length)
         {
-            ulong packed = inStream.ReadUInt64(Endian.Big);
+            ulong packed = inAccessor.ReadUInt64(Endian.Big);
 
             if (packed == 0)
             {
@@ -542,7 +542,7 @@ public static class Cas
 
             compressedSize += header.BufferSize + sizeof(ulong);
 
-            inStream.Position += header.BufferSize;
+            inAccessor.Position += header.BufferSize;
 
             inUncompressedSize -= header.DecompressedSize;
             if (inUncompressedSize > 0)
@@ -557,9 +557,9 @@ public static class Cas
         return compressedSize;
     }
 
-    private static void ReadBlock(DataStream inStream, Block<byte>? outBuffer)
+    private static void ReadBlock(DataAccessor inAccessor, Block<byte>? outBuffer)
     {
-        ulong packed = inStream.ReadUInt64(Endian.Big);
+        ulong packed = inAccessor.ReadUInt64(Endian.Big);
 
         if (packed == 0)
         {
@@ -573,7 +573,7 @@ public static class Cas
             ? new Block<byte>(outBuffer, header.BufferSize)
             : Block<byte>.CreateUninitialized(header.BufferSize);
 
-        inStream.ReadExactly(compressedBuffer);
+        inAccessor.ReadExactly(compressedBuffer);
         if (outBuffer is not null)
         {
             Decompress(compressedBuffer, header, outBuffer);
@@ -583,18 +583,18 @@ public static class Cas
         outBuffer?.Shift(header.DecompressedSize);
     }
 
-    private static Block<byte> ReadBlock(DataStream inStream)
+    private static Block<byte> ReadBlock(DataAccessor inAccessor)
     {
-        BlockHeader header = BlockHeader.FromPacked(inStream.ReadUInt64(Endian.Big));
+        BlockHeader header = BlockHeader.FromPacked(inAccessor.ReadUInt64(Endian.Big));
 
         Block<byte> outBuffer = Block<byte>.CreateUninitialized(header.DecompressedSize);
         Block<byte> compressedBuffer =
             header.IsUncompressed ? outBuffer : Block<byte>.CreateUninitialized(header.BufferSize);
 
-        inStream.ReadExactly(compressedBuffer);
+        inAccessor.ReadExactly(compressedBuffer);
         Decompress(compressedBuffer, header, outBuffer);
 
-        // Dispose compressed buffer if there is one
+        // Dispose() compressed buffer if there is one
         if (!header.IsUncompressed)
         {
             compressedBuffer.Dispose();

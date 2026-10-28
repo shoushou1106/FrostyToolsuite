@@ -20,26 +20,26 @@ public class ChunkModResource : BaseModResource
     protected HashSet<int> m_superBundlesToAdd = new();
     protected HashSet<int> m_superBundlesToRemove = new();
 
-    public ChunkModResource(DataStream inStream)
-        : base(inStream)
+    public ChunkModResource(DataAccessor inAccessor)
+        : base(inAccessor)
     {
-        RangeStart = inStream.ReadUInt32();
-        RangeEnd = inStream.ReadUInt32();
-        LogicalOffset = inStream.ReadUInt32();
-        LogicalSize = inStream.ReadUInt32();
-        H32 = inStream.ReadInt32();
-        FirstMip = inStream.ReadInt32();
+        RangeStart = inAccessor.ReadUInt32();
+        RangeEnd = inAccessor.ReadUInt32();
+        LogicalOffset = inAccessor.ReadUInt32();
+        LogicalSize = inAccessor.ReadUInt32();
+        H32 = inAccessor.ReadInt32();
+        FirstMip = inAccessor.ReadInt32();
         
-        int addedCount = inStream.ReadInt32();
+        int addedCount = inAccessor.ReadInt32();
         for (int i = 0; i < addedCount; i++)
         {
-            m_superBundlesToAdd.Add(inStream.ReadInt32());
+            m_superBundlesToAdd.Add(inAccessor.ReadInt32());
         }
         
-        int removedCount = inStream.ReadInt32();
+        int removedCount = inAccessor.ReadInt32();
         for (int i = 0; i < removedCount; i++)
         {
-            m_superBundlesToRemove.Add(inStream.ReadInt32());
+            m_superBundlesToRemove.Add(inAccessor.ReadInt32());
         }
     }
 
@@ -61,27 +61,27 @@ public class ChunkModResource : BaseModResource
         m_superBundlesToRemove.UnionWith(inSuperBundlesToRemove);
     }
 
-    public override void Write(DataStream stream)
+    public override void Write(DataAccessor accessor)
     {
-        base.Write(stream);
+        base.Write(accessor);
         
-        stream.WriteUInt32(RangeStart);
-        stream.WriteUInt32(RangeEnd);
-        stream.WriteUInt32(LogicalOffset);
-        stream.WriteUInt32(LogicalSize);
-        stream.WriteInt32(H32);
-        stream.WriteInt32(FirstMip);
+        accessor.WriteUInt32(RangeStart);
+        accessor.WriteUInt32(RangeEnd);
+        accessor.WriteUInt32(LogicalOffset);
+        accessor.WriteUInt32(LogicalSize);
+        accessor.WriteInt32(H32);
+        accessor.WriteInt32(FirstMip);
         
-        stream.WriteInt32(m_superBundlesToAdd.Count);
+        accessor.WriteInt32(m_superBundlesToAdd.Count);
         foreach (int superBundleId in m_superBundlesToAdd)
         {
-            stream.WriteInt32(superBundleId);
+            accessor.WriteInt32(superBundleId);
         }
         
-        stream.WriteInt32(m_superBundlesToRemove.Count);
+        accessor.WriteInt32(m_superBundlesToRemove.Count);
         foreach (int superBundleId in m_superBundlesToRemove)
         {
-            stream.WriteInt32(superBundleId);
+            accessor.WriteInt32(superBundleId);
         }
     }
 }

@@ -77,23 +77,23 @@ public class ModUpdater
             }
         }
 
-        using (BlockStream stream = BlockStream.FromFile(inPath, false))
+        using (BlockAccessor accessor = BlockAccessor.FromFile(inPath, false))
         {
             if (isDaiMod)
             {
                 // ancient daimods from the daimodmaker
-                mod = ConvertDaiMod(stream);
+                mod = ConvertDaiMod(accessor);
             }
-            else if (FrostyMod.Magic != stream.ReadUInt64())
+            else if (FrostyMod.Magic != accessor.ReadUInt64())
             {
                 // legacy frosty mod format, it used a DbObject
-                stream.Position = 0;
-                mod = UpdateLegacyFormat(stream, inPath.Replace(".fbmod", string.Empty));
+                accessor.Position = 0;
+                mod = UpdateLegacyFormat(accessor, inPath.Replace(".fbmod", string.Empty));
             }
             else
             {
                 // binary frosty mod format
-                mod = UpdateNewFormat(stream);
+                mod = UpdateNewFormat(accessor);
             }
         }
 
@@ -113,46 +113,46 @@ public class ModUpdater
         return true;
     }
 
-    private static (BaseModResource[], Block<byte>[], FrostyModDetails, uint)? UpdateNewFormat(DataStream inStream)
+    private static (BaseModResource[], Block<byte>[], FrostyModDetails, uint)? UpdateNewFormat(DataAccessor inAccessor)
     {
-        uint version = inStream.ReadUInt32();
+        uint version = inAccessor.ReadUInt32();
 
-        long dataOffset = inStream.ReadInt64();
-        int dataCount = inStream.ReadInt32();
+        long dataOffset = inAccessor.ReadInt64();
+        int dataCount = inAccessor.ReadInt32();
 
-        if (!ProfilesLibrary.ProfileName.Equals(inStream.ReadSizedString(), StringComparison.OrdinalIgnoreCase))
+        if (!ProfilesLibrary.ProfileName.Equals(inAccessor.ReadSizedString(), StringComparison.OrdinalIgnoreCase))
         {
             FrostyLogger.Logger.LogError("Mod was not made for this profile");
             return null;
         }
 
-        uint head = inStream.ReadUInt32();
+        uint head = inAccessor.ReadUInt32();
 
-        FrostyModDetails modDetails = new(inStream.ReadNullTerminatedString(), inStream.ReadNullTerminatedString(),
-            inStream.ReadNullTerminatedString(), inStream.ReadNullTerminatedString(),
-            inStream.ReadNullTerminatedString(), version > 4 ? inStream.ReadNullTerminatedString() : string.Empty);
+        FrostyModDetails modDetails = new(inAccessor.ReadNullTerminatedString(), inAccessor.ReadNullTerminatedString(),
+            inAccessor.ReadNullTerminatedString(), inAccessor.ReadNullTerminatedString(),
+            inAccessor.ReadNullTerminatedString(), version > 4 ? inAccessor.ReadNullTerminatedString() : string.Empty);
 
         FrostyLogger.Logger.LogInformation(
             $"Converting fbmod (v{version}) \"{modDetails.Title}\" to fbmod (v{FrostyMod.Version})");
 
-        int resourceCount = inStream.ReadInt32();
+        int resourceCount = inAccessor.ReadInt32();
         BaseModResource[] resources = new BaseModResource[resourceCount];
         for (int i = 0; i < resourceCount; i++)
         {
-            ModResourceType type = (ModResourceType)inStream.ReadByte();
+            ModResourceType type = (ModResourceType)inAccessor.ReadByte();
             (int ResourceIndex, string Name, Sha1 Sha1, long OriginalSize, int HandlerHash, string UserData,
                 IEnumerable<int> BundlesToAdd, bool HasBundleToAdd) baseResource;
             BaseModResource.ResourceFlags flags;
             switch (type)
             {
                 case ModResourceType.Embedded:
-                    baseResource = ReadBaseModResource(inStream, version);
+                    baseResource = ReadBaseModResource(inAccessor, version);
                     resources[i] = new EmbeddedModResource(baseResource.ResourceIndex, baseResource.Name);
                     break;
                 case ModResourceType.Bundle:
-                    baseResource = ReadBaseModResource(inStream, version);
-                    inStream.ReadNullTerminatedString();
-                    int superBundleHash = inStream.ReadInt32();
+                    baseResource = ReadBaseModResource(inAccessor, version);
+                    inAccessor.ReadNullTerminatedString();
+                    int superBundleHash = inAccessor.ReadInt32();
                     SuperBundleInstallChunk sbIc = s_superBundleMapping[superBundleHash];
                     int bundleHash = Fnv1.HashString(baseResource.Name + sbIc.Name, true);
                     s_bundleMapping.Add(Fnv1.HashString(baseResource.Name, true), new HashSet<int>
@@ -163,7 +163,7 @@ public class ModUpdater
                     resources[i] = new BundleModResource(baseResource.Name, bundleHash, sbIc.Id);
                     break;
                 case ModResourceType.Ebx:
-                    baseResource = ReadBaseModResource(inStream, version);
+                    baseResource = ReadBaseModResource(inAccessor, version);
 
                     // we now store ebx names the same way they are stored in the bundle, so all lowercase
                     baseResource.Name = baseResource.Name.ToLower();
@@ -177,29 +177,29 @@ public class ModUpdater
                         baseResource.BundlesToAdd, Enumerable.Empty<int>());
                     break;
                 case ModResourceType.Res:
-                    baseResource = ReadBaseModResource(inStream, version);
+                    baseResource = ReadBaseModResource(inAccessor, version);
                     flags = AssetManager.GetResAssetEntry(baseResource.Name) is null
                         ? BaseModResource.ResourceFlags.IsAdded
                         : 0;
 
                     resources[i] = new ResModResource(baseResource.ResourceIndex, baseResource.Name, baseResource.Sha1,
                         baseResource.OriginalSize, flags, baseResource.HandlerHash, baseResource.UserData,
-                        baseResource.BundlesToAdd, Enumerable.Empty<int>(), inStream.ReadUInt32(),
-                        inStream.ReadUInt64(), inStream.ReadBytes(inStream.ReadInt32()));
+                        baseResource.BundlesToAdd, Enumerable.Empty<int>(), inAccessor.ReadUInt32(),
+                        inAccessor.ReadUInt64(), inAccessor.ReadBytes(inAccessor.ReadInt32()));
                     break;
                 case ModResourceType.Chunk:
-                    baseResource = ReadBaseModResource(inStream, version);
-                    uint rangeStart = inStream.ReadUInt32();
-                    uint rangeEnd = inStream.ReadUInt32();
-                    uint logicalOffset = inStream.ReadUInt32();
-                    uint logicalSize = inStream.ReadUInt32();
-                    int h32 = inStream.ReadInt32();
-                    int firstMip = inStream.ReadInt32();
+                    baseResource = ReadBaseModResource(inAccessor, version);
+                    uint rangeStart = inAccessor.ReadUInt32();
+                    uint rangeEnd = inAccessor.ReadUInt32();
+                    uint logicalOffset = inAccessor.ReadUInt32();
+                    uint logicalSize = inAccessor.ReadUInt32();
+                    int h32 = inAccessor.ReadInt32();
+                    int firstMip = inAccessor.ReadInt32();
 
                     if (version > 5)
                     {
-                        int count = inStream.ReadInt32();
-                        inStream.Position += count * 4;
+                        int count = inAccessor.ReadInt32();
+                        inAccessor.Position += count * 4;
                     }
 
                     flags = FixChunk(baseResource.ResourceIndex, baseResource.HasBundleToAdd, Guid.Parse(baseResource.Name),
@@ -217,27 +217,27 @@ public class ModUpdater
         }
 
         Block<byte>[] data = new Block<byte>[dataCount];
-        inStream.Position = dataOffset;
+        inAccessor.Position = dataOffset;
         for (int i = 0; i < dataCount; i++)
         {
-            long offset = inStream.ReadInt64();
-            int size = (int)inStream.ReadInt64();
+            long offset = inAccessor.ReadInt64();
+            int size = (int)inAccessor.ReadInt64();
 
-            long curPos = inStream.Position;
+            long curPos = inAccessor.Position;
             Block<byte> block = Block<byte>.CreateUninitialized(size);
-            inStream.Position = dataOffset + dataCount * 16 + offset;
-            inStream.ReadExactly(block);
+            inAccessor.Position = dataOffset + dataCount * 16 + offset;
+            inAccessor.ReadExactly(block);
             data[i] = block;
-            inStream.Position = curPos;
+            inAccessor.Position = curPos;
         }
 
         return (resources, data, modDetails, head);
     }
 
-    private static (BaseModResource[], Block<byte>[], FrostyModDetails, uint)? UpdateLegacyFormat(DataStream inStream,
+    private static (BaseModResource[], Block<byte>[], FrostyModDetails, uint)? UpdateLegacyFormat(DataAccessor inAccessor,
         string modName)
     {
-        DbObjectDict? mod = DbObject.Deserialize(inStream)?.AsDict();
+        DbObjectDict? mod = DbObject.Deserialize(inAccessor)?.AsDict();
         if (mod is null)
         {
             FrostyLogger.Logger.LogError("Not a valid DbObject format fbmod");
@@ -310,7 +310,7 @@ public class ModUpdater
         DbObjectList resourcesList = mod.AsList("resources");
         List<BaseModResource> resources = new(resourcesList.Count);
         List<Block<byte>> data = new(resourcesList.Count);
-        Dictionary<int, BlockStream> archiveStreams = new();
+        Dictionary<int, BlockAccessor> archiveStreams = new();
 
         // create mandatory resources for icon and 4 screenshots
         int index = mod.AsInt("icon", -1);
@@ -444,17 +444,17 @@ public class ModUpdater
             id++;
         }
 
-        foreach (BlockStream stream in archiveStreams.Values)
+        foreach (BlockAccessor accessor in archiveStreams.Values)
         {
-            stream.Dispose();
+            accessor.Dispose();
         }
 
         return (resources.ToArray(), data.ToArray(), modDetails, mod.AsUInt("gameVersion"));
     }
 
-    private static (BaseModResource[], Block<byte>[], FrostyModDetails, uint)? ConvertDaiMod(BlockStream inStream)
+    private static (BaseModResource[], Block<byte>[], FrostyModDetails, uint)? ConvertDaiMod(BlockAccessor inAccessor)
     {
-        if (inStream.ReadFixedSizedString(8) != "DAIMODV2")
+        if (inAccessor.ReadFixedSizedString(8) != "DAIMODV2")
         {
             FrostyLogger.Logger.LogError("Not a valid daimod");
             return null;
@@ -466,10 +466,10 @@ public class ModUpdater
             return null;
         }
 
-        inStream.ReadInt32(); // unk (version idk)
-        inStream.ReadNullTerminatedString(); // name
-        string xml = inStream.ReadNullTerminatedString();
-        inStream.ReadNullTerminatedString(); // code
+        inAccessor.ReadInt32(); // unk (version idk)
+        inAccessor.ReadNullTerminatedString(); // name
+        string xml = inAccessor.ReadNullTerminatedString();
+        inAccessor.ReadNullTerminatedString(); // code
 
         XmlDocument doc = new();
         doc.LoadXml(xml);
@@ -641,9 +641,9 @@ public class ModUpdater
                         }
 
                         int firstMip;
-                        using (BlockStream stream = new(metaBytes))
+                        using (BlockAccessor accessor = new(metaBytes))
                         {
-                            firstMip = DbObject.Deserialize(stream)?.AsInt() ?? -1;
+                            firstMip = DbObject.Deserialize(accessor)?.AsInt() ?? -1;
                         }
 
                         BaseModResource.ResourceFlags flags = FixChunk(resourceId, hasBundlesToAdd, id,
@@ -662,47 +662,47 @@ public class ModUpdater
             }
         }
 
-        int dataCount = inStream.ReadInt32();
+        int dataCount = inAccessor.ReadInt32();
         Block<byte>[] data = new Block<byte>[dataCount];
         for (int i = 0; i < dataCount; i++)
         {
-            Block<byte> buffer = Block<byte>.CreateUninitialized(inStream.ReadInt32());
-            inStream.ReadExactly(buffer);
+            Block<byte> buffer = Block<byte>.CreateUninitialized(inAccessor.ReadInt32());
+            inAccessor.ReadExactly(buffer);
             data[i] = buffer;
         }
 
         return (resources.ToArray(), data, details, 0);
     }
 
-    private static (int, string, Sha1, long, int, string, IEnumerable<int>, bool) ReadBaseModResource(DataStream inStream, uint version)
+    private static (int, string, Sha1, long, int, string, IEnumerable<int>, bool) ReadBaseModResource(DataAccessor inAccessor, uint version)
     {
         (int, string, Sha1, long, int, string, IEnumerable<int>, bool) retVal = default;
 
-        retVal.Item1 = inStream.ReadInt32();
+        retVal.Item1 = inAccessor.ReadInt32();
 
-        retVal.Item2 = (version < 4 && retVal.Item1 != -1) || version > 3 ? inStream.ReadNullTerminatedString() : string.Empty;
+        retVal.Item2 = (version < 4 && retVal.Item1 != -1) || version > 3 ? inAccessor.ReadNullTerminatedString() : string.Empty;
 
         if (retVal.Item1 != -1)
         {
-            retVal.Item3 = inStream.ReadSha1();
-            retVal.Item4 = inStream.ReadInt64();
-            inStream.Position += 1; // we discard the flags and just check with the AssetManager if the asset was added
-            retVal.Item5 = inStream.ReadInt32();
-            retVal.Item6 = version > 2 ? inStream.ReadNullTerminatedString() : string.Empty;
+            retVal.Item3 = inAccessor.ReadSha1();
+            retVal.Item4 = inAccessor.ReadInt64();
+            inAccessor.Position += 1; // we discard the flags and just check with the AssetManager if the asset was added
+            retVal.Item5 = inAccessor.ReadInt32();
+            retVal.Item6 = version > 2 ? inAccessor.ReadNullTerminatedString() : string.Empty;
         }
 
         // prior to version 4, mods stored bundles the asset already existed in for modification
         // so must read and ignore this list
         if (version < 4 && retVal.Item1 != -1)
         {
-            int count = inStream.ReadInt32();
-            inStream.Position += count * sizeof(int);
+            int count = inAccessor.ReadInt32();
+            inAccessor.Position += count * sizeof(int);
 
-            count = inStream.ReadInt32();
+            count = inAccessor.ReadInt32();
             HashSet<int> bundles = new(count);
             for (int i = 0; i < count; i++)
             {
-                int hash = inStream.ReadInt32();
+                int hash = inAccessor.ReadInt32();
                 bundles.UnionWith(s_bundleMapping[hash]);
             }
             retVal.Item7 = bundles;
@@ -713,11 +713,11 @@ public class ModUpdater
         // are extracted from the asset manager during the apply process
         else if (version > 3)
         {
-            int count = inStream.ReadInt32();
+            int count = inAccessor.ReadInt32();
             HashSet<int> bundles = new(count);
             for (int i = 0; i < count; i++)
             {
-                int hash = inStream.ReadInt32();
+                int hash = inAccessor.ReadInt32();
                 bundles.UnionWith(s_bundleMapping[hash]);
             }
             retVal.Item7 = bundles;
@@ -780,7 +780,7 @@ public class ModUpdater
             if (firstMip != -1 && rangeEnd == 0)
             {
                 // we need to calculate the range in case the old mod didnt have it calculated for assets only added to bundles
-                using (BlockStream stream = new(AssetManager.GetRawAsset(entry)))
+                using (BlockAccessor accessor = new(AssetManager.GetRawAsset(entry)))
                 {
                     long uncompressedSize = entry.LogicalOffset + entry.LogicalSize;
                     long uncompressedBundledSize = (entry.LogicalOffset & 0xFFFF) | entry.LogicalSize;
@@ -789,7 +789,7 @@ public class ModUpdater
 
                     while (true)
                     {
-                        ulong packed = stream.ReadUInt64(Endian.Big);
+                        ulong packed = accessor.ReadUInt64(Endian.Big);
 
                         int decompressedSize = (int)((packed >> 32) & 0x00FFFFFF);
                         CompressionType compressionType = (CompressionType)(packed >> 24);
@@ -808,11 +808,11 @@ public class ModUpdater
                         }
 
                         size += (uint)(bufferSize + 8);
-                        stream.Position += bufferSize;
+                        accessor.Position += bufferSize;
                     }
 
                     rangeStart = size;
-                    rangeEnd = (uint)stream.Length;
+                    rangeEnd = (uint)accessor.Length;
                 }
             }
         }
@@ -820,7 +820,7 @@ public class ModUpdater
         return flags;
     }
 
-    private static int ReadArchive(List<Block<byte>> data, Dictionary<int, BlockStream> archiveStreams,
+    private static int ReadArchive(List<Block<byte>> data, Dictionary<int, BlockAccessor> archiveStreams,
         DbObjectDict inDict, string inModName)
     {
         int archiveIndex = inDict.AsInt("archiveIndex", -1);
@@ -829,20 +829,20 @@ public class ModUpdater
             return -1;
         }
 
-        if (!archiveStreams.TryGetValue(archiveIndex, out BlockStream? stream))
+        if (!archiveStreams.TryGetValue(archiveIndex, out BlockAccessor? accessor))
         {
             string path = $"{inModName}_{archiveIndex:D2}.archive";
             if (!File.Exists(path))
             {
                 return -1;
             }
-            stream = BlockStream.FromFile(path, false);
+            accessor = BlockAccessor.FromFile(path, false);
         }
 
         uint archiveOffset = inDict.AsUInt("archiveOffset");
-        stream.Position = archiveOffset;
+        accessor.Position = archiveOffset;
         Block<byte> block = Block<byte>.CreateUninitialized(inDict.AsInt("compressedSize"));
-        stream.ReadExactly(block);
+        accessor.ReadExactly(block);
 
         data.Add(block);
 

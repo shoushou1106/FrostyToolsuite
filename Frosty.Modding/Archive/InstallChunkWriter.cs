@@ -21,7 +21,7 @@ public class InstallChunkWriter : IDisposable
     private readonly bool m_isPatch;
     private readonly string m_dir;
     private readonly Dictionary<Sha1, (CasFileIdentifier, uint, uint)> m_data = new();
-    private DataStream? m_currentStream;
+    private DataAccessor? m_currentAccessor;
 
     public InstallChunkWriter(InstallChunkInfo inInstallChunk, string inGamePatchPath, string inModDataPath, bool inIsPatch)
     {
@@ -55,20 +55,20 @@ public class InstallChunkWriter : IDisposable
             return retVal;
         }
 
-        DataStream stream = GetCurrentWriter(inData.Size);
+        DataAccessor accessor = GetCurrentWriter(inData.Size);
 
         if (ProfilesLibrary.FrostbiteVersion <= "2014.4.11")
         {
             // write faceoff header
-            stream.WriteUInt32(0xFACE0FF0, Endian.Big);
-            stream.WriteSha1(inSha1);
-            stream.WriteInt64(inData.Size);
+            accessor.WriteUInt32(0xFACE0FF0, Endian.Big);
+            accessor.WriteSha1(inSha1);
+            accessor.WriteInt64(inData.Size);
         }
 
-        retVal = (new CasFileIdentifier(m_isPatch, m_installChunkIndex, m_casIndex), (uint)stream.Position,
+        retVal = (new CasFileIdentifier(m_isPatch, m_installChunkIndex, m_casIndex), (uint)accessor.Position,
             (uint)inData.Size);
         m_data.Add(inSha1, retVal);
-        stream.Write(inData);
+        accessor.Write(inData);
 
         return retVal;
     }
@@ -86,71 +86,71 @@ public class InstallChunkWriter : IDisposable
             throw new Exception();
         }
 
-        using (BlockStream stream = new(catalog, true))
+        using (BlockAccessor accessor = new(catalog, true))
         {
-            stream.WriteFixedSizedString("NyanNyanNyanNyan", 16);
+            accessor.WriteFixedSizedString("NyanNyanNyanNyan", 16);
             bool isNewFormat = ProfilesLibrary.FrostbiteVersion > "2014.4.11";
-            using (CatStream catStream = new(originalPath))
+            using (CatReader catReader = new(originalPath))
             {
                 if (isNewFormat)
                 {
-                    stream.WriteUInt32(catStream.ResourceCount + (uint)m_data.Count);
-                    stream.WriteUInt32(catStream.PatchCount);
+                    accessor.WriteUInt32(catReader.ResourceCount + (uint)m_data.Count);
+                    accessor.WriteUInt32(catReader.PatchCount);
                     if (ProfilesLibrary.FrostbiteVersion >= "2015")
                     {
-                        stream.WriteUInt32(catStream.EncryptedCount);
-                        stream.Position += 12;
+                        accessor.WriteUInt32(catReader.EncryptedCount);
+                        accessor.Position += 12;
                     }
                 }
 
-                for (int i = 0; i < catStream.ResourceCount; i++)
+                for (int i = 0; i < catReader.ResourceCount; i++)
                 {
-                    CatResourceEntry entry = catStream.ReadResourceEntry();
-                    stream.WriteSha1(entry.Sha1);
-                    stream.WriteUInt32(entry.Offset);
-                    stream.WriteUInt32(entry.Size);
+                    CatResourceEntry entry = catReader.ReadResourceEntry();
+                    accessor.WriteSha1(entry.Sha1);
+                    accessor.WriteUInt32(entry.Offset);
+                    accessor.WriteUInt32(entry.Size);
 
                     if (isNewFormat)
                     {
-                        stream.WriteUInt32(entry.LogicalOffset);
+                        accessor.WriteUInt32(entry.LogicalOffset);
                     }
 
-                    stream.WriteInt32(entry.ArchiveIndex);
+                    accessor.WriteInt32(entry.ArchiveIndex);
                 }
 
                 foreach (KeyValuePair<Sha1,(CasFileIdentifier Identifier, uint Offset, uint Size)> data in m_data)
                 {
-                    stream.WriteSha1(data.Key);
-                    stream.WriteUInt32(data.Value.Offset);
-                    stream.WriteUInt32(data.Value.Size);
+                    accessor.WriteSha1(data.Key);
+                    accessor.WriteUInt32(data.Value.Offset);
+                    accessor.WriteUInt32(data.Value.Size);
 
                     if (isNewFormat)
                     {
-                        stream.WriteUInt32(0);
+                        accessor.WriteUInt32(0);
                     }
 
-                    stream.WriteInt32(data.Value.Identifier.CasIndex);
+                    accessor.WriteInt32(data.Value.Identifier.CasIndex);
                 }
 
-                for (int i = 0; i < catStream.EncryptedCount; i++)
+                for (int i = 0; i < catReader.EncryptedCount; i++)
                 {
-                    CatResourceEntry entry = catStream.ReadEncryptedEntry();
-                    stream.WriteSha1(entry.Sha1);
-                    stream.WriteUInt32(entry.Offset);
-                    stream.WriteUInt32(entry.Size);
-                    stream.WriteUInt32(entry.LogicalOffset);
-                    stream.WriteInt32(entry.ArchiveIndex | (1 << 8));
-                    stream.WriteUInt32(entry.OriginalSize);
-                    stream.WriteFixedSizedString(entry.KeyId, 8);
-                    stream.Write(entry.Checksum);
+                    CatResourceEntry entry = catReader.ReadEncryptedEntry();
+                    accessor.WriteSha1(entry.Sha1);
+                    accessor.WriteUInt32(entry.Offset);
+                    accessor.WriteUInt32(entry.Size);
+                    accessor.WriteUInt32(entry.LogicalOffset);
+                    accessor.WriteInt32(entry.ArchiveIndex | (1 << 8));
+                    accessor.WriteUInt32(entry.OriginalSize);
+                    accessor.WriteFixedSizedString(entry.KeyId, 8);
+                    accessor.Write(entry.Checksum);
                 }
 
-                for (int i = 0; i < catStream.PatchCount; i++)
+                for (int i = 0; i < catReader.PatchCount; i++)
                 {
-                    CatPatchEntry entry = catStream.ReadPatchEntry();
-                    stream.WriteSha1(entry.Sha1);
-                    stream.WriteSha1(entry.BaseSha1);
-                    stream.WriteSha1(entry.DeltaSha1);
+                    CatPatchEntry entry = catReader.ReadPatchEntry();
+                    accessor.WriteSha1(entry.Sha1);
+                    accessor.WriteSha1(entry.BaseSha1);
+                    accessor.WriteSha1(entry.DeltaSha1);
                 }
             }
         }
@@ -176,7 +176,7 @@ public class InstallChunkWriter : IDisposable
         return retVal;
     }
 
-    private DataStream GetCurrentWriter(int size)
+    private DataAccessor GetCurrentWriter(int size)
     {
         FileInfo currentFile = new(Path.Combine(m_dir, $"cas_{m_casIndex:D2}.cas"));
 
@@ -185,21 +185,21 @@ public class InstallChunkWriter : IDisposable
             m_casIndex++;
             currentFile = new FileInfo(Path.Combine(m_dir, $"cas_{m_casIndex:D2}.cas"));
             Debug.Assert(!currentFile.Exists, "Trying to create new cas archive, even tho it already exists");
-            m_currentStream?.Dispose();
-            m_currentStream = new DataStream(currentFile.Create());
+            m_currentAccessor?.Dispose();
+            m_currentAccessor = new DataAccessor(currentFile.Create());
         }
-        else if (m_currentStream is null)
+        else if (m_currentAccessor is null)
         {
             Debug.Assert(!currentFile.Exists, "First cas archive used should not exist");
-            m_currentStream = new DataStream(currentFile.Create());
-            m_currentStream.Seek(0, SeekOrigin.End);
+            m_currentAccessor = new DataAccessor(currentFile.Create());
+            m_currentAccessor.Seek(0, SeekOrigin.End);
         }
 
-        return m_currentStream;
+        return m_currentAccessor;
     }
 
     public void Dispose()
     {
-        m_currentStream?.Dispose();
+        m_currentAccessor?.Dispose();
     }
 }

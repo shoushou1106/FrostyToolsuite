@@ -17,15 +17,15 @@ public class HuffmanDecoder
     /// <summary>
     ///     Parses a Huffman Table.
     /// </summary>
-    /// <param name="stream">The <see cref="DataStream" /> the Huffman Table gets read from.</param>
+    /// <param name="accessor">The <see cref="DataAccessor" /> the Huffman Table gets read from.</param>
     /// <param name="count">
     ///     The number of Huffman Nodes the Table contains.
     ///     This is the number of 32-bit Integers contained in the table or tree.
     /// </param>
     /// <param name="endian">The endianness in which the Huffman Table gets read.</param>
-    public void ReadHuffmanTable(DataStream stream, uint count, Endian endian = Endian.Little)
+    public void ReadHuffmanTable(DataAccessor accessor, uint count, Endian endian = Endian.Little)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
         _rootNode = null;
         HuffmanNode? leftNode = null;
@@ -36,7 +36,7 @@ public class HuffmanDecoder
 
         for (int i = 0; i < count; i++)
         {
-            HuffmanNode n = new(stream, endian);
+            HuffmanNode n = new(accessor, endian);
             int idx = nodes.FindIndex(a => a.Value == n.Value);
             if (idx != -1)
             {
@@ -73,30 +73,30 @@ public class HuffmanDecoder
     /// <summary>
     ///     Reads in the encoded data.
     /// </summary>
-    /// <param name="stream">The <see cref="DataStream" /> the encoded data gets read from.</param>
+    /// <param name="accessor">The <see cref="DataAccessor" /> the encoded data gets read from.</param>
     /// <param name="integerCount">The number of <see cref="int" />s the data contains.</param>
     /// <param name="endian">The <see cref="Endian" /> in which the encoded data gets read.</param>
-    public void ReadEncodedData(DataStream stream, uint integerCount, Endian endian = Endian.Little)
+    public void ReadEncodedData(DataAccessor accessor, uint integerCount, Endian endian = Endian.Little)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
         _data = new int[integerCount];
 
         for (int i = 0; i < integerCount; i++)
         {
-            _data[i] = stream.ReadInt32(endian);
+            _data[i] = accessor.ReadInt32(endian);
         }
     }
 
     /// <summary>
     ///     Reads in the encoded data of the given byte length, for cases that the data to read does not match integer sizes.
     /// </summary>
-    /// <param name="stream">The <see cref="DataStream" /> the encoded data gets read from.</param>
+    /// <param name="accessor">The <see cref="DataAccessor" /> the encoded data gets read from.</param>
     /// <param name="byteCount">The number of <see cref="byte" />s to read.</param>
     /// <param name="endian">The <see cref="Endian" /> in which the encoded data gets read.</param>
-    public void ReadOddSizedEncodedData(DataStream stream, uint byteCount, Endian endian = Endian.Little)
+    public void ReadOddSizedEncodedData(DataAccessor accessor, uint byteCount, Endian endian = Endian.Little)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
         uint intLength = byteCount / 4;
 
@@ -104,12 +104,12 @@ public class HuffmanDecoder
 
         for (int i = 0; i < intLength; i++)
         {
-            _data[i] = stream.ReadInt32(endian);
+            _data[i] = accessor.ReadInt32(endian);
         }
 
         // Read remaining bytes as full int
         Span<byte> remaining = stackalloc byte[sizeof(int)];
-        stream.ReadExactly(remaining[..((int)byteCount % 4)]);
+        accessor.ReadExactly(remaining[..((int)byteCount % 4)]);
 
         _data[intLength] = endian == Endian.Big
             ? BinaryPrimitives.ReadInt32BigEndian(remaining)

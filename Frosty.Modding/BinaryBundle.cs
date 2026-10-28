@@ -19,18 +19,18 @@ namespace Frosty.Modding;
 
 public static class BinaryBundle
 {
-    public static Block<byte> Modify(BlockStream inStream, BundleModInfo inModInfo,
+    public static Block<byte> Modify(BlockAccessor inAccessor, BundleModInfo inModInfo,
         Dictionary<string, EbxModEntry> inModifiedEbx, Dictionary<string, ResModEntry> inModifiedRes,
         Dictionary<Guid, ChunkModEntry> inModifiedChunks, Action<IModEntry, int, bool, bool, uint> modify)
     {
         // we use big endian for default
         Endian endian = Endian.Big;
 
-        uint size = inStream.ReadUInt32(Endian.Big);
+        uint size = inAccessor.ReadUInt32(Endian.Big);
 
-        long startPos = inStream.Position;
+        long startPos = inAccessor.Position;
 
-        Sdk.IO.BinaryBundle.Magic magic = (Sdk.IO.BinaryBundle.Magic)(inStream.ReadUInt32(endian) ^ Sdk.IO.BinaryBundle.GetSalt());
+        Sdk.IO.BinaryBundle.Magic magic = (Sdk.IO.BinaryBundle.Magic)(inAccessor.ReadUInt32(endian) ^ Sdk.IO.BinaryBundle.GetSalt());
 
         // check what endian its written in
         if (!Sdk.IO.BinaryBundle.IsValidMagic(magic))
@@ -47,13 +47,13 @@ public static class BinaryBundle
 
         bool containsSha1 = magic == Sdk.IO.BinaryBundle.Magic.Standard;
 
-        uint totalCount = inStream.ReadUInt32(endian);
-        int ebxCount = inStream.ReadInt32(endian);
-        int resCount = inStream.ReadInt32(endian);
-        int chunkCount = inStream.ReadInt32(endian);
-        long stringsOffset = inStream.ReadUInt32(endian) + startPos;
-        long metaOffset = inStream.ReadUInt32(endian) + startPos;
-        uint metaSize = inStream.ReadUInt32(endian);
+        uint totalCount = inAccessor.ReadUInt32(endian);
+        int ebxCount = inAccessor.ReadInt32(endian);
+        int resCount = inAccessor.ReadInt32(endian);
+        int chunkCount = inAccessor.ReadInt32(endian);
+        long stringsOffset = inAccessor.ReadUInt32(endian) + startPos;
+        long metaOffset = inAccessor.ReadUInt32(endian) + startPos;
+        uint metaSize = inAccessor.ReadUInt32(endian);
 
         // decrypt the data
         if (magic == Sdk.IO.BinaryBundle.Magic.Encrypted)
@@ -63,7 +63,7 @@ public static class BinaryBundle
                 throw new MissingEncryptionKeyException("bundles");
             }
 
-            inStream.Decrypt(KeyManager.GetKey("BundleEncryptionKey"), (int)(size - 0x20), PaddingMode.None);
+            inAccessor.Decrypt(KeyManager.GetKey("BundleEncryptionKey"), (int)(size - 0x20), PaddingMode.None);
         }
 
         EbxModEntry[] ebx = new EbxModEntry[ebxCount + inModInfo.Added.Ebx.Count];
@@ -86,18 +86,18 @@ public static class BinaryBundle
             {
                 b += inModInfo.Added.Res.Count;
             }
-            sha1[i + b] = containsSha1 ? inStream.ReadSha1() : Sha1.Zero;
+            sha1[i + b] = containsSha1 ? inAccessor.ReadSha1() : Sha1.Zero;
         }
 
         int j = 0;
         for (int i = 0; i < ebxCount; i++, j++)
         {
-            uint nameOffset = inStream.ReadUInt32(endian);
-            uint originalSize = inStream.ReadUInt32(endian);
+            uint nameOffset = inAccessor.ReadUInt32(endian);
+            uint originalSize = inAccessor.ReadUInt32(endian);
 
-            long currentPos = inStream.Position;
-            inStream.Position = stringsOffset + nameOffset;
-            string name = inStream.ReadNullTerminatedString();
+            long currentPos = inAccessor.Position;
+            inAccessor.Position = stringsOffset + nameOffset;
+            string name = inAccessor.ReadNullTerminatedString();
 
             if (inModInfo.Modified.Ebx.Contains(name))
             {
@@ -112,7 +112,7 @@ public static class BinaryBundle
                 modify(ebx[i], j, false, false, originalSize);
             }
 
-            inStream.Position = currentPos;
+            inAccessor.Position = currentPos;
 
             if (strings.TryAdd(name, offset))
             {
@@ -133,26 +133,26 @@ public static class BinaryBundle
             }
         }
 
-        long resTypeOffset = inStream.Position + resCount * 2 * sizeof(uint);
-        long resMetaOffset = inStream.Position + resCount * 2 * sizeof(uint) + resCount * sizeof(uint);
-        long resRidOffset = inStream.Position + resCount * 2 * sizeof(uint) + resCount * sizeof(uint) + resCount * 0x10;
+        long resTypeOffset = inAccessor.Position + resCount * 2 * sizeof(uint);
+        long resMetaOffset = inAccessor.Position + resCount * 2 * sizeof(uint) + resCount * sizeof(uint);
+        long resRidOffset = inAccessor.Position + resCount * 2 * sizeof(uint) + resCount * sizeof(uint) + resCount * 0x10;
         for (int i = 0; i < resCount; i++, j++)
         {
-            uint nameOffset = inStream.ReadUInt32(endian);
-            uint originalSize = inStream.ReadUInt32(endian);
+            uint nameOffset = inAccessor.ReadUInt32(endian);
+            uint originalSize = inAccessor.ReadUInt32(endian);
 
-            long currentPos = inStream.Position;
-            inStream.Position = stringsOffset + nameOffset;
-            string name = inStream.ReadNullTerminatedString();
+            long currentPos = inAccessor.Position;
+            inAccessor.Position = stringsOffset + nameOffset;
+            string name = inAccessor.ReadNullTerminatedString();
 
-            inStream.Position = resTypeOffset + i * sizeof(uint);
-            uint resType = inStream.ReadUInt32(endian);
+            inAccessor.Position = resTypeOffset + i * sizeof(uint);
+            uint resType = inAccessor.ReadUInt32(endian);
 
-            inStream.Position = resMetaOffset + i * 0x10;
-            byte[] resMeta = inStream.ReadBytes(0x10);
+            inAccessor.Position = resMetaOffset + i * 0x10;
+            byte[] resMeta = inAccessor.ReadBytes(0x10);
 
-            inStream.Position = resRidOffset + i * sizeof(ulong);
-            ulong resRid = inStream.ReadUInt64(endian);
+            inAccessor.Position = resRidOffset + i * sizeof(ulong);
+            ulong resRid = inAccessor.ReadUInt64(endian);
 
             if (inModInfo.Modified.Res.Contains(name))
             {
@@ -167,7 +167,7 @@ public static class BinaryBundle
                 modify(res[i], j, false, false, originalSize);
             }
 
-            inStream.Position = currentPos;
+            inAccessor.Position = currentPos;
 
             if (strings.TryAdd(name, offset))
             {
@@ -192,16 +192,16 @@ public static class BinaryBundle
         DbObjectList? chunkMeta = null;
         if (metaSize > 0)
         {
-            inStream.Position = metaOffset;
-            chunkMeta = DbObject.Deserialize(inStream)!.AsList();
+            inAccessor.Position = metaOffset;
+            chunkMeta = DbObject.Deserialize(inAccessor)!.AsList();
         }
 
-        inStream.Position = resRidOffset + resCount * sizeof(ulong);
+        inAccessor.Position = resRidOffset + resCount * sizeof(ulong);
         for (int i = 0; i < chunkCount; i++, j++)
         {
-            Guid id = inStream.ReadGuid(endian);
-            uint logicalOffset = inStream.ReadUInt32(endian);
-            uint logicalSize = inStream.ReadUInt32(endian);
+            Guid id = inAccessor.ReadGuid(endian);
+            uint logicalOffset = inAccessor.ReadUInt32(endian);
+            uint logicalSize = inAccessor.ReadUInt32(endian);
 
             if (inModInfo.Modified.Chunks.Contains(id))
             {
@@ -250,92 +250,92 @@ public static class BinaryBundle
             chunkMeta!.Add(meta);
         }
 
-        inStream.Position = startPos + size;
+        inAccessor.Position = startPos + size;
 
         // write new bundle
         stringsOffset = 32 + (containsSha1 ? sha1.Length * 20 : 0) + ebx.Length * 8 + res.Length * 36 +
                         chunks.Length * 24;
         Block<byte> retVal = new((int)(stringsOffset + offset));
-        using (BlockStream stream = new(retVal, true))
+        using (BlockAccessor accessor = new(retVal, true))
         {
-            stream.WriteUInt32(0xDEADBEEF, Endian.Big);
+            accessor.WriteUInt32(0xDEADBEEF, Endian.Big);
 
-            stream.WriteUInt32((uint)magic ^ Sdk.IO.BinaryBundle.GetSalt(), endian);
+            accessor.WriteUInt32((uint)magic ^ Sdk.IO.BinaryBundle.GetSalt(), endian);
 
-            stream.WriteInt32(sha1.Length, endian);
-            stream.WriteInt32(ebx.Length, endian);
-            stream.WriteInt32(res.Length, endian);
-            stream.WriteInt32(chunks.Length, endian);
+            accessor.WriteInt32(sha1.Length, endian);
+            accessor.WriteInt32(ebx.Length, endian);
+            accessor.WriteInt32(res.Length, endian);
+            accessor.WriteInt32(chunks.Length, endian);
 
-            stream.WriteUInt32(0xDEADBEEF, endian);
-            stream.WriteUInt32(0xDEADBEEF, endian);
-            stream.WriteUInt32(0xDEADBEEF, endian);
+            accessor.WriteUInt32(0xDEADBEEF, endian);
+            accessor.WriteUInt32(0xDEADBEEF, endian);
+            accessor.WriteUInt32(0xDEADBEEF, endian);
 
             foreach (Sha1 value in sha1)
             {
-                stream.WriteSha1(value);
+                accessor.WriteSha1(value);
             }
 
             foreach (EbxModEntry entry in ebx)
             {
-                stream.WriteUInt32(strings[entry.Name], endian);
-                stream.WriteUInt32((uint)entry.OriginalSize, endian);
+                accessor.WriteUInt32(strings[entry.Name], endian);
+                accessor.WriteUInt32((uint)entry.OriginalSize, endian);
             }
 
-            resTypeOffset = stream.Position + res.Length * 2 * sizeof(uint);
-            resMetaOffset = stream.Position + res.Length * 2 * sizeof(uint) + res.Length * sizeof(uint);
-            resRidOffset = stream.Position + res.Length * 2 * sizeof(uint) + res.Length * sizeof(uint) + res.Length * 0x10;
+            resTypeOffset = accessor.Position + res.Length * 2 * sizeof(uint);
+            resMetaOffset = accessor.Position + res.Length * 2 * sizeof(uint) + res.Length * sizeof(uint);
+            resRidOffset = accessor.Position + res.Length * 2 * sizeof(uint) + res.Length * sizeof(uint) + res.Length * 0x10;
             for (int i = 0; i < res.Length; i++)
             {
                 ResModEntry entry = res[i];
-                stream.WriteUInt32(strings[entry.Name], endian);
-                stream.WriteUInt32((uint)entry.OriginalSize, endian);
+                accessor.WriteUInt32(strings[entry.Name], endian);
+                accessor.WriteUInt32((uint)entry.OriginalSize, endian);
 
-                long currentPos = stream.Position;
-                stream.Position = resTypeOffset + i * sizeof(uint);
-                stream.WriteUInt32(entry.ResType, endian);
+                long currentPos = accessor.Position;
+                accessor.Position = resTypeOffset + i * sizeof(uint);
+                accessor.WriteUInt32(entry.ResType, endian);
 
-                stream.Position = resMetaOffset + i * 0x10;
-                stream.Write(entry.ResMeta);
+                accessor.Position = resMetaOffset + i * 0x10;
+                accessor.Write(entry.ResMeta);
 
-                stream.Position = resRidOffset + i * sizeof(ulong);
-                stream.WriteUInt64(entry.ResRid, endian);
-                stream.Position = currentPos;
+                accessor.Position = resRidOffset + i * sizeof(ulong);
+                accessor.WriteUInt64(entry.ResRid, endian);
+                accessor.Position = currentPos;
             }
 
-            stream.Position = resRidOffset + res.Length * sizeof(ulong);
+            accessor.Position = resRidOffset + res.Length * sizeof(ulong);
 
             foreach (ChunkModEntry entry in chunks)
             {
-                stream.WriteGuid(entry.Id, endian);
-                stream.WriteUInt32(entry.LogicalOffset, endian);
-                stream.WriteUInt32(entry.LogicalSize, endian);
+                accessor.WriteGuid(entry.Id, endian);
+                accessor.WriteUInt32(entry.LogicalOffset, endian);
+                accessor.WriteUInt32(entry.LogicalSize, endian);
             }
 
-            uint chunkMetaOffset = (uint)stream.Position - 4;
+            uint chunkMetaOffset = (uint)accessor.Position - 4;
             if (chunkMeta is not null)
             {
-                DbObject.Serialize(stream, chunkMeta);
+                DbObject.Serialize(accessor, chunkMeta);
             }
-            uint chunkMetaSize = (uint)(stream.Position - 4 - chunkMetaOffset);
+            uint chunkMetaSize = (uint)(accessor.Position - 4 - chunkMetaOffset);
 
             foreach (KeyValuePair<string,uint> pair in strings)
             {
-                stream.WriteNullTerminatedString(pair.Key);
+                accessor.WriteNullTerminatedString(pair.Key);
             }
 
-            while (((stream.Position - 0x24) & 15) != 0)
+            while (((accessor.Position - 0x24) & 15) != 0)
             {
-                stream.WriteByte(0);
+                accessor.WriteByte(0);
             }
 
-            stream.Position = 0;
-            stream.WriteUInt32((uint)stream.Length - 4, Endian.Big);
+            accessor.Position = 0;
+            accessor.WriteUInt32((uint)accessor.Length - 4, Endian.Big);
 
-            stream.Position = 0x18;
-            stream.WriteUInt32(chunkMetaOffset + chunkMetaSize, endian);
-            stream.WriteUInt32(chunkMetaOffset, endian);
-            stream.WriteUInt32(chunkMetaSize, endian);
+            accessor.Position = 0x18;
+            accessor.WriteUInt32(chunkMetaOffset + chunkMetaSize, endian);
+            accessor.WriteUInt32(chunkMetaOffset, endian);
+            accessor.WriteUInt32(chunkMetaSize, endian);
         }
 
         return retVal;

@@ -9,25 +9,25 @@ namespace Frosty.Sdk.IO;
 
 /// <summary>
 ///     Reads and writes Frostbite data on top of a <see cref="Stream" />: numbers in either <see cref="Endian" />,
-///     strings (UTF-8 unless an encoding is given), 7 bit encoded integers, guids and sha1s.
+///     strings (UTF-8 unless an encoding is given), 7 bit encoded integers, GUIDs, and SHA-1s.
 /// </summary>
-public class DataStream : IDisposable
+public class DataAccessor : IDisposable
 {
     private readonly Stack<long> _steps = new();
     private readonly bool _leaveOpen;
     private Block<byte>? _stringBuffer;
     private bool _disposed;
 
-    protected DataStream()
+    protected DataAccessor()
     {
         BaseStream = Stream.Null;
     }
 
     /// <param name="inStream">The stream to read from and write to.</param>
     /// <param name="inLeaveOpen">
-    ///     <see langword="true" /> to leave <paramref name="inStream" /> open when this <see cref="DataStream" /> is disposed.
+    ///     <see langword="true" /> to leave <paramref name="inStream" /> open when this <see cref="DataAccessor" /> is disposed.
     /// </param>
-    public DataStream(Stream inStream, bool inLeaveOpen = false)
+    public DataAccessor(Stream inStream, bool inLeaveOpen = false)
     {
         ArgumentNullException.ThrowIfNull(inStream);
 
@@ -36,7 +36,7 @@ public class DataStream : IDisposable
     }
 
     /// <summary>
-    ///     The stream this <see cref="DataStream" /> reads from and writes to.
+    ///     The stream this <see cref="DataAccessor" /> reads from and writes to.
     /// </summary>
     public Stream BaseStream { get; protected set; }
 
@@ -69,17 +69,18 @@ public class DataStream : IDisposable
     }
 
     /// <inheritdoc cref="Stream.CopyTo(Stream, int)" />
+    // ReSharper disable once MemberCanBeProtected.Global
     public virtual void CopyTo(Stream destination, int bufferSize)
     {
         BaseStream.CopyTo(destination, bufferSize);
     }
 
-    public void CopyTo(DataStream destination)
+    public void CopyTo(DataAccessor destination)
     {
         CopyTo(destination, (int)(Length - Position));
     }
 
-    public virtual void CopyTo(DataStream destination, int bufferSize)
+    public virtual void CopyTo(DataAccessor destination, int bufferSize)
     {
         ArgumentNullException.ThrowIfNull(destination);
 
@@ -112,11 +113,11 @@ public class DataStream : IDisposable
         Position = _steps.Pop();
     }
 
-    public virtual DataStream CreateSubStream(long inStartOffset, int inSize)
+    public virtual DataAccessor CreateSubAccessor(long inStartOffset, int inSize)
     {
         StepIn(inStartOffset);
 
-        DataStream retVal = new(new MemoryStream(ReadBytes(inSize)));
+        DataAccessor retVal = new(new MemoryStream(ReadBytes(inSize)));
 
         StepOut();
 
@@ -613,6 +614,7 @@ public class DataStream : IDisposable
     public void WriteSizedString(string value) => WriteSizedString(value, Encoding.UTF8);
 
     /// <inheritdoc cref="WriteSizedString(string)" />
+    // ReSharper disable once MemberCanBePrivate.Global
     public void WriteSizedString(string value, Encoding inEncoding)
     {
         ArgumentNullException.ThrowIfNull(value);

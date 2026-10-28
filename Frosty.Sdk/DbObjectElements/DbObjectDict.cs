@@ -197,35 +197,35 @@ public class DbObjectDict : DbObject
         return _items.Remove(inKey);
     }
 
-    protected override void InternalSerialize(DataStream stream)
+    protected override void InternalSerialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
         Block<byte> sub = new(0);
-        using (BlockStream subStream = new(sub, true))
+        using (BlockAccessor subAccessor = new(sub, true))
         {
             foreach (DbObject value in _items.Values)
             {
-                Serialize(subStream, value);
+                Serialize(subAccessor, value);
             }
 
             // Write terminator
-            subStream.WriteByte((byte)Type.Null);
+            subAccessor.WriteByte((byte)Type.Null);
         }
 
-        stream.Write7BitEncodedInt64(sub.Size);
-        stream.Write(sub);
+        accessor.Write7BitEncodedInt64(sub.Size);
+        accessor.Write(sub);
         sub.Dispose();
     }
 
-    protected override void InternalDeserialize(DataStream stream)
+    protected override void InternalDeserialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        stream.Read7BitEncodedInt64();
+        accessor.Read7BitEncodedInt64();
         while (true)
         {
-            DbObject? obj = Deserialize(stream);
+            DbObject? obj = Deserialize(accessor);
 
             if (obj is null)
             {

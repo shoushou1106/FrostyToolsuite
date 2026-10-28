@@ -35,18 +35,18 @@ public class DbObjectFloat : DbObject
         return _value;
     }
 
-    protected override void InternalSerialize(DataStream stream)
+    protected override void InternalSerialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        stream.WriteSingle(_value);
+        accessor.WriteSingle(_value);
     }
 
-    protected override void InternalDeserialize(DataStream stream)
+    protected override void InternalDeserialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        _value = stream.ReadSingle();
+        _value = accessor.ReadSingle();
     }
 
     public override string ToString()

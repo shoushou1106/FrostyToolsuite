@@ -49,26 +49,26 @@ public class FrostyModCollection
             return null;
         }
 
-        using (BlockStream stream = BlockStream.FromFile(inPath, false))
+        using (BlockAccessor accessor = BlockAccessor.FromFile(inPath, false))
         {
-            if (s_magic != stream.ReadUInt32())
+            if (s_magic != accessor.ReadUInt32())
             {
                 return null;
             }
 
-            if (s_version != stream.ReadUInt32())
+            if (s_version != accessor.ReadUInt32())
             {
                 return null;
             }
 
-            uint manifestOffset = stream.ReadUInt32();
-            int manifestSize = stream.ReadInt32();
-            ResourceData icon = new(inPath, stream.ReadUInt32(), stream.ReadInt32());
-            uint screenShotsOffset = stream.ReadUInt32();
+            uint manifestOffset = accessor.ReadUInt32();
+            int manifestSize = accessor.ReadInt32();
+            ResourceData icon = new(inPath, accessor.ReadUInt32(), accessor.ReadInt32());
+            uint screenShotsOffset = accessor.ReadUInt32();
 
-            stream.Position = manifestOffset;
+            accessor.Position = manifestOffset;
             Span<byte> utf8Json = new byte[manifestSize];
-            stream.ReadExactly(utf8Json);
+            accessor.ReadExactly(utf8Json);
             Manifest? manifest = JsonSerializer.Deserialize<Manifest>(utf8Json);
             if (manifest is null)
             {
@@ -79,13 +79,13 @@ public class FrostyModCollection
             FrostyModDetails modDetails = new(manifest.Title, manifest.Author, manifest.Category, manifest.Version,
                 manifest.Description, manifest.Link);
 
-            stream.Position = screenShotsOffset;
-            int count = stream.ReadInt32();
+            accessor.Position = screenShotsOffset;
+            int count = accessor.ReadInt32();
             ResourceData[] screenshots = new ResourceData[count];
             long offset = screenShotsOffset + 4 + 4;
             for (int i = 0; i < count; i++)
             {
-                int size = stream.ReadInt32();
+                int size = accessor.ReadInt32();
                 screenshots[i] = new ResourceData(inPath, offset, size);
                 offset += size + 4;
             }
@@ -108,24 +108,24 @@ public class FrostyModCollection
 
     public static FrostyModDetails? GetModDetails(string inPath)
     {
-        using (BlockStream stream = BlockStream.FromFile(inPath, false))
+        using (BlockAccessor accessor = BlockAccessor.FromFile(inPath, false))
         {
-            if (s_magic != stream.ReadUInt32())
+            if (s_magic != accessor.ReadUInt32())
             {
                 return null;
             }
 
-            if (s_version != stream.ReadUInt32())
+            if (s_version != accessor.ReadUInt32())
             {
                 return null;
             }
 
-            uint manifestOffset = stream.ReadUInt32();
-            int manifestSize = stream.ReadInt32();
+            uint manifestOffset = accessor.ReadUInt32();
+            int manifestSize = accessor.ReadInt32();
 
-            stream.Position = manifestOffset;
+            accessor.Position = manifestOffset;
             Span<byte> utf8Json = new byte[manifestSize];
-            stream.ReadExactly(utf8Json);
+            accessor.ReadExactly(utf8Json);
             Manifest? manifest = JsonSerializer.Deserialize<Manifest>(utf8Json);
 
             if (manifest is null)

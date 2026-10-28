@@ -241,12 +241,12 @@ public static class TypeLibrary
         return type.GetCustomAttribute<NameHashAttribute>()?.Hash ?? uint.MaxValue;
     }
 
-    internal static void ReadCache(DataStream inStream)
+    internal static void ReadCache(DataAccessor inAccessor)
     {
-        int count = inStream.ReadInt32();
+        int count = inAccessor.ReadInt32();
         for (int i = 0; i < count; i++)
         {
-            TypeInfoAsset type = new(inStream.ReadNullTerminatedString(), inStream.ReadUInt32(), inStream.ReadGuid());
+            TypeInfoAsset type = new(inAccessor.ReadNullTerminatedString(), inAccessor.ReadUInt32(), inAccessor.ReadGuid());
             const int flag = 1 << 31;
             int index = s_typeInfoAssets.Count | flag;
 
@@ -266,22 +266,22 @@ public static class TypeLibrary
         }
     }
 
-    internal static void WriteCache(DataStream inStream)
+    internal static void WriteCache(DataAccessor inAccessor)
     {
-        long pos = inStream.Position;
-        inStream.WriteUInt32(0xdeadbeef);
+        long pos = inAccessor.Position;
+        inAccessor.WriteUInt32(0xdeadbeef);
 
         int count = 0;
         foreach (TypeInfoAsset type in s_typeInfoAssets)
         {
             count++;
 
-            inStream.WriteNullTerminatedString(type.Name);
-            inStream.WriteUInt32(type.NameHash);
-            inStream.WriteGuid(type.Guid);
+            inAccessor.WriteNullTerminatedString(type.Name);
+            inAccessor.WriteUInt32(type.NameHash);
+            inAccessor.WriteGuid(type.Guid);
         }
-        inStream.StepIn(pos);
-        inStream.WriteInt32(count);
-        inStream.StepOut();
+        inAccessor.StepIn(pos);
+        inAccessor.WriteInt32(count);
+        inAccessor.StepOut();
     }
 }

@@ -280,19 +280,19 @@ public static class AssetManager
 
     public static EbxPartition GetEbxPartition(EbxAssetEntry entry)
     {
-        using (BlockStream stream = new(GetAsset(entry)))
+        using (BlockAccessor accessor = new(GetAsset(entry)))
         {
-            return EbxPartition.Deserialize(stream);
+            return EbxPartition.Deserialize(accessor);
         }
     }
 
     public static T GetResAs<T>(ResAssetEntry entry)
         where T : Resource, new()
     {
-        using (BlockStream stream = new(GetAsset(entry)))
+        using (BlockAccessor accessor = new(GetAsset(entry)))
         {
             T retVal = new();
-            retVal.Deserialize(stream, entry.ResMeta);
+            retVal.Deserialize(accessor, entry.ResMeta);
 
             return retVal;
         }
@@ -518,9 +518,9 @@ public static class AssetManager
                 continue;
             }
 
-            using (BlockStream stream = new(GetAsset(entry)))
+            using (BlockAccessor accessor = new(GetAsset(entry)))
             {
-                BaseEbxReader reader = BaseEbxReader.CreateReader(stream);
+                BaseEbxReader reader = BaseEbxReader.CreateReader(accessor);
                 entry.Type = reader.GetRootType();
                 entry.Guid = reader.GetPartitionGuid();
 
@@ -603,37 +603,37 @@ public static class AssetManager
 
         bool isPatched = false;
 
-        using (DataStream stream = new(new FileStream($"{FileSystemManager.CacheName}.cache", FileMode.Open, FileAccess.Read)))
+        using (DataAccessor accessor = new(new FileStream($"{FileSystemManager.CacheName}.cache", FileMode.Open, FileAccess.Read)))
         {
-            ulong magic = stream.ReadUInt64();
+            ulong magic = accessor.ReadUInt64();
             if (magic != c_cacheMagic)
             {
                 return false;
             }
 
-            uint version = stream.ReadUInt32();
+            uint version = accessor.ReadUInt32();
             if (version != c_cacheVersion)
             {
                 return false;
             }
 
-            int profileNameHash = stream.ReadInt32();
+            int profileNameHash = accessor.ReadInt32();
             if (profileNameHash != Fnv1.HashString(ProfilesLibrary.ProfileName, true))
             {
                 return false;
             }
 
-            uint head = stream.ReadUInt32();
+            uint head = accessor.ReadUInt32();
             if (head != FileSystemManager.Head)
             {
                 isPatched = true;
             }
 
-            int bundleCount = stream.ReadInt32();
+            int bundleCount = accessor.ReadInt32();
             for (int i = 0; i < bundleCount; i++)
             {
-                string name = stream.ReadNullTerminatedString();
-                string sbIcName = stream.ReadNullTerminatedString();
+                string name = accessor.ReadNullTerminatedString();
+                string sbIcName = accessor.ReadNullTerminatedString();
                 if (!isPatched)
                 {
                     SuperBundleInstallChunk sbIc = FileSystemManager.GetSuperBundleInstallChunk(sbIcName);
@@ -642,24 +642,24 @@ public static class AssetManager
             }
 
             FrostyLogger.Logger.LogInformation("Loading EBX from cache");
-            int ebxCount = stream.ReadInt32();
+            int ebxCount = accessor.ReadInt32();
             for (int i = 0; i < ebxCount; i++)
             {
                 FrostyLogger.Progress?.Report(i / (double)ebxCount);
-                string name = stream.ReadNullTerminatedString();
+                string name = accessor.ReadNullTerminatedString();
 
-                EbxAssetEntry entry = new(name, stream.ReadSha1(), stream.ReadInt64())
+                EbxAssetEntry entry = new(name, accessor.ReadSha1(), accessor.ReadInt64())
                 {
-                    Guid = stream.ReadGuid(),
-                    Type = stream.ReadNullTerminatedString()
+                    Guid = accessor.ReadGuid(),
+                    Type = accessor.ReadNullTerminatedString()
                 };
 
-                entry.AddFileInfo(IFileInfo.Deserialize(stream));
+                entry.AddFileInfo(IFileInfo.Deserialize(accessor));
 
-                int numBundles = stream.ReadInt32();
+                int numBundles = accessor.ReadInt32();
                 for (int j = 0; j < numBundles; j++)
                 {
-                    entry.Bundles.Add(stream.ReadInt32());
+                    entry.Bundles.Add(accessor.ReadInt32());
                 }
 
                 if (isPatched)
@@ -674,21 +674,21 @@ public static class AssetManager
             }
 
             FrostyLogger.Logger.LogInformation("Loading RES from cache");
-            int resCount = stream.ReadInt32();
+            int resCount = accessor.ReadInt32();
             for (int i = 0; i < resCount; i++)
             {
                 FrostyLogger.Progress?.Report(i / (double)resCount);
-                string name = stream.ReadNullTerminatedString();
+                string name = accessor.ReadNullTerminatedString();
 
-                ResAssetEntry entry = new(name, stream.ReadSha1(), stream.ReadInt64(),
-                    stream.ReadUInt64(), stream.ReadUInt32(), stream.ReadBytes(stream.ReadInt32()));
+                ResAssetEntry entry = new(name, accessor.ReadSha1(), accessor.ReadInt64(),
+                    accessor.ReadUInt64(), accessor.ReadUInt32(), accessor.ReadBytes(accessor.ReadInt32()));
 
-                entry.AddFileInfo(IFileInfo.Deserialize(stream));
+                entry.AddFileInfo(IFileInfo.Deserialize(accessor));
 
-                int numBundles = stream.ReadInt32();
+                int numBundles = accessor.ReadInt32();
                 for (int j = 0; j < numBundles; j++)
                 {
-                    entry.Bundles.Add(stream.ReadInt32());
+                    entry.Bundles.Add(accessor.ReadInt32());
                 }
 
                 if (isPatched)
@@ -706,25 +706,25 @@ public static class AssetManager
             }
 
             FrostyLogger.Logger.LogInformation("Loading chunks from cache");
-            int chunkCount = stream.ReadInt32();
+            int chunkCount = accessor.ReadInt32();
             for (int i = 0; i < chunkCount; i++)
             {
                 FrostyLogger.Progress?.Report(i / (double)chunkCount);
-                ChunkAssetEntry entry = new(stream.ReadGuid(), stream.ReadSha1(),
-                    stream.ReadUInt32(), stream.ReadUInt32());
+                ChunkAssetEntry entry = new(accessor.ReadGuid(), accessor.ReadSha1(),
+                    accessor.ReadUInt32(), accessor.ReadUInt32());
 
-                entry.AddFileInfo(IFileInfo.Deserialize(stream));
+                entry.AddFileInfo(IFileInfo.Deserialize(accessor));
 
-                int numSuperBundles = stream.ReadInt32();
+                int numSuperBundles = accessor.ReadInt32();
                 for (int j = 0; j < numSuperBundles; j++)
                 {
-                    entry.SuperBundleInstallChunks.Add(stream.ReadInt32());
+                    entry.SuperBundleInstallChunks.Add(accessor.ReadInt32());
                 }
 
-                int numBundles = stream.ReadInt32();
+                int numBundles = accessor.ReadInt32();
                 for (int j = 0; j < numBundles; j++)
                 {
-                    entry.Bundles.Add(stream.ReadInt32());
+                    entry.Bundles.Add(accessor.ReadInt32());
                 }
 
                 if (isPatched)
@@ -737,7 +737,7 @@ public static class AssetManager
                 }
             }
 
-            TypeLibrary.ReadCache(stream);
+            TypeLibrary.ReadCache(accessor);
         }
 
         return !isPatched;
@@ -748,89 +748,89 @@ public static class AssetManager
         FileInfo fi = new($"{FileSystemManager.CacheName}.cache");
         Directory.CreateDirectory(fi.DirectoryName!);
 
-        using (DataStream stream = new(new FileStream(fi.FullName, FileMode.Create, FileAccess.Write)))
+        using (DataAccessor accessor = new(new FileStream(fi.FullName, FileMode.Create, FileAccess.Write)))
         {
-            stream.WriteUInt64(c_cacheMagic);
-            stream.WriteUInt32(c_cacheVersion);
+            accessor.WriteUInt64(c_cacheMagic);
+            accessor.WriteUInt32(c_cacheVersion);
 
-            stream.WriteInt32(Fnv1.HashString(ProfilesLibrary.ProfileName, true));
-            stream.WriteUInt32(FileSystemManager.Head);
+            accessor.WriteInt32(Fnv1.HashString(ProfilesLibrary.ProfileName, true));
+            accessor.WriteUInt32(FileSystemManager.Head);
 
-            stream.WriteInt32(s_bundleMapping.Count);
+            accessor.WriteInt32(s_bundleMapping.Count);
             foreach (BundleInfo bundle in s_bundleMapping.Values)
             {
-                stream.WriteNullTerminatedString(bundle.Name);
-                stream.WriteNullTerminatedString(bundle.Parent.Name);
+                accessor.WriteNullTerminatedString(bundle.Name);
+                accessor.WriteNullTerminatedString(bundle.Parent.Name);
             }
 
-            stream.WriteInt32(s_ebxNameMapping.Count);
+            accessor.WriteInt32(s_ebxNameMapping.Count);
             foreach (EbxAssetEntry entry in s_ebxNameMapping.Values)
             {
-                stream.WriteNullTerminatedString(entry.Name);
+                accessor.WriteNullTerminatedString(entry.Name);
 
-                stream.WriteSha1(entry.Sha1);
-                stream.WriteInt64(entry.OriginalSize);
+                accessor.WriteSha1(entry.Sha1);
+                accessor.WriteInt64(entry.OriginalSize);
 
-                stream.WriteGuid(entry.Guid);
-                stream.WriteNullTerminatedString(entry.Type);
+                accessor.WriteGuid(entry.Guid);
+                accessor.WriteNullTerminatedString(entry.Type);
 
-                IFileInfo.Serialize(stream, entry.FileInfo!);
+                IFileInfo.Serialize(accessor, entry.FileInfo!);
 
-                stream.WriteInt32(entry.Bundles.Count);
+                accessor.WriteInt32(entry.Bundles.Count);
                 foreach (int bundleId in entry.Bundles)
                 {
-                    stream.WriteInt32(bundleId);
+                    accessor.WriteInt32(bundleId);
                 }
             }
 
-            stream.WriteInt32(s_resNameMapping.Count);
+            accessor.WriteInt32(s_resNameMapping.Count);
             foreach (ResAssetEntry entry in s_resNameMapping.Values)
             {
-                stream.WriteNullTerminatedString(entry.Name);
+                accessor.WriteNullTerminatedString(entry.Name);
 
-                stream.WriteSha1(entry.Sha1);
-                stream.WriteInt64(entry.OriginalSize);
+                accessor.WriteSha1(entry.Sha1);
+                accessor.WriteInt64(entry.OriginalSize);
 
-                stream.WriteUInt64(entry.ResRid);
-                stream.WriteUInt32((uint)entry.ResType);
-                stream.WriteInt32(entry.ResMeta.Length);
-                stream.Write(entry.ResMeta, 0, entry.ResMeta.Length);
+                accessor.WriteUInt64(entry.ResRid);
+                accessor.WriteUInt32((uint)entry.ResType);
+                accessor.WriteInt32(entry.ResMeta.Length);
+                accessor.Write(entry.ResMeta, 0, entry.ResMeta.Length);
 
-                IFileInfo.Serialize(stream, entry.FileInfo!);
+                IFileInfo.Serialize(accessor, entry.FileInfo!);
 
-                stream.WriteInt32(entry.Bundles.Count);
+                accessor.WriteInt32(entry.Bundles.Count);
                 foreach (int bundleId in entry.Bundles)
                 {
-                    stream.WriteInt32(bundleId);
+                    accessor.WriteInt32(bundleId);
                 }
             }
 
-            stream.WriteInt32(s_chunkGuidMapping.Count);
+            accessor.WriteInt32(s_chunkGuidMapping.Count);
             foreach (ChunkAssetEntry entry in s_chunkGuidMapping.Values)
             {
-                stream.WriteGuid(entry.Id);
+                accessor.WriteGuid(entry.Id);
 
-                stream.WriteSha1(entry.Sha1);
+                accessor.WriteSha1(entry.Sha1);
 
-                stream.WriteUInt32(entry.LogicalOffset);
-                stream.WriteUInt32(entry.LogicalSize);
+                accessor.WriteUInt32(entry.LogicalOffset);
+                accessor.WriteUInt32(entry.LogicalSize);
 
-                IFileInfo.Serialize(stream, entry.FileInfo!);
+                IFileInfo.Serialize(accessor, entry.FileInfo!);
 
-                stream.WriteInt32(entry.SuperBundleInstallChunks.Count);
+                accessor.WriteInt32(entry.SuperBundleInstallChunks.Count);
                 foreach (int superBundleId in entry.SuperBundleInstallChunks)
                 {
-                    stream.WriteInt32(superBundleId);
+                    accessor.WriteInt32(superBundleId);
                 }
 
-                stream.WriteInt32(entry.Bundles.Count);
+                accessor.WriteInt32(entry.Bundles.Count);
                 foreach (int bundleId in entry.Bundles)
                 {
-                    stream.WriteInt32(bundleId);
+                    accessor.WriteInt32(bundleId);
                 }
             }
 
-            TypeLibrary.WriteCache(stream);
+            TypeLibrary.WriteCache(accessor);
         }
     }
 

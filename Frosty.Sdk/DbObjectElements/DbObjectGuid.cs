@@ -28,18 +28,18 @@ public class DbObjectGuid : DbObject
         return _value;
     }
 
-    protected override void InternalSerialize(DataStream stream)
+    protected override void InternalSerialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        stream.WriteGuid(_value);
+        accessor.WriteGuid(_value);
     }
 
-    protected override void InternalDeserialize(DataStream stream)
+    protected override void InternalDeserialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        _value = stream.ReadGuid();
+        _value = accessor.ReadGuid();
     }
 
     public override string ToString()

@@ -21,55 +21,55 @@ internal struct EbxFixup
     public uint BoxedValueRefOffset;
     public uint StringOffset;
 
-    public static EbxFixup ReadFixup(DataStream inStream)
+    public static EbxFixup ReadFixup(DataAccessor inAccessor)
     {
-        EbxFixup fixup = new() { PartitionGuid = inStream.ReadGuid() };
+        EbxFixup fixup = new() { PartitionGuid = inAccessor.ReadGuid() };
 
-        int typeGuidCount = inStream.ReadInt32();
+        int typeGuidCount = inAccessor.ReadInt32();
         fixup.TypeGuids = new List<Guid>(typeGuidCount);
         for (int i = 0; i < typeGuidCount; i++)
         {
-            fixup.TypeGuids.Add(inStream.ReadGuid());
+            fixup.TypeGuids.Add(inAccessor.ReadGuid());
         }
 
-        fixup.TypeSignatures = ReadUInt32List(inStream);
+        fixup.TypeSignatures = ReadUInt32List(inAccessor);
 
-        fixup.ExportedInstanceCount = inStream.ReadInt32();
+        fixup.ExportedInstanceCount = inAccessor.ReadInt32();
 
-        fixup.InstanceOffsets = ReadUInt32List(inStream);
+        fixup.InstanceOffsets = ReadUInt32List(inAccessor);
         fixup.InstanceMapping = new Dictionary<uint, int>(fixup.InstanceOffsets.Count);
         for (int i = 0; i < fixup.InstanceOffsets.Count; i++)
         {
             fixup.InstanceMapping.Add(fixup.InstanceOffsets[i], i);
         }
 
-        fixup.PointerOffsets = ReadUInt32List(inStream);
-        fixup.ResourceRefOffsets = ReadUInt32List(inStream);
+        fixup.PointerOffsets = ReadUInt32List(inAccessor);
+        fixup.ResourceRefOffsets = ReadUInt32List(inAccessor);
 
-        int importCount = inStream.ReadInt32();
+        int importCount = inAccessor.ReadInt32();
         fixup.Imports = new List<EbxImportReference>(importCount);
         fixup.Dependencies = new HashSet<Guid>(importCount);
         for (int i = 0; i < importCount; i++)
         {
             EbxImportReference import = new()
             {
-                PartitionGuid = inStream.ReadGuid(),
-                InstanceGuid = inStream.ReadGuid()
+                PartitionGuid = inAccessor.ReadGuid(),
+                InstanceGuid = inAccessor.ReadGuid()
             };
 
             fixup.Imports.Add(import);
             fixup.Dependencies.Add(import.PartitionGuid);
         }
 
-        fixup.ImportOffsets = ReadUInt32List(inStream);
-        fixup.TypeInfoOffsets = ReadUInt32List(inStream);
+        fixup.ImportOffsets = ReadUInt32List(inAccessor);
+        fixup.TypeInfoOffsets = ReadUInt32List(inAccessor);
 
-        fixup.ArrayOffset = inStream.ReadUInt32();
-        fixup.BoxedValueRefOffset = inStream.ReadUInt32();
-        fixup.StringOffset = inStream.ReadUInt32();
+        fixup.ArrayOffset = inAccessor.ReadUInt32();
+        fixup.BoxedValueRefOffset = inAccessor.ReadUInt32();
+        fixup.StringOffset = inAccessor.ReadUInt32();
         if (ProfilesLibrary.FrostbiteVersion >= "2021")
         {
-            inStream.ReadUInt32();
+            inAccessor.ReadUInt32();
         }
 
         return fixup;
@@ -81,63 +81,63 @@ internal struct EbxFixup
                 inFixup.TypeSignatures.Count + inFixup.InstanceOffsets.Count + inFixup.PointerOffsets.Count +
                 inFixup.ResourceRefOffsets.Count + inFixup.ImportOffsets.Count + inFixup.TypeInfoOffsets.Count) *
             sizeof(int));
-        using BlockStream stream = new(retVal, true);
-        stream.WriteGuid(inFixup.PartitionGuid);
+        using BlockAccessor accessor = new(retVal, true);
+        accessor.WriteGuid(inFixup.PartitionGuid);
 
-        stream.WriteInt32(inFixup.TypeGuids.Count);
+        accessor.WriteInt32(inFixup.TypeGuids.Count);
         foreach (Guid typeGuid in inFixup.TypeGuids)
         {
-            stream.WriteGuid(typeGuid);
+            accessor.WriteGuid(typeGuid);
         }
 
-        WriteUInt32List(stream, inFixup.TypeSignatures);
+        WriteUInt32List(accessor, inFixup.TypeSignatures);
 
-        stream.WriteInt32(inFixup.ExportedInstanceCount);
+        accessor.WriteInt32(inFixup.ExportedInstanceCount);
 
-        WriteUInt32List(stream, inFixup.InstanceOffsets);
-        WriteUInt32List(stream, inFixup.PointerOffsets);
-        WriteUInt32List(stream, inFixup.ResourceRefOffsets);
+        WriteUInt32List(accessor, inFixup.InstanceOffsets);
+        WriteUInt32List(accessor, inFixup.PointerOffsets);
+        WriteUInt32List(accessor, inFixup.ResourceRefOffsets);
 
-        stream.WriteInt32(inFixup.Imports.Count);
+        accessor.WriteInt32(inFixup.Imports.Count);
         foreach (EbxImportReference import in inFixup.Imports)
         {
-            stream.WriteGuid(import.PartitionGuid);
-            stream.WriteGuid(import.InstanceGuid);
+            accessor.WriteGuid(import.PartitionGuid);
+            accessor.WriteGuid(import.InstanceGuid);
         }
 
-        WriteUInt32List(stream, inFixup.ImportOffsets);
-        WriteUInt32List(stream, inFixup.TypeInfoOffsets);
+        WriteUInt32List(accessor, inFixup.ImportOffsets);
+        WriteUInt32List(accessor, inFixup.TypeInfoOffsets);
 
-        stream.WriteUInt32(inFixup.ArrayOffset);
-        stream.WriteUInt32(inFixup.BoxedValueRefOffset);
-        stream.WriteUInt32(inFixup.StringOffset);
+        accessor.WriteUInt32(inFixup.ArrayOffset);
+        accessor.WriteUInt32(inFixup.BoxedValueRefOffset);
+        accessor.WriteUInt32(inFixup.StringOffset);
         if (ProfilesLibrary.FrostbiteVersion >= "2021")
         {
-            stream.WriteUInt32(0);
+            accessor.WriteUInt32(0);
         }
 
         return retVal;
     }
 
     // An int32 count followed by that many uint32 values
-    private static List<uint> ReadUInt32List(DataStream inStream)
+    private static List<uint> ReadUInt32List(DataAccessor inAccessor)
     {
-        int count = inStream.ReadInt32();
+        int count = inAccessor.ReadInt32();
         List<uint> values = new(count);
         for (int i = 0; i < count; i++)
         {
-            values.Add(inStream.ReadUInt32());
+            values.Add(inAccessor.ReadUInt32());
         }
 
         return values;
     }
 
-    private static void WriteUInt32List(DataStream inStream, List<uint> inValues)
+    private static void WriteUInt32List(DataAccessor inAccessor, List<uint> inValues)
     {
-        inStream.WriteInt32(inValues.Count);
+        inAccessor.WriteInt32(inValues.Count);
         foreach (uint value in inValues)
         {
-            inStream.WriteUInt32(value);
+            inAccessor.WriteUInt32(value);
         }
     }
 }

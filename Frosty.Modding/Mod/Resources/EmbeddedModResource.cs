@@ -8,8 +8,8 @@ public sealed class EmbeddedModResource : BaseModResource
 {
     public override ModResourceType Type => ModResourceType.Embedded;
 
-    public EmbeddedModResource(DataStream inStream)
-        : base(inStream)
+    public EmbeddedModResource(DataAccessor inAccessor)
+        : base(inAccessor)
     {
     }
     

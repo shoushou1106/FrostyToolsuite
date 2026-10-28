@@ -78,30 +78,30 @@ public abstract class BaseModResource
     private readonly HashSet<int> m_bundlesToAdd = new();
     private readonly HashSet<int> m_bundlesToRemove = new();
 
-    protected BaseModResource(DataStream inStream)
+    protected BaseModResource(DataAccessor inAccessor)
     {
-        ResourceIndex = inStream.ReadInt32();
-        Name = inStream.ReadNullTerminatedString();
-        Flags = (ResourceFlags)inStream.ReadByte();
+        ResourceIndex = inAccessor.ReadInt32();
+        Name = inAccessor.ReadNullTerminatedString();
+        Flags = (ResourceFlags)inAccessor.ReadByte();
 
         if (ResourceIndex != -1)
         {
-            Sha1 = inStream.ReadSha1();
-            OriginalSize = inStream.ReadInt64();
-            HandlerHash = inStream.ReadInt32();
-            UserData = inStream.ReadNullTerminatedString();
+            Sha1 = inAccessor.ReadSha1();
+            OriginalSize = inAccessor.ReadInt64();
+            HandlerHash = inAccessor.ReadInt32();
+            UserData = inAccessor.ReadNullTerminatedString();
         }
 
-        int addCount = inStream.ReadInt32();
+        int addCount = inAccessor.ReadInt32();
         for (int i = 0; i < addCount; i++)
         {
-            m_bundlesToAdd.Add(inStream.ReadInt32());
+            m_bundlesToAdd.Add(inAccessor.ReadInt32());
         }
 
-        int removeCount = inStream.ReadInt32();
+        int removeCount = inAccessor.ReadInt32();
         for (int i = 0; i < removeCount; i++)
         {
-            m_bundlesToRemove.Add(inStream.ReadInt32());
+            m_bundlesToRemove.Add(inAccessor.ReadInt32());
         }
     }
 
@@ -120,31 +120,31 @@ public abstract class BaseModResource
         m_bundlesToRemove.UnionWith(inBundlesToRemove);
     }
 
-    public virtual void Write(DataStream stream)
+    public virtual void Write(DataAccessor accessor)
     {
-        stream.WriteByte((byte)Type);
-        stream.WriteInt32(ResourceIndex);
-        stream.WriteNullTerminatedString(Name);
-        stream.WriteByte((byte)Flags);
+        accessor.WriteByte((byte)Type);
+        accessor.WriteInt32(ResourceIndex);
+        accessor.WriteNullTerminatedString(Name);
+        accessor.WriteByte((byte)Flags);
 
         if (ResourceIndex != -1)
         {
-            stream.WriteSha1(Sha1);
-            stream.WriteInt64(OriginalSize);
-            stream.WriteInt32(HandlerHash);
-            stream.WriteNullTerminatedString(UserData);
+            accessor.WriteSha1(Sha1);
+            accessor.WriteInt64(OriginalSize);
+            accessor.WriteInt32(HandlerHash);
+            accessor.WriteNullTerminatedString(UserData);
         }
 
-        stream.WriteInt32(m_bundlesToAdd.Count);
+        accessor.WriteInt32(m_bundlesToAdd.Count);
         foreach (int bundleId in m_bundlesToAdd)
         {
-            stream.WriteInt32(bundleId);
+            accessor.WriteInt32(bundleId);
         }
 
-        stream.WriteInt32(m_bundlesToRemove.Count);
+        accessor.WriteInt32(m_bundlesToRemove.Count);
         foreach (int bundleId in m_bundlesToRemove)
         {
-            stream.WriteInt32(bundleId);
+            accessor.WriteInt32(bundleId);
         }
     }
 }

@@ -35,18 +35,18 @@ public class DbObjectDouble : DbObject
         return _value;
     }
 
-    protected override void InternalSerialize(DataStream stream)
+    protected override void InternalSerialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        stream.WriteDouble(_value);
+        accessor.WriteDouble(_value);
     }
 
-    protected override void InternalDeserialize(DataStream stream)
+    protected override void InternalDeserialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        _value = stream.ReadDouble();
+        _value = accessor.ReadDouble();
     }
 
     public override string ToString()

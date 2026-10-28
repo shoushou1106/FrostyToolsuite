@@ -53,8 +53,8 @@ internal sealed class CasTests
 
     private static byte[] DecompressBlocks(int inOriginalSize, params byte[][] inBlocks)
     {
-        using DataStream stream = new(new MemoryStream([.. inBlocks.SelectMany(static b => b)]));
-        using Block<byte> result = Cas.DecompressData(stream, inOriginalSize);
+        using DataAccessor accessor = new(new MemoryStream([.. inBlocks.SelectMany(static b => b)]));
+        using Block<byte> result = Cas.DecompressData(accessor, inOriginalSize);
         return result.ToArray();
     }
 

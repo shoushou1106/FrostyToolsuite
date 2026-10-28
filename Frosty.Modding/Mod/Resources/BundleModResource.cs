@@ -15,11 +15,11 @@ public class BundleModResource : BaseModResource
     /// </summary>
     public int SuperBundleHash { get; }
 
-    public BundleModResource(DataStream inStream)
-        : base(inStream)
+    public BundleModResource(DataAccessor inAccessor)
+        : base(inAccessor)
     {
-        BundleHash = inStream.ReadInt32();
-        SuperBundleHash = inStream.ReadInt32();
+        BundleHash = inAccessor.ReadInt32();
+        SuperBundleHash = inAccessor.ReadInt32();
     }
 
     internal BundleModResource(string inName, int inBundleHash, int inSuperBundleHash)
@@ -30,11 +30,11 @@ public class BundleModResource : BaseModResource
         SuperBundleHash = inSuperBundleHash;
     }
 
-    public override void Write(DataStream stream)
+    public override void Write(DataAccessor accessor)
     {
-        base.Write(stream);
+        base.Write(accessor);
 
-        stream.WriteInt32(BundleHash);
-        stream.WriteInt32(SuperBundleHash);
+        accessor.WriteInt32(BundleHash);
+        accessor.WriteInt32(SuperBundleHash);
     }
 }

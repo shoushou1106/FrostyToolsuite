@@ -70,59 +70,59 @@ public class FrostyMod : IResourceContainer
             return null;
         }
 
-        using (BlockStream stream = BlockStream.FromFile(fileInfo.FullName, false))
+        using (BlockAccessor accessor = BlockAccessor.FromFile(fileInfo.FullName, false))
         {
             // read header
-            if (Magic != stream.ReadUInt64())
+            if (Magic != accessor.ReadUInt64())
             {
                 return null;
             }
 
-            if (Version != stream.ReadUInt32())
+            if (Version != accessor.ReadUInt32())
             {
                 return null;
             }
 
-            long dataOffset = stream.ReadInt64();
-            int dataCount = stream.ReadInt32();
+            long dataOffset = accessor.ReadInt64();
+            int dataCount = accessor.ReadInt32();
 
-            if (ProfilesLibrary.ProfileName != stream.ReadNullTerminatedString())
+            if (ProfilesLibrary.ProfileName != accessor.ReadNullTerminatedString())
             {
                 return null;
             }
 
-            uint head = stream.ReadUInt32();
+            uint head = accessor.ReadUInt32();
 
-            FrostyModDetails modDetails = new(stream.ReadNullTerminatedString(), stream.ReadNullTerminatedString(),
-                stream.ReadNullTerminatedString(), stream.ReadNullTerminatedString(), stream.ReadNullTerminatedString(),
-                stream.ReadNullTerminatedString());
+            FrostyModDetails modDetails = new(accessor.ReadNullTerminatedString(), accessor.ReadNullTerminatedString(),
+                accessor.ReadNullTerminatedString(), accessor.ReadNullTerminatedString(), accessor.ReadNullTerminatedString(),
+                accessor.ReadNullTerminatedString());
 
             // read resources
-            Sha1 sha1 = stream.ReadSha1();
-            int resourceCount = stream.ReadInt32();
+            Sha1 sha1 = accessor.ReadSha1();
+            int resourceCount = accessor.ReadInt32();
             BaseModResource[] resources = new BaseModResource[resourceCount];
             for (int i = 0; i < resourceCount; i++)
             {
-                ModResourceType type = (ModResourceType)stream.ReadByte();
+                ModResourceType type = (ModResourceType)accessor.ReadByte();
                 switch (type)
                 {
                     case ModResourceType.Embedded:
-                        resources[i] = new EmbeddedModResource(stream);
+                        resources[i] = new EmbeddedModResource(accessor);
                         break;
                     case ModResourceType.Bundle:
-                        resources[i] = new BundleModResource(stream);
+                        resources[i] = new BundleModResource(accessor);
                         break;
                     case ModResourceType.Ebx:
-                        resources[i] = new EbxModResource(stream);
+                        resources[i] = new EbxModResource(accessor);
                         break;
                     case ModResourceType.Res:
-                        resources[i] = new ResModResource(stream);
+                        resources[i] = new ResModResource(accessor);
                         break;
                     case ModResourceType.Chunk:
-                        resources[i] = new ChunkModResource(stream);
+                        resources[i] = new ChunkModResource(accessor);
                         break;
                     case ModResourceType.FsFile:
-                        resources[i] = new FsFileModResource(stream);
+                        resources[i] = new FsFileModResource(accessor);
                         break;
                     case ModResourceType.Invalid:
                         // idk
@@ -133,12 +133,12 @@ public class FrostyMod : IResourceContainer
             }
 
             // read data
-            stream.Position = dataOffset;
+            accessor.Position = dataOffset;
             ResourceData[] data = new ResourceData[dataCount];
             long offset = dataOffset + dataCount * 12;
             for (int i = 0; i < dataCount; i++)
             {
-                data[i] = new ResourceData(fileInfo.FullName, offset + stream.ReadInt64(), stream.ReadInt32());
+                data[i] = new ResourceData(fileInfo.FullName, offset + accessor.ReadInt64(), accessor.ReadInt32());
             }
 
             return new FrostyMod(modDetails, head, sha1, resources, data);
@@ -157,31 +157,31 @@ public class FrostyMod : IResourceContainer
             return null;
         }
 
-        using (BlockStream stream = BlockStream.FromFile(inPath, false))
+        using (BlockAccessor accessor = BlockAccessor.FromFile(inPath, false))
         {
             // read header
-            if (Magic != stream.ReadUInt64())
+            if (Magic != accessor.ReadUInt64())
             {
                 return null;
             }
 
-            if (Version != stream.ReadUInt32())
+            if (Version != accessor.ReadUInt32())
             {
                 return null;
             }
 
-            stream.Position += sizeof(long) + sizeof(int);
+            accessor.Position += sizeof(long) + sizeof(int);
 
-            if (ProfilesLibrary.ProfileName != stream.ReadNullTerminatedString())
+            if (ProfilesLibrary.ProfileName != accessor.ReadNullTerminatedString())
             {
                 return null;
             }
 
-            stream.Position += sizeof(uint);
+            accessor.Position += sizeof(uint);
 
-            return new FrostyModDetails(stream.ReadNullTerminatedString(),
-                stream.ReadNullTerminatedString(), stream.ReadNullTerminatedString(), stream.ReadNullTerminatedString(),
-                stream.ReadNullTerminatedString(), stream.ReadNullTerminatedString());
+            return new FrostyModDetails(accessor.ReadNullTerminatedString(),
+                accessor.ReadNullTerminatedString(), accessor.ReadNullTerminatedString(), accessor.ReadNullTerminatedString(),
+                accessor.ReadNullTerminatedString(), accessor.ReadNullTerminatedString());
         }
     }
 
@@ -209,56 +209,56 @@ public class FrostyMod : IResourceContainer
                    inModDetails.Category.Length + 1 + inModDetails.ModPageLink.Length + 1 + 20;
 
         Block<byte> resources = new(sizeof(int) + inResources.Length * (4 + 10)); // we just estimate a min size (ResourceIndex + Name(low estimate of 9 chars))
-        using (BlockStream stream = new(resources, true))
+        using (BlockAccessor accessor = new(resources, true))
         {
-            stream.WriteInt32(inResources.Length);
+            accessor.WriteInt32(inResources.Length);
 
             foreach (BaseModResource resource in inResources)
             {
-                resource.Write(stream);
+                resource.Write(accessor);
             }
         }
 
         Block<byte> data = new(inData.Length * 100); // low estimate of the actual size
         Block<byte> dataHeader = new(inData.Length * (sizeof(long) + sizeof(int)));
-        using (BlockStream stream = new(dataHeader, true))
-        using (BlockStream dataStream = new(data, true))
+        using (BlockAccessor accessor = new(dataHeader, true))
+        using (BlockAccessor dataAccessor = new(data, true))
         {
             foreach (Block<byte> subData in inData)
             {
-                stream.WriteInt64(dataStream.Position);
-                stream.WriteInt32(subData.Size);
+                accessor.WriteInt64(dataAccessor.Position);
+                accessor.WriteInt32(subData.Size);
 
-                dataStream.Write(subData);
+                dataAccessor.Write(subData);
             }
         }
 
         Block<byte> file = new(headerSize + resources.Size + dataHeader.Size + data.Size);
-        using (BlockStream stream = new(file, true))
+        using (BlockAccessor accessor = new(file, true))
         {
-            stream.WriteUInt64(Magic);
-            stream.WriteUInt32(Version);
+            accessor.WriteUInt64(Magic);
+            accessor.WriteUInt32(Version);
 
-            stream.WriteInt64(headerSize + resources.Size);
-            stream.WriteInt32(inData.Length);
+            accessor.WriteInt64(headerSize + resources.Size);
+            accessor.WriteInt32(inData.Length);
 
-            stream.WriteNullTerminatedString(ProfilesLibrary.ProfileName);
-            stream.WriteUInt32(inHead);
+            accessor.WriteNullTerminatedString(ProfilesLibrary.ProfileName);
+            accessor.WriteUInt32(inHead);
 
-            stream.WriteNullTerminatedString(inModDetails.Title);
-            stream.WriteNullTerminatedString(inModDetails.Author);
-            stream.WriteNullTerminatedString(inModDetails.Category);
-            stream.WriteNullTerminatedString(inModDetails.Version);
-            stream.WriteNullTerminatedString(inModDetails.Description);
-            stream.WriteNullTerminatedString(inModDetails.ModPageLink);
+            accessor.WriteNullTerminatedString(inModDetails.Title);
+            accessor.WriteNullTerminatedString(inModDetails.Author);
+            accessor.WriteNullTerminatedString(inModDetails.Category);
+            accessor.WriteNullTerminatedString(inModDetails.Version);
+            accessor.WriteNullTerminatedString(inModDetails.Description);
+            accessor.WriteNullTerminatedString(inModDetails.ModPageLink);
 
-            stream.WriteSha1(Sha1.HashData(resources));
+            accessor.WriteSha1(Sha1.HashData(resources));
 
-            stream.Write(resources);
+            accessor.Write(resources);
             resources.Dispose();
 
-            stream.Write(dataHeader);
-            stream.Write(data);
+            accessor.Write(dataHeader);
+            accessor.Write(data);
             dataHeader.Dispose();
             data.Dispose();
         }

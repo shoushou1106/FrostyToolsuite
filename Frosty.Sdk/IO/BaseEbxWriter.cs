@@ -10,13 +10,14 @@ using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.IO;
 
-public abstract class BaseEbxWriter(DataStream inStream)
+public abstract class BaseEbxWriter(DataAccessor inAccessor)
 {
-    private protected readonly DataStream _stream = inStream;
+    private protected readonly DataAccessor _accessor = inAccessor;
     private protected readonly List<IEbxInstance> _sortedInstances = [];
 
     private protected static readonly Type PointerType = typeof(PointerRef);
     private protected static readonly Type DataContainerType = TypeLibrary.GetType("DataContainer")!.Type;
+    // ReSharper disable once MemberCanBePrivate.Global
     private protected static readonly Type? BoxedValueRefType = TypeLibrary.GetType("BoxedValueRef")?.Type;
 
     private protected const string EbxNamespace = "Frostbite";
@@ -38,9 +39,9 @@ public abstract class BaseEbxWriter(DataStream inStream)
 
     private readonly HashSet<object> _processedObjects = [];
 
-    public static BaseEbxWriter CreateWriter(DataStream inStream)
+    public static BaseEbxWriter CreateWriter(DataAccessor inAccessor)
     {
-        return ProfilesLibrary.EbxVersion == 6 ? new RiffEbx.EbxWriter(inStream) : new LegacyEbx.EbxWriter(inStream);
+        return ProfilesLibrary.EbxVersion == 6 ? new RiffEbx.EbxWriter(inAccessor) : new LegacyEbx.EbxWriter(inAccessor);
     }
 
     public void WritePartition(EbxPartition inPartition)

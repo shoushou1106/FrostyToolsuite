@@ -57,9 +57,9 @@ public class CasResourceInfo
 
     public virtual Block<byte> GetData(int inOriginalSize)
     {
-        using (BlockStream stream = BlockStream.FromFile(m_path, m_offset, (int)m_size))
+        using (BlockAccessor accessor = BlockAccessor.FromFile(m_path, m_offset, (int)m_size))
         {
-            return Cas.DecompressData(stream, inOriginalSize);
+            return Cas.DecompressData(accessor, inOriginalSize);
         }
     }
 
@@ -102,56 +102,56 @@ public class CasResourceInfo
         return HashCode.Combine(m_casFileIdentifier, m_offset, m_size, m_logicalOffset);
     }
 
-    public static void Serialize(DataStream stream, CasResourceInfo? info)
+    public static void Serialize(DataAccessor accessor, CasResourceInfo? info)
     {
         if (info is null)
         {
-            stream.WriteByte(0);
+            accessor.WriteByte(0);
             return;
         }
 
         if (info is CasCryptoResourceInfo crypto)
         {
-            stream.WriteByte(2);
-            CasCryptoResourceInfo.SerializeInternal(stream, crypto);
+            accessor.WriteByte(2);
+            CasCryptoResourceInfo.SerializeInternal(accessor, crypto);
             return;
         }
 
-        stream.WriteByte(1);
-        SerializeInternal(stream, info);
+        accessor.WriteByte(1);
+        SerializeInternal(accessor, info);
     }
 
-    public static CasResourceInfo? Deserialize(DataStream stream)
+    public static CasResourceInfo? Deserialize(DataAccessor accessor)
     {
-        byte type = stream.ReadByte();
+        byte type = accessor.ReadByte();
 
         switch (type)
         {
             case 0:
                 return null;
             case 1:
-                return DeserializeInternal(stream);
+                return DeserializeInternal(accessor);
             case 2:
-                return CasCryptoResourceInfo.DeserializeInternal(stream);
+                return CasCryptoResourceInfo.DeserializeInternal(accessor);
             default:
                 throw new Exception("Not a valid CasResourceInfo type. Has to be 0, 1 or 2.");
         }
     }
 
-    protected static void SerializeInternal(DataStream stream, CasResourceInfo info)
+    protected static void SerializeInternal(DataAccessor accessor, CasResourceInfo info)
     {
-        stream.WriteUInt64(CasFileIdentifier.ToFileIdentifierLong(info.m_casFileIdentifier), Endian.Big);
-        stream.WriteUInt32(info.m_offset);
-        stream.WriteUInt32(info.m_size);
-        stream.WriteUInt32(info.m_logicalOffset);
+        accessor.WriteUInt64(CasFileIdentifier.ToFileIdentifierLong(info.m_casFileIdentifier), Endian.Big);
+        accessor.WriteUInt32(info.m_offset);
+        accessor.WriteUInt32(info.m_size);
+        accessor.WriteUInt32(info.m_logicalOffset);
     }
 
-    private static CasResourceInfo DeserializeInternal(DataStream stream)
+    private static CasResourceInfo DeserializeInternal(DataAccessor accessor)
     {
-        CasFileIdentifier file = CasFileIdentifier.FromFileIdentifier(stream.ReadUInt32(Endian.Big), stream.ReadUInt32(Endian.Big));
-        uint offset = stream.ReadUInt32();
-        uint size = stream.ReadUInt32();
-        uint logicalOffset = stream.ReadUInt32();
+        CasFileIdentifier file = CasFileIdentifier.FromFileIdentifier(accessor.ReadUInt32(Endian.Big), accessor.ReadUInt32(Endian.Big));
+        uint offset = accessor.ReadUInt32();
+        uint size = accessor.ReadUInt32();
+        uint logicalOffset = accessor.ReadUInt32();
 
         return new CasResourceInfo(file, offset, size, logicalOffset);
     }

@@ -317,11 +317,11 @@ public static class FileSystemManager
                 return false;
             }
 
-            using (BlockStream stream = new(new Block<byte>(encrypted)))
+            using (BlockAccessor accessor = new(new Block<byte>(encrypted)))
             {
-                stream.Decrypt(KeyManager.GetKey("InitFsKey"), PaddingMode.PKCS7);
+                accessor.Decrypt(KeyManager.GetKey("InitFsKey"), PaddingMode.PKCS7);
 
-                initFs = DbObject.Deserialize(stream);
+                initFs = DbObject.Deserialize(accessor);
 
                 if (initFs is null)
                 {

@@ -31,9 +31,9 @@ public class KelvinFileInfo : IFileInfo
 
     public long GetOriginalSize()
     {
-        using (BlockStream stream = BlockStream.FromFile(m_path, m_offset, (int)m_size))
+        using (BlockAccessor accessor = BlockAccessor.FromFile(m_path, m_offset, (int)m_size))
         {
-            return Cas.GetOriginalSize(stream);
+            return Cas.GetOriginalSize(accessor);
         }
     }
 
@@ -52,24 +52,24 @@ public class KelvinFileInfo : IFileInfo
 
     public Block<byte> GetData(int originalSize)
     {
-        using (BlockStream stream = BlockStream.FromFile(m_path, m_offset, (int)m_size))
+        using (BlockAccessor accessor = BlockAccessor.FromFile(m_path, m_offset, (int)m_size))
         {
-            return Cas.DecompressData(stream, originalSize);
+            return Cas.DecompressData(accessor, originalSize);
         }
     }
 
-    void IFileInfo.SerializeInternal(DataStream stream)
+    void IFileInfo.SerializeInternal(DataAccessor accessor)
     {
-        stream.WriteInt32(m_casIndex);
-        stream.WriteUInt32(m_offset);
-        stream.WriteUInt32(m_size);
-        stream.WriteUInt32(m_logicalOffset);
+        accessor.WriteInt32(m_casIndex);
+        accessor.WriteUInt32(m_offset);
+        accessor.WriteUInt32(m_size);
+        accessor.WriteUInt32(m_logicalOffset);
     }
 
-    internal static KelvinFileInfo DeserializeInternal(DataStream stream)
+    internal static KelvinFileInfo DeserializeInternal(DataAccessor accessor)
     {
-        return new KelvinFileInfo(stream.ReadInt32(), stream.ReadUInt32(), stream.ReadUInt32(),
-            stream.ReadUInt32());
+        return new KelvinFileInfo(accessor.ReadInt32(), accessor.ReadUInt32(), accessor.ReadUInt32(),
+            accessor.ReadUInt32());
     }
 
     public bool Equals(KelvinFileInfo b)

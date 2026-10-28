@@ -18,42 +18,42 @@ public interface IFileInfo
 
     Block<byte> GetData(int inOriginalSize);
 
-    protected void SerializeInternal(DataStream stream);
+    protected void SerializeInternal(DataAccessor accessor);
 
-    static void Serialize(DataStream stream, IFileInfo fileInfo)
+    static void Serialize(DataAccessor accessor, IFileInfo fileInfo)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
         ArgumentNullException.ThrowIfNull(fileInfo);
 
         switch (fileInfo)
         {
             case CasFileInfo:
-                stream.WriteByte(0);
+                accessor.WriteByte(0);
                 break;
             case KelvinFileInfo:
-                stream.WriteByte(1);
+                accessor.WriteByte(1);
                 break;
             case NonCasFileInfo:
-                stream.WriteByte(2);
+                accessor.WriteByte(2);
                 break;
             default:
                 throw new NotImplementedException();
         }
 
-        fileInfo.SerializeInternal(stream);
+        fileInfo.SerializeInternal(accessor);
     }
 
-    static IFileInfo Deserialize(DataStream stream)
+    static IFileInfo Deserialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        byte type = stream.ReadByte();
+        byte type = accessor.ReadByte();
 
         return type switch
         {
-            0 => CasFileInfo.DeserializeInternal(stream),
-            1 => KelvinFileInfo.DeserializeInternal(stream),
-            2 => NonCasFileInfo.DeserializeInternal(stream),
+            0 => CasFileInfo.DeserializeInternal(accessor),
+            1 => KelvinFileInfo.DeserializeInternal(accessor),
+            2 => NonCasFileInfo.DeserializeInternal(accessor),
             _ => throw new InvalidDataException()
         };
     }

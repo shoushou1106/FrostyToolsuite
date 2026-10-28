@@ -5,7 +5,7 @@ namespace Frosty.Sdk.Resources;
 
 public abstract class Resource
 {
-    public abstract void Deserialize(DataStream inStream, ReadOnlySpan<byte> inResMeta);
+    public abstract void Deserialize(DataAccessor inAccessor, ReadOnlySpan<byte> inResMeta);
 
-    public abstract void Serialize(DataStream inStream, Span<byte> resMeta);
+    public abstract void Serialize(DataAccessor inAccessor, Span<byte> resMeta);
 }

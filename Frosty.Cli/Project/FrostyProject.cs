@@ -27,13 +27,13 @@ public class FrostyProject
         List<Block<byte>> datas = new(Ebx.Count + Res.Count + Chunks.Count);
         foreach (Ebx ebx in Ebx)
         {
-            using BlockStream stream = BlockStream.FromFile(Path.Combine(BasePath, $"{ebx.Name}.dbx"), false);
-            DbxReader reader = new(stream.BaseStream);
+            using BlockAccessor accessor = BlockAccessor.FromFile(Path.Combine(BasePath, $"{ebx.Name}.dbx"), false);
+            DbxReader reader = new(accessor.BaseStream);
             EbxPartition ebxAsset = reader.ReadAsset();
             using Block<byte> data = new(0);
-            using (BlockStream dataStream = new(data, true))
+            using (BlockAccessor dataAccessor = new(data, true))
             {
-                BaseEbxWriter writer = BaseEbxWriter.CreateWriter(dataStream);
+                BaseEbxWriter writer = BaseEbxWriter.CreateWriter(dataAccessor);
                 writer.WritePartition(ebxAsset);
             }
 

@@ -7,27 +7,27 @@ using Frosty.Sdk.Utils;
 namespace Frosty.Sdk.IO;
 
 /// <summary>
-///     A <see cref="DataStream" /> over a <see cref="Block{T}" /> in memory, which grows when written past its end.
+///     A <see cref="DataAccessor" /> over a <see cref="Block{T}" /> in memory, which grows when written past its end.
 /// </summary>
-public class BlockStream : DataStream
+public class BlockAccessor : DataAccessor
 {
     private readonly Block<byte> _block;
     private readonly bool _leaveOpen;
     private bool _disposed;
 
-    public BlockStream()
+    public BlockAccessor()
     {
         _block = new Block<byte>(0);
         BaseStream = _block.ToStream();
     }
 
-    public BlockStream(int inSize)
+    public BlockAccessor(int inSize)
     {
         _block = new Block<byte>(inSize);
         BaseStream = _block.ToStream();
     }
 
-    public BlockStream(Block<byte> inBuffer, bool inLeaveOpen = false)
+    public BlockAccessor(Block<byte> inBuffer, bool inLeaveOpen = false)
     {
         _block = inBuffer;
         BaseStream = _block.ToStream();
@@ -52,9 +52,9 @@ public class BlockStream : DataStream
         base.WriteByte(value);
     }
 
-    public override void CopyTo(DataStream destination, int bufferSize)
+    public override void CopyTo(DataAccessor destination, int bufferSize)
     {
-        if (destination is not BlockStream stream)
+        if (destination is not BlockAccessor accessor)
         {
             base.CopyTo(destination, bufferSize);
             return;
@@ -65,29 +65,29 @@ public class BlockStream : DataStream
             return;
         }
 
-        stream.ResizeStream(stream.Position + bufferSize);
+        accessor.ResizeStream(accessor.Position + bufferSize);
 
-        if (stream.Length < stream.Position + bufferSize)
+        if (accessor.Length < accessor.Position + bufferSize)
         {
-            stream.BaseStream.SetLength((int)stream.Position + bufferSize);
+            accessor.BaseStream.SetLength((int)accessor.Position + bufferSize);
         }
 
         using Block<byte> source = new(_block, (int)Position, bufferSize);
-        using Block<byte> dest = new(stream._block, (int)stream.Position, bufferSize);
+        using Block<byte> dest = new(accessor._block, (int)accessor.Position, bufferSize);
         source.CopyTo(dest);
 
-        stream.Position += bufferSize;
+        accessor.Position += bufferSize;
 
         Position += bufferSize;
     }
 
     /// <summary>
-    ///     Same as <see cref="DataStream.ReadNullTerminatedString(Encoding)" />,
+    ///     Same as <see cref="DataAccessor.ReadNullTerminatedString(Encoding)" />,
     ///     but finds the terminator in memory instead of reading byte by byte.
     /// </summary>
     /// <remarks>
     ///     <b>Encoding:</b> Any ASCII-compatible <paramref name="inEncoding" />.
-    ///     The UTF-8 <see cref="DataStream.ReadNullTerminatedString()" /> calls this override too.
+    ///     The UTF-8 <see cref="DataAccessor.ReadNullTerminatedString()" /> calls this override too.
     /// </remarks>
     public override string ReadNullTerminatedString(Encoding inEncoding)
     {
@@ -112,10 +112,10 @@ public class BlockStream : DataStream
         return inEncoding.GetString(remaining[..length]);
     }
 
-    public override DataStream CreateSubStream(long inStartOffset, int inSize)
+    public override DataAccessor CreateSubAccessor(long inStartOffset, int inSize)
     {
         Block<byte> sub = new(_block, (int)inStartOffset, inSize);
-        return new BlockStream(sub);
+        return new BlockAccessor(sub);
     }
 
     /// <summary>
@@ -123,18 +123,18 @@ public class BlockStream : DataStream
     /// </summary>
     /// <param name="inPath">The path of the file</param>
     /// <param name="inShouldDeobfuscate">The boolean if the file needs to be deobfuscated</param>
-    /// <returns>A <see cref="BlockStream"/> that has the file loaded.</returns>
-    public static BlockStream FromFile(string inPath, bool inShouldDeobfuscate)
+    /// <returns>A <see cref="BlockAccessor"/> that has the file loaded.</returns>
+    public static BlockAccessor FromFile(string inPath, bool inShouldDeobfuscate)
     {
         using FileStream stream = new(inPath, FileMode.Open, FileAccess.Read);
 
         if (inShouldDeobfuscate)
         {
             // ReSharper disable once GrammarMistakeInComment
-            // The deobfuscated stream is returned to the caller.
+            // The deobfuscated accessor is returned to the caller.
             // CA2000: Dispose objects before losing scope
 #pragma warning disable CA2000
-            BlockStream? deobfuscated = CheckExtraObfuscation(stream, out int keySize)
+            BlockAccessor? deobfuscated = CheckExtraObfuscation(stream, out int keySize)
                 ? DeobfuscateWithKey(stream, keySize)
                 : Deobfuscate(stream);
 #pragma warning restore CA2000
@@ -146,7 +146,7 @@ public class BlockStream : DataStream
             stream.Position = 0;
         }
 
-        BlockStream retVal = new(Block<byte>.CreateUninitialized((int)stream.Length));
+        BlockAccessor retVal = new(Block<byte>.CreateUninitialized((int)stream.Length));
         stream.ReadExactly(retVal._block);
         return retVal;
     }
@@ -157,19 +157,19 @@ public class BlockStream : DataStream
     /// <param name="inPath">The path of the file.</param>
     /// <param name="inOffset">The offset of the data to load.</param>
     /// <param name="inSize">The size of the data to load</param>
-    /// <returns>A <see cref="BlockStream"/> that has the data loaded.</returns>
-    public static BlockStream FromFile(string inPath, long inOffset, int inSize)
+    /// <returns>A <see cref="BlockAccessor"/> that has the data loaded.</returns>
+    public static BlockAccessor FromFile(string inPath, long inOffset, int inSize)
     {
         using FileStream stream = new(inPath, FileMode.Open, FileAccess.Read);
         stream.Position = inOffset;
 
-        BlockStream retVal = new(Block<byte>.CreateUninitialized(inSize));
+        BlockAccessor retVal = new(Block<byte>.CreateUninitialized(inSize));
         stream.ReadExactly(retVal._block);
         return retVal;
     }
 
     /// <summary>
-    /// <see cref="Aes"/> decrypt this <see cref="BlockStream"/>.
+    /// <see cref="Aes"/> decrypt this <see cref="BlockAccessor"/>.
     /// </summary>
     /// <param name="inKey">The key to use for the decryption.</param>
     /// <param name="inPaddingMode">The <see cref="PaddingMode"/> to use for the decryption.</param>
@@ -182,7 +182,7 @@ public class BlockStream : DataStream
     }
 
     /// <summary>
-    /// <see cref="Aes"/> decrypt part of this <see cref="BlockStream"/>.
+    /// <see cref="Aes"/> decrypt part of this <see cref="BlockAccessor"/>.
     /// </summary>
     /// <param name="inKey">The key to use for the decryption.</param>
     /// <param name="inSize">The size of the data to decrypt.</param>
@@ -239,7 +239,7 @@ public class BlockStream : DataStream
         return true;
     }
 
-    private static BlockStream? DeobfuscateWithKey(Stream inStream, int inKeySize)
+    private static BlockAccessor? DeobfuscateWithKey(Stream inStream, int inKeySize)
     {
         using Block<byte> data = Block<byte>.CreateUninitialized((int)(inStream.Length - inKeySize));
         inStream.ReadExactly(data);
@@ -264,7 +264,7 @@ public class BlockStream : DataStream
         return Deobfuscate(header, dataStream);
     }
 
-    private static BlockStream? Deobfuscate(Stream inStream)
+    private static BlockAccessor? Deobfuscate(Stream inStream)
     {
         Span<byte> header = stackalloc byte[0x22C];
         inStream.ReadExactly(header);
@@ -273,7 +273,7 @@ public class BlockStream : DataStream
     }
 
     /// <returns>The deobfuscated data, or <see langword="null" /> if <paramref name="inHeader" /> is not obfuscation header.</returns>
-    private static BlockStream? Deobfuscate(ReadOnlySpan<byte> inHeader, Stream inStream)
+    private static BlockAccessor? Deobfuscate(ReadOnlySpan<byte> inHeader, Stream inStream)
     {
         if (!(inHeader[0] == 0x00 && inHeader[1] == 0xD1 && inHeader[2] == 0xCE &&
               (inHeader[3] == 0x00 || inHeader[3] == 0x01 || inHeader[3] == 0x03))) // Version 0 is not used in FB3
@@ -281,22 +281,22 @@ public class BlockStream : DataStream
             return null;
         }
 
-        BlockStream stream = new(Block<byte>.CreateUninitialized((int)(inStream.Length - 0x22C)));
-        inStream.ReadExactly(stream._block);
+        BlockAccessor accessor = new(Block<byte>.CreateUninitialized((int)(inStream.Length - 0x22C)));
+        inStream.ReadExactly(accessor._block);
 
         // Deobfuscate the data
         if (ProfilesLibrary.FrostbiteVersion > "2014.4.11" || inHeader[3] == 0x03)
         {
-            return stream;
+            return accessor;
         }
 
-        Span<byte> bytes = stream._block;
+        Span<byte> bytes = accessor._block;
         for (int i = 0; i < bytes.Length; i++)
         {
             bytes[i] ^= (byte)(0x7B ^ inHeader[0x128 + (i % 0x101)]);
         }
 
-        return stream;
+        return accessor;
     }
 
     private void TrimBlockToLength()

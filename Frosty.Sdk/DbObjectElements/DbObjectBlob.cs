@@ -29,20 +29,20 @@ public class DbObjectBlob : DbObject
         return _value;
     }
 
-    protected override void InternalSerialize(DataStream stream)
+    protected override void InternalSerialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        stream.Write7BitEncodedInt32(_value.Length);
-        stream.Write(_value);
+        accessor.Write7BitEncodedInt32(_value.Length);
+        accessor.Write(_value);
     }
 
-    protected override void InternalDeserialize(DataStream stream)
+    protected override void InternalDeserialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        _value = new byte[stream.Read7BitEncodedInt32()];
-        stream.ReadExactly(_value);
+        _value = new byte[accessor.Read7BitEncodedInt32()];
+        accessor.ReadExactly(_value);
     }
 
     public override string? ToString()

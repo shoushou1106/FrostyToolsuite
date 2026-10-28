@@ -196,12 +196,12 @@ public partial class FrostyModExecutor
             if (layeredInstallChunkFiles is not null && m_installChunkWriters.Count > 0)
             {
                 List<CasFileIdentifier> final;
-                using (DataStream stream = new(new MemoryStream(layeredInstallChunkFiles)))
+                using (DataAccessor accessor = new(new MemoryStream(layeredInstallChunkFiles)))
                 {
-                    final = new List<CasFileIdentifier>((int)(stream.Length / 8));
-                    for (int i = 0; i < stream.Length / 8; i++)
+                    final = new List<CasFileIdentifier>((int)(accessor.Length / 8));
+                    for (int i = 0; i < accessor.Length / 8; i++)
                     {
-                        final.Add(CasFileIdentifier.FromFileIdentifier(stream.ReadUInt64()));
+                        final.Add(CasFileIdentifier.FromFileIdentifier(accessor.ReadUInt64()));
                     }
                 }
 
@@ -216,20 +216,20 @@ public partial class FrostyModExecutor
                 final.Sort();
 
                 using Block<byte> data = new(final.Count * 8);
-                using (BlockStream stream = new(data, true))
+                using (BlockAccessor accessor = new(data, true))
                 {
                     foreach (CasFileIdentifier file in final)
                     {
-                        stream.WriteUInt64(CasFileIdentifier.ToFileIdentifierLong(file));
+                        accessor.WriteUInt64(CasFileIdentifier.ToFileIdentifierLong(file));
                     }
                 }
 
                 layout.Set("layeredInstallChunkFiles", data.ToArray());
 
-                using (DataStream stream = new(File.Create(Path.Combine(m_modDataPath, "layout.toc"))))
+                using (DataAccessor accessor = new(File.Create(Path.Combine(m_modDataPath, "layout.toc"))))
                 {
-                    ObfuscationHeader.Write(stream.BaseStream);
-                    DbObject.Serialize(stream, layout);
+                    ObfuscationHeader.Write(accessor.BaseStream);
+                    DbObject.Serialize(accessor, layout);
                 }
             }
         }
