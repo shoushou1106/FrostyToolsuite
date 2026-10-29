@@ -432,7 +432,7 @@ public sealed class EbxWriter : BaseEbxWriter
 
     private void WriteBoxedField(object ebxObj, TypeFlags.TypeEnum inType, int inTypeDescriptorRef, DataAccessor writer)
     {
-        if (inType != TypeFlags.TypeEnum.Struct)
+        if (inType == TypeFlags.TypeEnum.Struct)
         {
             EbxTypeDescriptor typeDescriptor = _typeResolver.ResolveType(inTypeDescriptorRef);
             writer.Pad(typeDescriptor.Alignment);
@@ -730,7 +730,7 @@ public sealed class EbxWriter : BaseEbxWriter
     private void FixupField(object obj, EbxFieldDescriptor inFieldDescriptor, DataAccessor writer)
     {
         TypeFlags.TypeEnum type = inFieldDescriptor.Flags.GetTypeEnum();
-        if (type != TypeFlags.TypeEnum.Struct)
+        if (type == TypeFlags.TypeEnum.Struct)
         {
             EbxTypeDescriptor typeDescriptor =
                 EbxTypeResolver.ResolveTypeFromField(inFieldDescriptor.TypeDescriptorRef);
@@ -744,7 +744,7 @@ public sealed class EbxWriter : BaseEbxWriter
 
     private void FixupBoxedField(object obj, TypeFlags.TypeEnum inType, int inTypeDescriptorRef, DataAccessor writer)
     {
-        if (inType != TypeFlags.TypeEnum.Struct)
+        if (inType == TypeFlags.TypeEnum.Struct)
         {
             EbxTypeDescriptor typeDescriptor = _typeResolver.ResolveType(inTypeDescriptorRef);
             writer.Pad(typeDescriptor.Alignment);
