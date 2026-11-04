@@ -177,7 +177,8 @@ public class BlockAccessor : DataAccessor
     {
         using Aes aes = Aes.Create();
         aes.Key = inKey;
-        Span<byte> span = _block.ToSpan((int)Position);
+        // The block can be larger than what was written, so stop at Length
+        Span<byte> span = _block.ToSpan((int)Position, (int)(Length - Position));
         aes.DecryptCbc(span, inKey, span, inPaddingMode);
     }
 
@@ -323,9 +324,16 @@ public class BlockAccessor : DataAccessor
         }
 
         long position = Position;
-        int neededLength = (int)Math.Max(inDesiredMinLength, Environment.SystemPageSize + position);
-        neededLength = (neededLength + 15) & ~15;
-        _block.Resize(neededLength);
+        // turns writing a large file into quadratic copying.
+        long newLength = Math.Max(inDesiredMinLength,
+            Math.Max(_block.Size * 2L, Environment.SystemPageSize + position));
+        newLength = Math.Min((newLength + 15) & ~15, Array.MaxLength);
+        if (newLength < inDesiredMinLength)
+        {
+            throw new IOException($"A {nameof(BlockAccessor)} cannot grow beyond {Array.MaxLength} bytes.");
+        }
+
+        _block.Resize((int)newLength);
 
         BaseStream = _block.ToStream();
         BaseStream.SetLength(inDesiredMinLength);
