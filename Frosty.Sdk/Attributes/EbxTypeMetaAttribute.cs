@@ -24,7 +24,7 @@ public sealed class EbxTypeMetaAttribute : Attribute
 
     public TypeFlags.TypeEnum TypeEnum => Flags.GetTypeEnum();
     public TypeFlags.CategoryEnum CategoryEnum => Flags.GetCategoryEnum();
-    public TypeFlags Flags { get; internal set; }
-    public byte Alignment { get; internal set; }
-    public ushort Size { get; internal set; }
+    public TypeFlags Flags { get; }
+    public byte Alignment { get; }
+    public ushort Size { get; }
 }

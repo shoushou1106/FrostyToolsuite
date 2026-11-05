@@ -4,6 +4,4 @@
 ///     Specifies that this property is hidden from the property grid
 /// </summary>
 [AttributeUsage(FrostyAttributeTargets.Field)]
-public sealed class IsHiddenAttribute : Attribute
-{
-}
+public sealed class IsHiddenAttribute : Attribute;

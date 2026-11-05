@@ -6,5 +6,5 @@
 [AttributeUsage(FrostyAttributeTargets.Field)]
 public sealed class CategoryAttribute(string name) : Attribute
 {
-    public string Name { get; internal set; } = name;
+    public string Name { get; } = name;
 }

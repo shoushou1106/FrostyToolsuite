@@ -6,5 +6,5 @@
 [AttributeUsage(FrostyAttributeTargets.Field)]
 public sealed class FieldIndexAttribute(int index) : Attribute
 {
-    public int Index { get; internal set; } = index;
+    public int Index { get; } = index;
 }

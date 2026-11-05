@@ -6,5 +6,5 @@
 [AttributeUsage(FrostyAttributeTargets.Type | FrostyAttributeTargets.Field, Inherited = false)]
 public sealed class DisplayNameAttribute(string name) : Attribute
 {
-    public string Name { get; internal set; } = name;
+    public string Name { get; } = name;
 }

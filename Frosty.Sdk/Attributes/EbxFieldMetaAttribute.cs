@@ -27,7 +27,7 @@ public sealed class EbxFieldMetaAttribute : Attribute
     }
 
     public TypeFlags.TypeEnum TypeEnum => Flags.GetTypeEnum();
-    public TypeFlags Flags { get; internal set; }
-    public uint Offset { get; internal set; }
-    public Type? BaseType { get; internal set; }
+    public TypeFlags Flags { get; }
+    public uint Offset { get; }
+    public Type? BaseType { get; }
 }

@@ -4,9 +4,17 @@
 ///     Specifies the guid for the class. Used when looking up type refs
 /// </summary>
 [AttributeUsage(FrostyAttributeTargets.Type, Inherited = false)]
-#pragma warning disable CA1019
-public sealed class GuidAttribute(string inGuid) : Attribute
-#pragma warning restore CA1019
+// CA1019: Define accessors for attribute arguments
+// The GUID is passed as a string because Guid is not a valid attribute argument type.
+// CA1720: Identifier 'guid' contains type name
+// It is a GUID.
+#pragma warning disable CA1019, CA1720
+public sealed class GuidAttribute(string guid) : Attribute
+#pragma warning restore CA1019, CA1720
 {
-    public Guid Guid { get; set; } = Guid.Parse(inGuid);
+    // CA1720: Identifier 'guid' contains type name
+    // It is a GUID.
+#pragma warning disable CA1720
+    public Guid Guid { get; } = Guid.Parse(guid);
+#pragma warning restore CA1720
 }

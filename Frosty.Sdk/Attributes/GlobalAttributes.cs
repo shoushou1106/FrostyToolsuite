@@ -3,7 +3,7 @@
 public static class GlobalAttributes
 {
     /// <summary>
-    ///     Whether or not to display the module of the class prepended to the id
+    ///     Whether to display the module of the class prepended to the ID
     /// </summary>
     public static bool DisplayModuleInClassId { get; set; }
 }
