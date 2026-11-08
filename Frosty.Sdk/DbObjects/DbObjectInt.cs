@@ -1,28 +1,27 @@
 ﻿using System.Globalization;
-
 using Frosty.Sdk.IO;
 
-namespace Frosty.Sdk.DbObjectElements;
+namespace Frosty.Sdk.DbObjects;
 
-public class DbObjectInt : DbObject
+public sealed class DbObjectInt : DbObject
 {
     private int _value;
 
-    protected internal DbObjectInt(Type inType)
-        : base(inType)
+    internal DbObjectInt(Type type)
+        : base(type)
     {
     }
 
-    public DbObjectInt(int inValue)
+    public DbObjectInt(int value)
         : base(Type.Int | Type.Anonymous)
     {
-        _value = inValue;
+        _value = value;
     }
 
-    public DbObjectInt(string inName, int inValue)
-        : base(Type.Int, inName)
+    public DbObjectInt(string name, int value)
+        : base(Type.Int, name)
     {
-        _value = inValue;
+        _value = value;
     }
 
     public override int AsInt()
@@ -46,17 +45,13 @@ public class DbObjectInt : DbObject
         return AsUInt();
     }
 
-    protected override void InternalSerialize(DataAccessor accessor)
+    private protected override void InternalSerialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(accessor);
-
         accessor.WriteInt32(_value);
     }
 
-    protected override void InternalDeserialize(DataAccessor accessor)
+    private protected override void InternalDeserialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(accessor);
-
         _value = accessor.ReadInt32();
     }
 

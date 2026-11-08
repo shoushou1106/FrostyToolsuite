@@ -7,7 +7,7 @@ using Frosty.Modding.Archive;
 using Frosty.Modding.ModEntries;
 using Frosty.Modding.ModInfos;
 using Frosty.Sdk;
-using Frosty.Sdk.DbObjectElements;
+using Frosty.Sdk.DbObjects;
 using Frosty.Sdk.IO;
 using Frosty.Sdk.Managers;
 using Frosty.Sdk.Managers.Infos;
@@ -625,7 +625,7 @@ internal class Dynamic2018 : IDisposable
             {
                 chunkMeta = DbObject.CreateDict(2);
                 chunkMeta.Set("h32", modEntry.H32);
-                chunkMeta.Set("meta", DbObject.CreateDict(1));
+                chunkMeta.Set("meta", DbObject.CreateDict("meta", 1));
                 chunkMetaList!.Add(chunkMeta);
             }
             else
@@ -715,7 +715,7 @@ internal class Dynamic2018 : IDisposable
             {
                 chunkMeta = DbObject.CreateDict(2);
                 chunkMeta.Set("h32", modEntry.H32);
-                chunkMeta.Set("meta", DbObject.CreateDict(1));
+                chunkMeta.Set("meta", DbObject.CreateDict("meta", 1));
                 chunkMetaList ??= DbObject.CreateList("chunkMeta", inBundleModInfo.Added.Chunks.Count);
                 chunkMetaList.Add(chunkMeta);
             }

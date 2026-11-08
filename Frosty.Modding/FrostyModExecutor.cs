@@ -13,7 +13,7 @@ using Frosty.Modding.Mod.Resources;
 using Frosty.Modding.ModEntries;
 using Frosty.Modding.ModInfos;
 using Frosty.Sdk;
-using Frosty.Sdk.DbObjectElements;
+using Frosty.Sdk.DbObjects;
 using Frosty.Sdk.IO;
 using Frosty.Sdk.Managers;
 using Frosty.Sdk.Managers.Entries;

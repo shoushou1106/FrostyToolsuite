@@ -1,30 +1,29 @@
 ﻿using System.Collections;
-
 using Frosty.Sdk.IO;
 using Frosty.Sdk.Utils;
 
-namespace Frosty.Sdk.DbObjectElements;
+namespace Frosty.Sdk.DbObjects;
 
-public class DbObjectList : DbObject, IEnumerable<DbObject>
+public sealed class DbObjectList : DbObject, IEnumerable<DbObject>
 {
     private readonly List<DbObject> _items;
 
-    protected internal DbObjectList(Type inType)
-        : base(inType)
+    internal DbObjectList(Type type)
+        : base(type)
     {
         _items = [];
     }
 
-    protected internal DbObjectList(int inCapacity)
+    internal DbObjectList(int capacity)
         : base(Type.List | Type.Anonymous)
     {
-        _items = new List<DbObject>(inCapacity);
+        _items = new List<DbObject>(capacity);
     }
 
-    protected internal DbObjectList(string inName, int inCapacity)
-        : base(Type.List, inName)
+    internal DbObjectList(string name, int capacity)
+        : base(Type.List, name)
     {
-        _items = new List<DbObject>(inCapacity);
+        _items = new List<DbObject>(capacity);
     }
 
     public int Count => _items.Count;
@@ -120,42 +119,16 @@ public class DbObjectList : DbObject, IEnumerable<DbObject>
         _items.Add(new DbObjectBlob(value));
     }
 
-    protected override void InternalSerialize(DataAccessor accessor)
+    private protected override void InternalSerialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(accessor);
-
-        Block<byte> sub = new(0);
-        using (BlockAccessor subAccessor = new(sub, true))
-        {
-            foreach (DbObject value in _items)
-            {
-                Serialize(subAccessor, value);
-            }
-
-            // Write terminator
-            subAccessor.WriteByte((byte)Type.Null);
-        }
-
-        accessor.Write7BitEncodedInt64(sub.Size);
-        accessor.Write(sub);
-        sub.Dispose();
+        SerializeChildren(accessor, _items);
     }
 
-    protected override void InternalDeserialize(DataAccessor accessor)
+    private protected override void InternalDeserialize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(accessor);
-
+        // The size of the children is not needed, they end with a terminator
         accessor.Read7BitEncodedInt64();
-        while (true)
-        {
-            DbObject? obj = Deserialize(accessor);
 
-            if (obj is null)
-            {
-                break;
-            }
-
-            _items.Add(obj);
-        }
+        while (Deserialize(accessor) is { } child) _items.Add(child);
     }
 }

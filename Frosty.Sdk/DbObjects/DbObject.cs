@@ -1,18 +1,25 @@
-using Frosty.Sdk.DbObjectElements;
+using System.Diagnostics;
 using Frosty.Sdk.Exceptions;
 using Frosty.Sdk.IO;
 using Frosty.Sdk.Utils;
 
-namespace Frosty.Sdk;
+namespace Frosty.Sdk.DbObjects;
 
-public abstract class DbObject(DbObject.Type inType)
+public abstract class DbObject
 {
-    private readonly Type _type = inType;
+    private readonly Type _type;
 
-    protected DbObject(Type inType, string inName)
-        : this(inType)
+    private protected DbObject(Type type)
     {
-        Name = inName;
+        _type = type;
+    }
+
+    private protected DbObject(Type type, string name)
+        : this(type)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+
+        Name = name;
     }
 
     public string Name { get; private set; } = string.Empty;
@@ -20,6 +27,7 @@ public abstract class DbObject(DbObject.Type inType)
     /// <summary>
     ///     Serializes a <see cref="DbObject" /> to a file.
     /// </summary>
+    /// <remarks><b>Encoding:</b> UTF-8 (names and string values)</remarks>
     /// <param name="path">The path of the file.</param>
     /// <param name="value">The <see cref="DbObject" /> to serialize.</param>
     public static void Serialize(string path, DbObject value)
@@ -31,6 +39,7 @@ public abstract class DbObject(DbObject.Type inType)
     /// <summary>
     ///     Serializes a <see cref="DbObject" /> to a <see cref="DataAccessor" />.
     /// </summary>
+    /// <remarks><b>Encoding:</b> UTF-8 (names and string values)</remarks>
     /// <param name="accessor">The <see cref="DataAccessor" /> to serialize the <see cref="DbObject" /> to.</param>
     /// <param name="value">The <see cref="DbObject" /> to serialize.</param>
     public static void Serialize(DataAccessor accessor, DbObject value)
@@ -40,47 +49,40 @@ public abstract class DbObject(DbObject.Type inType)
 
         accessor.WriteByte((byte)value._type);
 
-        if (!value._type.HasFlag(Type.Anonymous))
-        {
-            accessor.WriteNullTerminatedString(value.Name);
-        }
+        if (!value._type.HasFlag(Type.Anonymous)) accessor.WriteNullTerminatedString(value.Name);
 
         value.InternalSerialize(accessor);
     }
 
     /// <summary>
-    ///     Deserializes a <see cref="DbObject" /> from a file.
+    ///     Deserializes a <see cref="DbObject" /> from a file, deobfuscating it first if needed.
     /// </summary>
+    /// <remarks><b>Encoding:</b> UTF-8 (names and string values)</remarks>
     /// <param name="path">The path of the file.</param>
     /// <returns>The deserialized <see cref="DbObject" />.</returns>
     public static DbObject? Deserialize(string path)
     {
-        using BlockAccessor accessor = BlockAccessor.FromFile(path, true);
+        using var accessor = BlockAccessor.FromFile(path, true);
         return Deserialize(accessor);
     }
 
     /// <summary>
     ///     Deserializes a <see cref="DbObject" /> from a <see cref="DataAccessor" />.
     /// </summary>
+    /// <remarks><b>Encoding:</b> UTF-8 (names and string values)</remarks>
     /// <param name="accessor">The <see cref="DataAccessor" /> to deserialize the <see cref="DbObject" /> from.</param>
-    /// <returns>The deserialized <see cref="DbObject" />.</returns>
+    /// <returns>The deserialized <see cref="DbObject" />, or <see langword="null" /> for a terminator.</returns>
     public static DbObject? Deserialize(DataAccessor accessor)
     {
         ArgumentNullException.ThrowIfNull(accessor);
 
-        Type type = (Type)accessor.ReadByte();
+        var type = (Type)accessor.ReadByte();
 
-        DbObject? obj = CreateDbObject(type);
+        var obj = CreateDbObject(type);
 
-        if (obj is null)
-        {
-            return obj;
-        }
+        if (obj is null) return obj;
 
-        if (!type.HasFlag(Type.Anonymous))
-        {
-            obj.Name = accessor.ReadNullTerminatedString();
-        }
+        if (!type.HasFlag(Type.Anonymous)) obj.Name = accessor.ReadNullTerminatedString();
 
         obj.InternalDeserialize(accessor);
 
@@ -182,56 +184,49 @@ public abstract class DbObject(DbObject.Type inType)
         return new DbObjectList(name, capacity);
     }
 
-    protected abstract void InternalSerialize(DataAccessor accessor);
+    private protected abstract void InternalSerialize(DataAccessor accessor);
 
-    protected abstract void InternalDeserialize(DataAccessor accessor);
+    private protected abstract void InternalDeserialize(DataAccessor accessor);
+
+    /// <summary>
+    ///     Writes the size of <paramref name="children" />, the children and a <see cref="Type.Null" /> terminator.
+    /// </summary>
+    /// <remarks>
+    ///     The size is a 7-bit encoded int in front of the children, so its length is only known after the children
+    ///     are serialized into a buffer.
+    /// </remarks>
+    private protected static void SerializeChildren(DataAccessor accessor, IEnumerable<DbObject> children)
+    {
+        using MemoryStream buffer = new();
+        using DataAccessor bufferAccessor = new(buffer, true);
+
+        foreach (var child in children) Serialize(bufferAccessor, child);
+
+        bufferAccessor.WriteByte((byte)Type.Null);
+
+        accessor.Write7BitEncodedInt64(buffer.Length);
+        accessor.Write(buffer.GetBuffer().AsSpan(0, (int)buffer.Length));
+    }
 
     private static DbObject? CreateDbObject(Type type)
     {
-        DbObject obj;
-        // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
-        switch (type & ~Type.Anonymous)
+        return (type & ~Type.Anonymous) switch
         {
-            case Type.Null:
-                return null;
-            case Type.List:
-                obj = new DbObjectList(type);
-                break;
-            case Type.Dict:
-                obj = new DbObjectDict(type);
-                break;
-            case Type.Boolean:
-                obj = new DbObjectBool(type);
-                break;
-            case Type.String:
-                obj = new DbObjectString(type);
-                break;
-            case Type.Int:
-                obj = new DbObjectInt(type);
-                break;
-            case Type.Long:
-                obj = new DbObjectLong(type);
-                break;
-            case Type.Float:
-                obj = new DbObjectFloat(type);
-                break;
-            case Type.Double:
-                obj = new DbObjectDouble(type);
-                break;
-            case Type.Guid:
-                obj = new DbObjectGuid(type);
-                break;
-            case Type.Sha1:
-                obj = new DbObjectSha1(type);
-                break;
-            case Type.Blob:
-                obj = new DbObjectBlob(type);
-                break;
-            default:
-                throw new UnknownValueException<Type>("DbObject " + nameof(Type), type);
-        }
-
-        return obj;
+            Type.Null => null,
+            Type.List => new DbObjectList(type),
+            Type.Dict => new DbObjectDict(type),
+            Type.Boolean => new DbObjectBool(type),
+            Type.String => new DbObjectString(type),
+            Type.Int => new DbObjectInt(type),
+            Type.Long => new DbObjectLong(type),
+            Type.Float => new DbObjectFloat(type),
+            Type.Double => new DbObjectDouble(type),
+            Type.Guid => new DbObjectGuid(type),
+            Type.Sha1 => new DbObjectSha1(type),
+            Type.Blob => new DbObjectBlob(type),
+            Type.Anonymous => throw new UnreachableException(),
+            _ => throw new UnknownValueException<Type>("DbObject " + nameof(Type), type)
+        };
     }
 
     // CA1008: Enums should have zero value
@@ -239,7 +234,7 @@ public abstract class DbObject(DbObject.Type inType)
     // CA2217: Do not mark enums with FlagsAttribute
 #pragma warning disable CA1008, CA1720, CA2217
     [Flags]
-    protected internal enum Type
+    internal enum Type
     {
         Null = 0,
         List = 1,

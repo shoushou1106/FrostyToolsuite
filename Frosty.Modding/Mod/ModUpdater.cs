@@ -8,7 +8,7 @@ using System.Xml;
 
 using Frosty.Modding.Mod.Resources;
 using Frosty.Sdk;
-using Frosty.Sdk.DbObjectElements;
+using Frosty.Sdk.DbObjects;
 using Frosty.Sdk.IO;
 using Frosty.Sdk.IO.Compression;
 using Frosty.Sdk.Managers;
