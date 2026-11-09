@@ -1,18 +1,11 @@
 <Project>
   <!-- See https://aka.ms/dotnet/msbuild/customize for more details on customizing your build -->
 
-  <!-- Framework Settings -->
+  <!-- Core & Analyzer Settings -->
   <PropertyGroup>
     <TargetFramework>net11.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-  </PropertyGroup>
-
-  <!-- Analyzer Settings -->
-  <PropertyGroup>
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
-    <AnalysisLevel>latest</AnalysisLevel>
     <AnalysisMode>All</AnalysisMode>
   </PropertyGroup>
 
@@ -22,7 +15,7 @@
     <Authors>The Frosty Toolsuite Team</Authors>
     <Company>The Frosty Toolsuite Team</Company>
     <PackageTags>Frostbite;EA;ElectronicArts;FrostyToolsuite;Frosty;Game;Development;Modding;Modification</PackageTags>
-    <Copyright>Copyright (c) 2026 The FrostyToolsuite Team</Copyright>
+    <Copyright>Copyright (c) 2026 The Frosty Toolsuite Team</Copyright>
     <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/FrostyToolsuite/FrostyToolsuite</PackageProjectUrl>
     <RepositoryUrl>https://github.com/FrostyToolsuite/FrostyToolsuite</RepositoryUrl>

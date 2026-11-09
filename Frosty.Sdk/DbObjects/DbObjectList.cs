@@ -17,13 +17,13 @@ public sealed class DbObjectList : DbObject, IEnumerable<DbObject>
     internal DbObjectList(int capacity)
         : base(Type.List | Type.Anonymous)
     {
-        _items = new List<DbObject>(capacity);
+        _items = [with(capacity)];
     }
 
     internal DbObjectList(string name, int capacity)
         : base(Type.List, name)
     {
-        _items = new List<DbObject>(capacity);
+        _items = [with(capacity)];
     }
 
     public int Count => _items.Count;

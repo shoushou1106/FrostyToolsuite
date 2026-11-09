@@ -176,12 +176,12 @@ public abstract class DbObject
 
     public static DbObjectList CreateList(int capacity = 0)
     {
-        return new DbObjectList(capacity);
+        return [with(capacity)];
     }
 
     public static DbObjectList CreateList(string name, int capacity = 0)
     {
-        return new DbObjectList(name, capacity);
+        return [with(name, capacity)];
     }
 
     private protected abstract void InternalSerialize(DataAccessor accessor);
@@ -228,11 +228,7 @@ public abstract class DbObject
             _ => throw new UnknownValueException<Type>("DbObject " + nameof(Type), type)
         };
     }
-
-    // CA1008: Enums should have zero value
-    // CA1720: Identifiers should not contain type names
-    // CA2217: Do not mark enums with FlagsAttribute
-#pragma warning disable CA1008, CA1720, CA2217
+    
     [Flags]
     internal enum Type
     {
@@ -251,5 +247,4 @@ public abstract class DbObject
 
         Anonymous = 1 << 7
     }
-#pragma warning restore CA1008, CA1720, CA2217
 }
