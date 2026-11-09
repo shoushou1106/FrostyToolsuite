@@ -1,6 +1,6 @@
-using Frosty.Sdk.Utils;
+using Frosty.Sdk.IO;
 
-namespace Frosty.Sdk.Tests.Utils;
+namespace Frosty.Sdk.Tests.IO;
 
 /// <summary>
 ///     Tests for <see cref="FourCc" /> string conversion.
@@ -17,8 +17,12 @@ internal sealed class FourCcTests
     {
         string text = FourCc.FromFourCc(inValue);
 
-        Assert.That(text, Is.EqualTo(expectedText));
-        Assert.That(FourCc.ToFourCc(text).ToUInt32(), Is.EqualTo(inValue));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(text, Is.EqualTo(expectedText));
+            Assert.That(FourCc.FromUInt32(inValue).ToString(), Is.EqualTo(expectedText));
+            Assert.That(FourCc.ToFourCc(text).ToUInt32(), Is.EqualTo(inValue));
+        }
     }
 
     /// <summary>

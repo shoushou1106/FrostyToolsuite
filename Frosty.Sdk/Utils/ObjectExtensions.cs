@@ -7,8 +7,6 @@ namespace Frosty.Sdk.Utils;
 
 public static class ObjectExtensions
 {
-    // CA1034: Do not nest type
-#pragma warning disable CA1034
     extension(object obj)
     {
         public T GetProperty<T>(string inPropertyName)
@@ -27,7 +25,8 @@ public static class ObjectExtensions
             {
                 T result => result,
                 IPrimitive primitive when primitive.ToActualType() is T result2 => result2,
-                _ => throw new InvalidCastException()
+                _ => throw new InvalidCastException(
+                    $"Property {inPropertyName} of type {type} is not a {typeof(T)}")
             };
         }
 
@@ -58,5 +57,4 @@ public static class ObjectExtensions
             return false;
         }
     }
-#pragma warning restore CA1034
 }

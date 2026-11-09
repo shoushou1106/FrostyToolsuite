@@ -1,11 +1,12 @@
 using System.Buffers.Binary;
+using System.Runtime.InteropServices;
 using System.Text;
 
 using Frosty.Sdk.IO;
 
-namespace Frosty.Sdk.Utils;
+namespace Frosty.Sdk.Utils.Huffman;
 
-public class HuffmanDecoder
+public sealed class HuffmanDecoder
 {
     private int[]? _data;
 
@@ -29,44 +30,31 @@ public class HuffmanDecoder
 
         _rootNode = null;
         HuffmanNode? leftNode = null;
-        HuffmanNode? rightNode = null;
 
-        List<HuffmanNode> nodes = [];
+        Dictionary<uint, HuffmanNode> nodes = [];
         uint nodeValue = 0;
 
         for (int i = 0; i < count; i++)
         {
-            HuffmanNode n = new(accessor, endian);
-            int idx = nodes.FindIndex(a => a.Value == n.Value);
-            if (idx != -1)
+            uint value = accessor.ReadUInt32(endian);
+            if (!nodes.TryGetValue(value, out HuffmanNode? node))
             {
-                n = nodes[idx];
+                node = new HuffmanNode(value);
+                nodes.Add(value, node);
             }
 
             if (leftNode is null)
             {
-                leftNode = n;
-            }
-            else if (rightNode is null)
-            {
-                rightNode = n;
-                if (idx == -1)
-                {
-                    nodes.Add(rightNode);
-                }
-
-                n = new HuffmanNode(nodeValue++, leftNode, rightNode);
-                _rootNode = n;
-
-                leftNode = null;
-                rightNode = null;
-                idx = -1;
+                // Node is left child
+                leftNode = node;
+                continue;
             }
 
-            if (idx == -1)
-            {
-                nodes.Add(n);
-            }
+            // Node is right child
+            HuffmanNode branch = new(nodeValue++, leftNode, node);
+            nodes.TryAdd(branch.Value, branch);
+            _rootNode = branch;
+            leftNode = null;
         }
     }
 
@@ -81,11 +69,7 @@ public class HuffmanDecoder
         ArgumentNullException.ThrowIfNull(accessor);
 
         _data = new int[integerCount];
-
-        for (int i = 0; i < integerCount; i++)
-        {
-            _data[i] = accessor.ReadInt32(endian);
-        }
+        ReadIntegers(accessor, _data, endian);
     }
 
     /// <summary>
@@ -101,11 +85,7 @@ public class HuffmanDecoder
         uint intLength = byteCount / 4;
 
         _data = new int[intLength + 1];
-
-        for (int i = 0; i < intLength; i++)
-        {
-            _data[i] = accessor.ReadInt32(endian);
-        }
+        ReadIntegers(accessor, _data.AsSpan(0, (int)intLength), endian);
 
         // Read remaining bytes as full int
         Span<byte> remaining = stackalloc byte[sizeof(int)];
@@ -166,9 +146,14 @@ public class HuffmanDecoder
         }
     }
 
-    public void Dispose()
+    private static void ReadIntegers(DataAccessor accessor, Span<int> destination, Endian endian)
     {
-        _rootNode = null;
-        _data = null;
+        // Read everything at once. The bytes were read in the host's endianness
+        accessor.ReadExactly(MemoryMarshal.AsBytes(destination));
+        if ((endian == Endian.Big) == BitConverter.IsLittleEndian)
+        {
+            // Big endian expected but current host use Little.
+            BinaryPrimitives.ReverseEndianness(destination, destination);
+        }
     }
 }

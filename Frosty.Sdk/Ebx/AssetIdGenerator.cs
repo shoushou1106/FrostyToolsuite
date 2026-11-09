@@ -1,28 +1,30 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 
-using Frosty.Sdk.Ebx;
+using Frosty.Sdk.Interfaces;
 
-namespace Frosty.Sdk.Utils;
+namespace Frosty.Sdk.Ebx;
 
 /// <summary>
-///     Creates ids for new assets.
+///     Creates IDs for new assets.
 /// </summary>
-/// <remarks>
-///     Formerly inside Utils.Utils
-/// </remarks>
 public static class AssetIdGenerator
 {
-    public static Guid CreateDeterministicGuid(IEnumerable<object> objects, Guid fileGuid)
+    /// <summary>
+    ///     Creates an instance GUID that is the same for the same file and instance count,
+    ///     and not used by <paramref name="objects" />.
+    /// </summary>
+    /// <param name="objects">The instances already in the file.</param>
+    /// <param name="fileGuid">The GUID of the file.</param>
+    public static Guid CreateDeterministicGuid(IEnumerable<IEbxInstance> objects, Guid fileGuid)
     {
         ArgumentNullException.ThrowIfNull(objects);
 
         int createCount = 0;
         HashSet<Guid> existingGuids = [];
-        foreach (dynamic obj in objects)
+        foreach (IEbxInstance obj in objects)
         {
-            AssetClassGuid objGuid = obj.GetInstanceGuid();
-            existingGuids.Add(objGuid.ExportedGuid);
+            existingGuids.Add(obj.GetInstanceGuid().ExportedGuid);
             createCount++;
         }
 
@@ -46,9 +48,11 @@ public static class AssetIdGenerator
         return outGuid;
     }
 
+    /// <summary>
+    ///     Creates a random resource id, always odd.
+    /// </summary>
     public static ulong CreateResourceId()
     {
-        // Any random odd value
         Span<byte> buffer = stackalloc byte[sizeof(ulong)];
         RandomNumberGenerator.Fill(buffer);
         return BinaryPrimitives.ReadUInt64LittleEndian(buffer) | 1;

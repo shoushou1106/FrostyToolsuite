@@ -1,26 +1,28 @@
-using Frosty.Sdk.IO;
-
-namespace Frosty.Sdk.Utils;
+namespace Frosty.Sdk.Utils.Huffman;
 
 /// <summary>
-///     A node in the huffman coding scheme
+///     A node of a Huffman tree.
 /// </summary>
+/// <remarks>
+///     For a leaf node, <see cref="Value" /> is the bitwise NOT of its character (<c>~(uint)c</c>).
+///     For a branch node, <see cref="Value" /> is its 0-based branch index in the tree.
+/// </remarks>
 internal class HuffmanNode : IComparable<HuffmanNode>
 {
     protected HuffmanNode()
     {
     }
 
-    public HuffmanNode(uint inValue, HuffmanNode inLeft, HuffmanNode inRight)
+    public HuffmanNode(uint value)
     {
-        Value = inValue;
-        SetLeftNode(inLeft);
-        SetRightNode(inRight);
+        Value = value;
     }
 
-    public HuffmanNode(DataAccessor accessor, Endian endian)
+    public HuffmanNode(uint value, HuffmanNode left, HuffmanNode right)
     {
-        Value = accessor.ReadUInt32(endian);
+        Value = value;
+        SetLeftNode(left);
+        SetRightNode(right);
     }
 
     public bool IsLeaf => Left is null && Right is null;
@@ -58,24 +60,5 @@ internal class HuffmanNode : IComparable<HuffmanNode>
             _ => Letter.ToString()
         };
         return $"[Value = <{Value}> | Letter = <{printLetter}>]";
-    }
-
-    /// <summary>
-    ///     Returns the bit representation of this node, to be used in tests.
-    /// </summary>
-    /// <returns>The bit representation of this node.</returns>
-    public string GetBitRepresentation()
-    {
-        if (Parent is null)
-        {
-            return string.Empty;
-        }
-
-        string bitVal = this == Parent.Left
-            ? "0"
-            : this == Parent.Right
-                ? "1"
-                : "ERROR!";
-        return Parent.GetBitRepresentation() + bitVal;
     }
 }

@@ -1,10 +1,10 @@
 namespace Frosty.Sdk.Utils;
 
 /// <summary>
-///     FNV-1a string hash.
+///     Frostbite FNV-1a string hash.
 /// </summary>
 /// <remarks>
-///     Formerly Utils.Utils.HashStringA()
+///     Frostbite uses 5381 and 33 (the DJB2 constants), not the FNV offset basis and prime.
 /// </remarks>
 /// <seealso cref="Fnv1" />
 // FNV-1a is the algorithm's name
@@ -17,6 +17,10 @@ public static class Fnv1a
     /// <summary>
     ///     Hashes a string using Frostbite FNV-1a.
     /// </summary>
+    /// <remarks>
+    ///     Only the low byte of each char is hashed,
+    ///     so a non-ASCII string does not hash like its UTF-8 bytes.
+    /// </remarks>
     /// <param name="value">The string to hash.</param>
     /// <param name="toLower">Whether to lowercase before hashing.</param>
     /// <returns>The hash.</returns>

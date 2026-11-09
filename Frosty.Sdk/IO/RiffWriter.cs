@@ -1,7 +1,8 @@
-using Frosty.Sdk.IO;
+namespace Frosty.Sdk.IO;
 
-namespace Frosty.Sdk.Utils;
-
+/// <summary>
+///     Writes a RIFF file chunk by chunk, then <see cref="Fixup" /> writes the size into the header.
+/// </summary>
 public sealed class RiffWriter(DataAccessor inAccessor)
 {
     private long _curPos;
@@ -22,12 +23,10 @@ public sealed class RiffWriter(DataAccessor inAccessor)
         inAccessor.WriteUInt32(inFileFourCc);
     }
 
-    public void WriteChunk(FourCc inFourCc, Block<byte> inData)
+    public void WriteChunk(FourCc inFourCc, ReadOnlySpan<byte> inData)
     {
-        ArgumentNullException.ThrowIfNull(inData);
-
         inAccessor.WriteUInt32(inFourCc);
-        inAccessor.WriteInt32(inData.Size);
+        inAccessor.WriteInt32(inData.Length);
         inAccessor.Write(inData);
         inAccessor.Pad(2);
     }

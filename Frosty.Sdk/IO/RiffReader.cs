@@ -1,7 +1,8 @@
-using Frosty.Sdk.IO;
+namespace Frosty.Sdk.IO;
 
-namespace Frosty.Sdk.Utils;
-
+/// <summary>
+///     Reads a RIFF file chunk by chunk.
+/// </summary>
 public sealed class RiffReader(DataAccessor inAccessor)
 {
     public bool Eof { get; private set; }

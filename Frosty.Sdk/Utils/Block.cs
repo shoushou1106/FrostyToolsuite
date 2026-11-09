@@ -16,6 +16,9 @@ namespace Frosty.Sdk.Utils;
 ///     <see cref="ReadOnlySpan{T}" />, which a block converts to implicitly. In loops, take the span once instead of
 ///     using the indexer, which checks and slices on every access.
 /// </remarks>
+// Temporary, lists the callers left until it is deleted.
+[Obsolete("Block<T> will be removed. Use byte[], Span<T> or Memory<T> instead.",
+    DiagnosticId = "FrostyTempBlockIsDeprecated")]
 public sealed class Block<T> : IDisposable where T : unmanaged
 {
     private int _baseByteOffset;
@@ -88,18 +91,6 @@ public sealed class Block<T> : IDisposable where T : unmanaged
     /// <param name="inSpan">Source data.</param>
     public Block(ReadOnlySpan<T> inSpan)
     {
-        // Copy as byte[] instead of the original pointer.
-        // Because "fixed" only protects the memory when inside {}.
-        // https://learn.microsoft.com/dotnet/standard/unsafe-code/best-practices#2-exposing-pointers-outside-of-the-fixed-scope
-        // fixed (T* ptr = inSpan)
-        // {
-        //     // Pointer was saved and lived outside
-        //     BasePtr = ptr;
-        //     Ptr = BasePtr;
-        //     BaseSize = inSpan.Length;
-        //     m_fragileMemory = true;
-        // }
-
         _buffer = [.. MemoryMarshal.AsBytes(inSpan)];
         BaseSize = inSpan.Length;
     }
@@ -118,7 +109,7 @@ public sealed class Block<T> : IDisposable where T : unmanaged
     }
 
     /// <summary>
-    ///     Privately used in ToBlock and CreateUninitialized
+    ///     Wraps <paramref name="inBuffer" /> without copying, used by ToBlock, CreateUninitialized and Wrap.
     /// </summary>
     private Block(byte[] inBuffer, int inByteOffset, int inSize)
     {
@@ -197,6 +188,14 @@ public sealed class Block<T> : IDisposable where T : unmanaged
     }
 
     /// <summary>
+    ///     Creates a block over <paramref name="inBuffer" /> without copying it.
+    /// </summary>
+    internal static Block<T> Wrap(byte[] inBuffer)
+    {
+        return new Block<T>(inBuffer, 0, inBuffer.Length / ElementSize);
+    }
+
+    /// <summary>
     ///     Clears the whole Block.
     /// </summary>
     public void Clear()
@@ -209,13 +208,15 @@ public sealed class Block<T> : IDisposable where T : unmanaged
     ///     The block gets its own memory, elements added to grow the block are zero.
     /// </summary>
     /// <param name="inNewSize">The new size of the block.</param>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="inNewSize" /> must be at least 1.</exception>
+    /// <remarks>The shift is kept, so <paramref name="inNewSize" /> cannot be smaller than <see cref="ShiftAmount" />.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    ///     <paramref name="inNewSize" /> is negative or smaller than <see cref="ShiftAmount" />.
+    /// </exception>
     public void Resize(int inNewSize)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(inNewSize, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(inNewSize, ShiftAmount);
 
         Span<byte> oldBytes = BaseBytes();
-        // ReAlloc may move the data
         byte[] newBuffer = GC.AllocateUninitializedArray<byte>(inNewSize * ElementSize);
 
         int copied = Math.Min(oldBytes.Length, newBuffer.Length);
@@ -251,7 +252,6 @@ public sealed class Block<T> : IDisposable where T : unmanaged
             throw new ArgumentOutOfRangeException(nameof(inAmount), "Attempted to shift after the end of the block!");
         }
 
-        // Instead of playing with two pointers, save the shift amount instead.
         ShiftAmount += inAmount;
     }
 
@@ -297,8 +297,6 @@ public sealed class Block<T> : IDisposable where T : unmanaged
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        // The original forgot to mark it as fragile. The new one was not fragile.
-        // Unsafe.SizeOf is safe.
         return new Block<TOther>(_buffer, CurrentByteOffset, Size * ElementSize / Unsafe.SizeOf<TOther>());
     }
 
@@ -336,14 +334,6 @@ public sealed class Block<T> : IDisposable where T : unmanaged
 
         return MemoryMarshal.Cast<byte, T>(
             _buffer.AsSpan(CurrentByteOffset + (inStart * ElementSize), inLength * ElementSize));
-    }
-
-    // CA1002: Do not expose generic lists
-#pragma warning disable CA1002
-    public List<T> ToList()
-#pragma warning restore CA1002
-    {
-        return [.. ToReadOnlySpan()];
     }
 
     /// <summary>

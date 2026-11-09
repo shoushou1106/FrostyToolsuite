@@ -6,6 +6,9 @@ namespace Frosty.Sdk.Tests.Utils;
 
 // Assertion delegates run synchronously before disposing captured blocks.
 
+// Temporary, will go away with Block and BlockAccessor.
+// FrostyTempBlockIsDeprecated: Block<T> will be removed.
+#pragma warning disable FrostyTempBlockIsDeprecated
 // CA1861: Avoid constant arrays as arguments
 #pragma warning disable CA1861
 // Code inspection: Access to disposed captured variable
@@ -125,6 +128,29 @@ internal sealed class BlockTests
 
         block.Resize(2);
         Assert.That(block.ToArray(), Is.EqualTo<int[]>([0, 1]));
+    }
+
+    /// <summary>
+    ///     Verify that resizing keeps the shift, rejects a size below it, and allows an empty block.
+    /// </summary>
+    [Test]
+    public void Resize_KeepsShiftAndAllowsEmpty()
+    {
+        // 0, 1, 2, 3
+        using Block<int> block = CreateSequence(4);
+        block.Shift(2);
+
+        block.Resize(3);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(block.ShiftAmount, Is.EqualTo(2));
+            Assert.That(block.ToArray(), Is.EqualTo<int[]>([2]));
+            Assert.Throws<ArgumentOutOfRangeException>(() => block.Resize(1));
+        }
+
+        block.ResetShift();
+        block.Resize(0);
+        Assert.That(block.Size, Is.Zero);
     }
 
     /// <summary>

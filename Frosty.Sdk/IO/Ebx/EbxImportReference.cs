@@ -12,10 +12,10 @@ public readonly record struct EbxImportReference(Guid PartitionGuid, Guid Instan
 {
     public int CompareTo(EbxImportReference other)
     {
-        int partitionGuidComparison = PartitionGuid.CompareToBigEndian(other.PartitionGuid);
+        int partitionGuidComparison = PartitionGuid.CompareByBytesTo(other.PartitionGuid);
         return partitionGuidComparison != 0
             ? partitionGuidComparison
-            : InstanceGuid.CompareToBigEndian(other.InstanceGuid);
+            : InstanceGuid.CompareByBytesTo(other.InstanceGuid);
     }
 
     public static bool operator <(EbxImportReference a, EbxImportReference b)

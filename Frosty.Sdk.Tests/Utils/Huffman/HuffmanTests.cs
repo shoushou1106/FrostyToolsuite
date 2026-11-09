@@ -1,13 +1,13 @@
 using System.Reflection;
 
 using Frosty.Sdk.IO;
-using Frosty.Sdk.Utils;
+using Frosty.Sdk.Utils.Huffman;
 
-namespace Frosty.Sdk.Tests.Utils;
+namespace Frosty.Sdk.Tests.Utils.Huffman;
 
 internal sealed class HuffmanTests
 {
-    private static HuffmanDecoder CreateDecoderFromTree(IList<uint> encodingTree)
+    private static HuffmanDecoder CreateDecoderFromTree(IReadOnlyList<uint> encodingTree)
     {
         HuffmanDecoder decoder = new();
 
@@ -60,28 +60,29 @@ internal sealed class HuffmanTests
 
         HuffmanEncoder encoder = new();
 
-        IList<uint> encodingTree = encoder.BuildHuffmanEncodingTree(texts);
+        IReadOnlyList<uint> encodingTree = encoder.BuildHuffmanEncodingTree(texts);
 
-        List<Tuple<int, string>> input =
+        List<(int Identifier, string Text)> input =
         [
-            .. texts.Select(static (text, index) => Tuple.Create(index, text))
+            .. texts.Select(static (text, index) => (index, text))
         ];
 
         // No padding here
         HuffmanEncodedTextArray<int> encodingResult = encoder.EncodeTexts(input, inEndian, inCompressResults, false);
+        byte[]? encoded = encodingResult.EncodedTexts;
+        Assert.That(encoded, Is.Not.Null);
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(encodingResult.EncodedTestsAsBoolList, Has.Count.EqualTo(inEncodedBitSize),
+            Assert.That(encodingResult.EncodedTextsAsBoolList, Has.Count.EqualTo(inEncodedBitSize),
                 "Encoded bit count does not match expected count");
-            Assert.That(encodingResult.EncodedTexts, Is.Not.Null);
-            Assert.That(encodingResult.EncodedTexts, Has.Length.EqualTo(inEncodedByteSize),
+            Assert.That(encoded, Has.Length.EqualTo(inEncodedByteSize),
                 "Encoded data-length does not match expected length");
             Assert.That(encodingResult.EncodedTextPositions, Has.Count.EqualTo(texts.Length),
                 "Encoded text position has different number of entries than the number of encoded texts!");
         }
 
         HuffmanDecoder decoder = CreateDecoderFromTree(encodingTree);
-        ReadEncodedData(decoder, encodingResult.EncodedTexts, inEndian);
+        ReadEncodedData(decoder, encoded, inEndian);
 
         List<string> decoded =
         [
@@ -109,11 +110,11 @@ internal sealed class HuffmanTests
         ];
 
         HuffmanEncoder encoder = new();
-        IList<uint> encodingTree = encoder.BuildHuffmanEncodingTree(texts);
+        IReadOnlyList<uint> encodingTree = encoder.BuildHuffmanEncodingTree(texts);
 
         HuffmanEncodedTextArray<string> encodingResult =
             encoder.EncodeTexts([
-                .. texts.Select(static text => Tuple.Create(text, text))
+                .. texts.Select(static text => (text, text))
             ], Endian.Little);
 
         byte[]? encoded = encodingResult.EncodedTexts;
@@ -153,14 +154,14 @@ internal sealed class HuffmanTests
             " and there is a thousand of them"
         ];
 
-        EncodingResult encodingResult = HuffmanEncoder.Encode(texts);
+        HuffmanEncodingResult encodingResult = HuffmanEncoder.Encode(texts);
         byte[]? encoded = encodingResult.EncodedTexts;
         Assert.That(encoded, Is.Not.Null);
 
         HuffmanDecoder decoder = CreateDecoderFromTree(encodingResult.EncodingTree);
         ReadEncodedData(decoder, encoded);
 
-        Dictionary<string, int> lookupMap = encodingResult.GetTextPositionsDictionary();
+        IReadOnlyDictionary<string, int> lookupMap = encodingResult.GetTextPositionsDictionary();
 
         List<string> decoded =
         [

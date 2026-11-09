@@ -16,6 +16,7 @@ using Frosty.Sdk.Managers;
 using Frosty.Sdk.Managers.Infos;
 using Frosty.Sdk.Managers.Loaders;
 using Frosty.Sdk.Utils;
+using Frosty.Sdk.Utils.Huffman;
 using Microsoft.Extensions.Logging;
 
 namespace Frosty.Modding;
@@ -38,7 +39,7 @@ internal class Manifest2019 : IDisposable
         public bool EncodeStrings;
         private uint m_currentOffset;
         private readonly Dictionary<string, String> m_mapping = new();
-        public IList<uint>? Tree;
+        public IReadOnlyList<uint>? Tree;
         public byte[]? Data;
 
         public String AddString(string inString)
@@ -63,11 +64,11 @@ internal class Manifest2019 : IDisposable
                 return;
             }
 
-            EncodingResult result = HuffmanEncoder.Encode(m_mapping.Keys, Endian.Big);
+            HuffmanEncodingResult result = HuffmanEncoder.Encode(m_mapping.Keys, Endian.Big);
 
-            foreach (IdentifierPositionTuple<string> position in result.EncodedTextPositions)
+            foreach ((string identifier, int position) in result.EncodedTextPositions)
             {
-                m_mapping[position.Identifier].Offset = (uint)position.Position;
+                m_mapping[identifier].Offset = (uint)position;
             }
 
             Tree = result.EncodingTree;
@@ -446,7 +447,6 @@ internal class Manifest2019 : IDisposable
                     // add new bundle to toc
                     inBundles.Add((inStringHelper.AddString(name), newBundleSize, newOffset));
                 }
-                huffmanDecoder?.Dispose();
                 sbAccessor?.Dispose();
             }
 

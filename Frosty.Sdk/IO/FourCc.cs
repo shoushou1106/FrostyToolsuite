@@ -1,7 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace Frosty.Sdk.Utils;
+namespace Frosty.Sdk.IO;
 
+/// <summary>
+///     A four-character code, the first char in the low byte.
+/// </summary>
 public readonly struct FourCc(uint value) : IEquatable<FourCc>
 {
     private readonly uint _value = value;
@@ -46,25 +49,9 @@ public readonly struct FourCc(uint value) : IEquatable<FourCc>
         return !a.Equals(b);
     }
 
-    public static bool operator ==(FourCc a, object? b)
-    {
-        return a.Equals(b);
-    }
-
-    public static bool operator !=(FourCc a, object? b)
-    {
-        return !a.Equals(b);
-    }
-
     public override bool Equals([NotNullWhen(true)] object? obj)
     {
-        return obj switch
-        {
-            uint b => b == _value,
-            string s => Equals(ToFourCc(s)),
-            FourCc other => Equals(other),
-            _ => false
-        };
+        return obj is FourCc other && Equals(other);
     }
 
     public bool Equals(FourCc other)
@@ -75,6 +62,12 @@ public readonly struct FourCc(uint value) : IEquatable<FourCc>
     public override int GetHashCode()
     {
         return (int)_value;
+    }
+
+    /// <remarks><b>Encoding:</b> Latin-1 (one byte per char)</remarks>
+    public override string ToString()
+    {
+        return FromFourCc(this);
     }
 
     /// <remarks><b>Encoding:</b> Latin-1 (one byte per char)</remarks>
@@ -98,7 +91,7 @@ public readonly struct FourCc(uint value) : IEquatable<FourCc>
 
         if (value.Length != 4 || value.AsSpan().ContainsAnyExceptInRange('\0', '\u00FF'))
         {
-            throw new ArgumentException("FourCC string must be exactly 4 characters long.", nameof(value));
+            throw new ArgumentException("A FourCC string must be exactly 4 Latin-1 characters.", nameof(value));
         }
 
         uint result = (uint)(((byte)value[3] << 24)

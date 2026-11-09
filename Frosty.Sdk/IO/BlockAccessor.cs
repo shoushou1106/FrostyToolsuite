@@ -1,4 +1,3 @@
-using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -9,6 +8,9 @@ namespace Frosty.Sdk.IO;
 /// <summary>
 ///     A <see cref="DataAccessor" /> over a <see cref="Block{T}" /> in memory, which grows when written past its end.
 /// </summary>
+// Temporary, lists the callers left until it is deleted.
+[Obsolete("BlockAccessor will be removed. Use a DataAccessor over a MemoryStream instead.",
+    DiagnosticId = "FrostyTempBlockAccessorIsDeprecated")]
 public class BlockAccessor : DataAccessor
 {
     private readonly Block<byte> _block;
@@ -122,33 +124,12 @@ public class BlockAccessor : DataAccessor
     ///     Loads the whole file into memory and deobfuscates it if necessary.
     /// </summary>
     /// <param name="inPath">The path of the file</param>
-    /// <param name="inShouldDeobfuscate">The boolean if the file needs to be deobfuscated</param>
+    /// <param name="inShouldDeobfuscate">Whether the file can have an obfuscation header, see <see cref="ObfuscatedFile" />.</param>
     /// <returns>A <see cref="BlockAccessor" /> that has the file loaded.</returns>
     public static BlockAccessor FromFile(string inPath, bool inShouldDeobfuscate)
     {
-        using FileStream stream = new(inPath, FileMode.Open, FileAccess.Read);
-
-        if (inShouldDeobfuscate)
-        {
-            // ReSharper disable once GrammarMistakeInComment
-            // The deobfuscated accessor is returned to the caller.
-            // CA2000: Dispose objects before losing scope
-#pragma warning disable CA2000
-            BlockAccessor? deobfuscated = CheckExtraObfuscation(stream, out int keySize)
-                ? DeobfuscateWithKey(stream, keySize)
-                : Deobfuscate(stream);
-#pragma warning restore CA2000
-            if (deobfuscated is not null)
-            {
-                return deobfuscated;
-            }
-
-            stream.Position = 0;
-        }
-
-        BlockAccessor retVal = new(Block<byte>.CreateUninitialized((int)stream.Length));
-        stream.ReadExactly(retVal._block);
-        return retVal;
+        byte[] data = inShouldDeobfuscate ? ObfuscatedFile.ReadAllBytes(inPath) : File.ReadAllBytes(inPath);
+        return new BlockAccessor(Block<byte>.Wrap(data));
     }
 
     /// <summary>
@@ -217,87 +198,6 @@ public class BlockAccessor : DataAccessor
 
         base.Dispose(disposing);
         // The base already calls GC.SuppressFinalize(this)
-    }
-
-    private static bool CheckExtraObfuscation(Stream inStream, out int keySize)
-    {
-        keySize = 0;
-
-        // Read signature
-        inStream.Seek(-36, SeekOrigin.End);
-        Span<byte> signature = stackalloc byte[36];
-        inStream.ReadExactly(signature);
-        inStream.Position = 0;
-
-        // Check signature
-        if (!signature[4..].SequenceEqual("@e!adnXd$^!rfOsrDyIrI!xVgHeA!6Vc"u8))
-        {
-            return false;
-        }
-
-        // Get key size
-        keySize = BinaryPrimitives.ReadInt32LittleEndian(signature);
-        return true;
-    }
-
-    private static BlockAccessor? DeobfuscateWithKey(Stream inStream, int inKeySize)
-    {
-        using Block<byte> data = Block<byte>.CreateUninitialized((int)(inStream.Length - inKeySize));
-        inStream.ReadExactly(data);
-
-        // TODO:
-        // This is not how the game actually decrypts the data, but also seems to work
-        // For actual decryption algorithm, see https://github.com/CadeEvs/FrostyToolsuite/blob/1.0.6.2/FrostySdk/Deobfuscators/MEADeobfuscator.cs
-        Span<byte> bytes = data;
-        byte initialValue = bytes[0];
-        byte key = bytes[0];
-        for (int i = 0; i < bytes.Length; i++)
-        {
-            byte nextKey = (byte)((initialValue ^ bytes[i]) - (i % 256));
-            bytes[i] ^= key;
-            key = nextKey;
-        }
-
-        Span<byte> header = data.ToSpan();
-        data.Shift(0x22C);
-
-        using Stream dataStream = data.ToStream();
-        return Deobfuscate(header, dataStream);
-    }
-
-    private static BlockAccessor? Deobfuscate(Stream inStream)
-    {
-        Span<byte> header = stackalloc byte[0x22C];
-        inStream.ReadExactly(header);
-
-        return Deobfuscate(header, inStream);
-    }
-
-    /// <returns>The deobfuscated data, or <see langword="null" /> if <paramref name="inHeader" /> is not obfuscation header.</returns>
-    private static BlockAccessor? Deobfuscate(ReadOnlySpan<byte> inHeader, Stream inStream)
-    {
-        if (!(inHeader[0] == 0x00 && inHeader[1] == 0xD1 && inHeader[2] == 0xCE &&
-              (inHeader[3] == 0x00 || inHeader[3] == 0x01 || inHeader[3] == 0x03))) // Version 0 is not used in FB3
-        {
-            return null;
-        }
-
-        BlockAccessor accessor = new(Block<byte>.CreateUninitialized((int)(inStream.Length - 0x22C)));
-        inStream.ReadExactly(accessor._block);
-
-        // Deobfuscate the data
-        if (ProfilesLibrary.FrostbiteVersion > "2014.4.11" || inHeader[3] == 0x03)
-        {
-            return accessor;
-        }
-
-        Span<byte> bytes = accessor._block;
-        for (int i = 0; i < bytes.Length; i++)
-        {
-            bytes[i] ^= (byte)(0x7B ^ inHeader[0x128 + (i % 0x101)]);
-        }
-
-        return accessor;
     }
 
     private void TrimBlockToLength()

@@ -15,7 +15,8 @@ public sealed class CatReader : IDisposable
     public CatReader(string inFilename)
     {
         _isNewFormat = ProfilesLibrary.FrostbiteVersion > "2014.4.11";
-        _accessor = BlockAccessor.FromFile(inFilename, _isNewFormat);
+        byte[] data = _isNewFormat ? ObfuscatedFile.ReadAllBytes(inFilename) : File.ReadAllBytes(inFilename);
+        _accessor = new DataAccessor(new MemoryStream(data, false));
 
         string magic = _accessor.ReadFixedSizedString(16);
         if (magic != CatMagic)

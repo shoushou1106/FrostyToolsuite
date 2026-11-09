@@ -1,40 +1,17 @@
-namespace Frosty.Sdk.Utils;
+namespace Frosty.Sdk.Utils.Huffman;
 
 /// <summary>
-///     <list type="bullet">
-///         <item>
-///             <description>
-///                 <c>EncodingResult.EncodingTree</c> returns the huffman tree used for encoding in the form of
-///                 an integer list.
-///             </description>
-///         </item>
-///         <item>
-///             <description><c>EncodingResult.EncodedTexts</c> returns the given strings encoded to a byte array.</description>
-///         </item>
-///         <item>
-///             <description>
-///                 <c>EncodingResult.GetTextPositionsDictionary()</c> returns a dictionary with the given strings
-///                 as keys and their bit offsets in the <c>EncodedTexts</c>.
-///             </description>
-///         </item>
-///         <item>
-///             <description>
-///                 <c>EncodingResult.EncodedTextPositions</c> returns the same data as above in the form of a
-///                 list of tuples for use in iterations.
-///             </description>
-///         </item>
-///     </list>
+///     The result of <see cref="HuffmanEncoder.Encode" />: the encoded texts plus the tree needed to decode them.
 /// </summary>
-/// <remarks>
-///     Creates a new result object from an existing HuffmanEncodedTextArray with additional encoding tree information.
-/// </remarks>
-/// <param name="inEncodedTextArray"> the original result</param>
-/// <param name="inEncodingTree"> the encoding tree</param>
-public class EncodingResult(HuffmanEncodedTextArray<string> inEncodedTextArray, IList<uint> inEncodingTree)
-    : HuffmanEncodedTextArray<string>(inEncodedTextArray)
+/// <param name="encodedTextArray">The encoded texts and their bit positions.</param>
+/// <param name="encodingTree">The node values of the Huffman tree, in the order they are written.</param>
+public sealed class HuffmanEncodingResult(
+    HuffmanEncodedTextArray<string> encodedTextArray,
+    IReadOnlyList<uint> encodingTree)
+    : HuffmanEncodedTextArray<string>(encodedTextArray)
 {
     /// <summary>
-    ///     The encoding tree in the form of an integer list.
+    ///     The node values of the Huffman tree, in the order they are written.
     /// </summary>
-    public IList<uint> EncodingTree { get; } = inEncodingTree;
+    public IReadOnlyList<uint> EncodingTree { get; } = encodingTree;
 }

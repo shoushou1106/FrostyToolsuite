@@ -9,6 +9,7 @@ using Frosty.Sdk.Managers.Entries;
 using Frosty.Sdk.Managers.Infos;
 using Frosty.Sdk.Managers.Infos.FileInfos;
 using Frosty.Sdk.Utils;
+using Frosty.Sdk.Utils.Huffman;
 using Microsoft.Extensions.Logging;
 
 namespace Frosty.Sdk.Managers.Loaders;
@@ -163,7 +164,6 @@ public class Manifest2019AssetLoader : IAssetLoader
                     }
                     LoadBundle(bundleAccessor, bundleOffset, bundleSize, ref bundle);
                 }
-                huffmanDecoder?.Dispose();
                 sbAccessor?.Dispose();
             }
             if (chunksCount != 0)
