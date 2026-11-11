@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
+    <!-- Remove with TypeSdkGenerator modernize -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
