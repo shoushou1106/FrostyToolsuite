@@ -59,8 +59,8 @@ internal static class EbxSharedTypeDescriptors
 
     private static void Read(Block<byte> file)
     {
-        // Left open because the block belongs to the memory fs
-        using BlockAccessor accessor = new(file, true);
+        // A stream over the block, that belongs to the memory fs
+        using DataAccessor accessor = new(file.ToStream());
         EbxVersion magic = (EbxVersion)accessor.ReadUInt32();
 
         if (magic != EbxVersion.Version4)

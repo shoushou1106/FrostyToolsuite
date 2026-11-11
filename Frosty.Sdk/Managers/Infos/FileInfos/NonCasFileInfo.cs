@@ -104,7 +104,7 @@ public class NonCasFileInfo : IFileInfo
 
             using (BlockAccessor deltaAccessor = BlockAccessor.FromFile(m_fullPath, m_offset, (int)m_size))
             {
-                Block<byte> retVal = Cas.DecompressData(deltaAccessor, baseAccessor, inOriginalSize, m_midInstructionSize);
+                Block<byte> retVal = Block<byte>.Wrap(Cas.DecompressData(deltaAccessor, baseAccessor, inOriginalSize, m_midInstructionSize));
                 baseAccessor?.Dispose();
                 return retVal;
             }
@@ -112,7 +112,7 @@ public class NonCasFileInfo : IFileInfo
 
         using (BlockAccessor accessor = BlockAccessor.FromFile(m_fullPath, m_offset, (int)m_size))
         {
-            return Cas.DecompressData(accessor, inOriginalSize);
+            return Block<byte>.Wrap(Cas.DecompressData(accessor, inOriginalSize));
         }
     }
 

@@ -6,8 +6,8 @@ using System.Reflection;
 using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Ebx;
 using Frosty.Sdk.Interfaces;
+using Frosty.Sdk.IO.Ebx;
 using Frosty.Sdk.TypeSdk;
-using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.IO.RiffEbx;
 
@@ -401,9 +401,9 @@ public sealed class EbxReader : BaseEbxReader
             return new PointerRef();
         }
 
-        if ((index & 1) == 1)
+        if (index % 2 != 0)
         {
-            return new PointerRef(_fixup.Imports[index >> 1]);
+            return new PointerRef(_fixup.Imports[index / 2]);
         }
 
         long instanceOffset = _accessor.Position - 8 + index - _payloadOffset;

@@ -54,7 +54,7 @@ internal struct EbxTypeDescriptor
 
     public void SetAlignment(byte value)
     {
-        Alignment = (byte)((Alignment & ~0x7F) | value);
+        Alignment = (byte)((Alignment & ~0x7F) | (value & 0x7F));
     }
 
     public bool IsSharedTypeDescriptorKey()

@@ -12,14 +12,13 @@ namespace Frosty.Sdk.Tests.IO;
 internal sealed class DataAccessorTests
 {
     /// <summary>
-    ///     Verify that every string format round trips non-ASCII text.
+    ///     Verify that every string format round trips text with 1, 2, 3 and 4 byte UTF-8 chars.
     /// </summary>
+    /// <remarks>A 4 byte char is 2 UTF-16 <see cref="char" />s, so its byte count is twice its length.</remarks>
     [TestCase("Frosty Magic")]
-    [TestCase("❄ ❄️")]
     [TestCase("Magie givrée")]
-    [TestCase("Морозное волшебство")]
-    [TestCase("フロスティマジック")]
     [TestCase("寒霜魔法")]
+    [TestCase("❄ ❄️ 🧊🧊")]
     public void Strings_RoundTripNonAscii(string inText)
     {
         using DataAccessor accessor = new(new MemoryStream());
@@ -43,14 +42,14 @@ internal sealed class DataAccessorTests
     [Test]
     public void BlockAccessor_ReadNullTerminatedString_MatchesDataAccessor()
     {
-        using Block<byte> data = new("Frosty Magic ❄️\0Magie givrée ❄️\0寒霜魔法 ❄️\0"u8);
+        using Block<byte> data = new("Frosty Magic ❄️\0Magie givrée ❄️\0寒霜魔法 ❄️🧊\0"u8);
         using BlockAccessor accessor = new(data, true);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(accessor.ReadNullTerminatedString(), Is.EqualTo("Frosty Magic ❄️"));
             Assert.That(accessor.ReadNullTerminatedString(), Is.EqualTo("Magie givrée ❄️"));
-            Assert.That(accessor.ReadNullTerminatedString(), Is.EqualTo("寒霜魔法 ❄️"));
+            Assert.That(accessor.ReadNullTerminatedString(), Is.EqualTo("寒霜魔法 ❄️🧊"));
             Assert.Throws<EndOfStreamException>(() => accessor.ReadNullTerminatedString());
         }
     }
@@ -126,6 +125,27 @@ internal sealed class DataAccessorTests
             Assert.That(Convert.ToHexStringLower(bigEndian), Is.EqualTo("00112233445566778899aabbccddeeff"));
             Assert.That(accessor.ReadGuid(Endian.Big), Is.EqualTo(guid));
             Assert.That(accessor.ReadGuid(), Is.EqualTo(guid));
+        }
+    }
+
+    /// <summary>
+    ///     Verify that copying with a count copies exactly that many bytes, and throws when fewer are left.
+    /// </summary>
+    [Test]
+    public void CopyTo_CopiesCountBytes()
+    {
+        using DataAccessor source = new(new MemoryStream([1, 2, 3, 4, 5]));
+        using MemoryStream destination = new();
+        using DataAccessor destinationAccessor = new(destination, true);
+
+        source.Position = 1;
+        source.CopyTo(destinationAccessor, 3);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(destination.ToArray(), Is.EqualTo(new byte[] { 2, 3, 4 }));
+            Assert.That(source.Position, Is.EqualTo(4));
+            Assert.Throws<EndOfStreamException>(() => source.CopyTo(destinationAccessor, 2));
         }
     }
 }

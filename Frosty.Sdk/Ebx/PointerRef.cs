@@ -71,17 +71,11 @@ public readonly struct PointerRef : IEquatable<PointerRef>
 
     public override int GetHashCode()
     {
-        unchecked
+        return Type switch
         {
-            int hash = (int)2166136261;
-            hash = (hash * 16777619) ^ Type.GetHashCode();
-            return Type switch
-            {
-                // Type is only Internal when constructed with a non-null instance
-                PointerRefType.Internal => (hash * 16777619) ^ Internal!.GetHashCode(),
-                PointerRefType.External => (hash * 16777619) ^ External.GetHashCode(),
-                _ => hash
-            };
-        }
+            PointerRefType.Internal => HashCode.Combine(Type, Internal),
+            PointerRefType.External => HashCode.Combine(Type, External),
+            _ => HashCode.Combine(Type)
+        };
     }
 }

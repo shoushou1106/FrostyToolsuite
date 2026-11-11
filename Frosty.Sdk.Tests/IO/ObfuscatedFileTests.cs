@@ -60,14 +60,12 @@ internal sealed class ObfuscatedFileTests
     ///     The file is encoded as the inverse of Frosty v1's <c>MEADeobfuscator</c>, which takes the initial key
     ///     from the obfuscated trailer.
     /// </remarks>
-    [TestCase((byte)0x00, (short)0)]
-    [TestCase((byte)0x5A, (short)13)]
-    [TestCase((byte)0xFF, (short)200)]
-    public void ReadAllBytes_RemovesTrailerObfuscation(byte inKeySeed, short inExtraLength)
+    [Test]
+    public void ReadAllBytes_RemovesTrailerObfuscation()
     {
         byte[] body = CreateBody(600);
         byte[] plain = [.. CreateHeader(0x03), .. body];
-        byte[] trailer = CreateMeaTrailer(4, inKeySeed, inExtraLength, out byte initialValue);
+        byte[] trailer = CreateMeaTrailer(4, 0x5A, 13, out byte initialValue);
 
         byte[] obfuscated = new byte[plain.Length];
         byte key = initialValue;

@@ -1,12 +1,11 @@
-﻿using Frosty.Sdk.Utils;
+using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.IO.Ebx;
 
-/// <remarks>
-///     As a <see langword="record" /> <see langword="struct" />,
-///     the compiler generates <see cref="IEquatable{T}" />, <c>==</c>, <c>!=</c> and <see cref="GetHashCode" />
-///     automatically.
-/// </remarks>
+/// <summary>
+///     A reference to an instance in another partition, ordered by the bytes of the partition GUID and then of the
+///     instance GUID.
+/// </summary>
 public readonly record struct EbxImportReference(Guid PartitionGuid, Guid InstanceGuid)
     : IComparable<EbxImportReference>
 {

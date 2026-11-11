@@ -56,12 +56,7 @@ public readonly struct ResourceRef(ulong value) : IEquatable<ResourceRef>
 
     public override int GetHashCode()
     {
-        unchecked
-        {
-            int hash = (int)2166136261;
-            hash = (hash * 16777619) ^ _resourceId.GetHashCode();
-            return hash;
-        }
+        return _resourceId.GetHashCode();
     }
 
     public override string ToString()

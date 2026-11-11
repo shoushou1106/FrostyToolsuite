@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-
 using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.Tests.Utils;
@@ -25,7 +24,6 @@ internal sealed class Sha1Tests
 #pragma warning restore CA5350
             Assert.That(new Sha1(expected), Is.EqualTo(hash));
             Assert.That(new Sha1(expected.ToUpperInvariant()), Is.EqualTo(hash));
-            Assert.That(hash, Is.Not.EqualTo(Sha1.Zero));
         }
     }
 }

@@ -54,7 +54,7 @@ public class KelvinFileInfo : IFileInfo
     {
         using (BlockAccessor accessor = BlockAccessor.FromFile(m_path, m_offset, (int)m_size))
         {
-            return Cas.DecompressData(accessor, originalSize);
+            return Block<byte>.Wrap(Cas.DecompressData(accessor, originalSize));
         }
     }
 

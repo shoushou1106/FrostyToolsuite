@@ -3,17 +3,21 @@ namespace Frosty.Sdk.IO;
 /// <summary>
 ///     Reads a RIFF file chunk by chunk.
 /// </summary>
+/// <remarks>
+///     Only the little-endian <c>RIFF</c> form is supported. Frosty 1.0.7 rejects <c>RIFX</c> too.
+/// </remarks>
 public sealed class RiffReader(DataAccessor inAccessor)
 {
     public bool Eof { get; private set; }
 
+    /// <exception cref="InvalidDataException">The data does not start with <c>RIFF</c>.</exception>
     public void ReadHeader(out FourCc fileFourCc, out uint size)
     {
         FourCc fourCc = inAccessor.ReadUInt32();
 
-        if (fourCc != "RIFF" && fourCc != "RIFX")
+        if (fourCc != "RIFF")
         {
-            throw new FormatException("Not a valid RIFF format.");
+            throw new InvalidDataException($"Not a RIFF file, the magic is \"{fourCc}\".");
         }
 
         size = inAccessor.ReadUInt32();
@@ -33,7 +37,7 @@ public sealed class RiffReader(DataAccessor inAccessor)
         FourCc fourCc = inAccessor.ReadUInt32();
 
         uint subSize = inAccessor.ReadUInt32();
-        uint paddedSize = (subSize + 1u) & ~1u;
+        uint paddedSize = subSize + (subSize % 2);
 
         long curPos = inAccessor.Position;
 
@@ -43,7 +47,8 @@ public sealed class RiffReader(DataAccessor inAccessor)
 
         inAccessor.Position = curPos + paddedSize;
 
-        if (inAccessor.Position == inAccessor.Length)
+        // Allows a missing pad byte after the last chunk
+        if (inAccessor.Position >= inAccessor.Length)
         {
             Eof = true;
         }

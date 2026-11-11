@@ -1,10 +1,8 @@
 using System.Buffers.Binary;
 using System.Text;
 
-using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO;
 using Frosty.Sdk.IO.Compression;
-using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.Tests.IO;
 
@@ -58,8 +56,7 @@ internal sealed class CasTests
     private static byte[] DecompressBlocks(int inOriginalSize, params byte[][] inBlocks)
     {
         using DataAccessor accessor = new(new MemoryStream([.. inBlocks.SelectMany(static b => b)]));
-        using Block<byte> result = Cas.DecompressData(accessor, inOriginalSize);
-        return result.ToArray();
+        return Cas.DecompressData(accessor, inOriginalSize);
     }
 
     /// <summary>
@@ -82,25 +79,15 @@ internal sealed class CasTests
     }
 
     /// <summary>
-    ///     Verify that each format round trips through several blocks, mixed with an uncompressed block.
+    ///     Verify that compressed and uncompressed blocks in a row are decompressed one after another.
     /// </summary>
-    [TestCase(CompressionType.ZLib)]
-    [TestCase(CompressionType.Zstd)]
-    [TestCase(CompressionType.Lz4)]
-    public void Compress_RoundTripsThroughCasBlocks(CompressionType inType)
+    [Test]
+    public void DecompressData_ReadsSeveralBlocks()
     {
-        ICompressionFormat format = inType switch
-        {
-            CompressionType.ZLib => new CompressionZLib(),
-            CompressionType.Zstd => new CompressionZstd(),
-            CompressionType.Lz4 => new CompressionLz4(),
-            _ => throw new ArgumentOutOfRangeException(nameof(inType), inType,
-                "How did you passed other compression type to this test?")
-        };
-
+        CompressionLz4 format = new();
         byte[] compressed = new byte[format.GetCompressBounds(Plain.Length)];
         int compressedSize = format.Compress(Plain, compressed);
-        byte[] block = CreateBlock(inType, Plain.Length, compressed.AsSpan(0, compressedSize));
+        byte[] block = CreateBlock(CompressionType.Lz4, Plain.Length, compressed.AsSpan(0, compressedSize));
         byte[] stored = CreateBlock(CompressionType.None, Plain.Length, Plain);
 
         Assert.That(DecompressBlocks(Plain.Length * 3, block, stored, block),

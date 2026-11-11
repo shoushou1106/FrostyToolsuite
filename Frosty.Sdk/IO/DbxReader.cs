@@ -16,6 +16,9 @@ using static Frosty.Sdk.TypeSdk.TypeFlags;
 
 namespace Frosty.Sdk.IO;
 
+/// <summary>
+///     Reads an <see cref="EbxPartition" /> from DBX, basically the XML version of EBX.
+/// </summary>
 public sealed class DbxReader
 {
     // Only write out properties with these flags
@@ -57,8 +60,7 @@ public sealed class DbxReader
     {
         _ebx = new EbxPartition();
 #if DEBUG
-        Stopwatch w = new();
-        w.Start();
+        long start = Stopwatch.GetTimestamp();
 #endif
         XmlNode? rootNode = _xml.DocumentElement;
 
@@ -66,14 +68,13 @@ public sealed class DbxReader
 
         ReadPartition(rootNode);
 #if DEBUG
-        w.Stop();
         if (FrostyLogger.Logger.IsEnabled(LogLevel.Debug))
         {
             FrostyLogger.Logger.LogDebug("DBX {Filepath} read in {ElapsedMilliseconds} ms", _filepath,
-                w.ElapsedMilliseconds);
+                (long)Stopwatch.GetElapsedTime(start).TotalMilliseconds);
         }
 #endif
-        return _ebx!;
+        return _ebx;
     }
 
     private static void SetProperty(object obj, Type objType, string propName, object propValue)
@@ -150,6 +151,10 @@ public sealed class DbxReader
     {
         Guid partitionGuid = Guid.Parse(GetAttributeValue(partitionNode, "guid")!);
         // (Never used) m_primaryInstGuid = Guid.Parse(GetAttributeValue(partitionNode, "primaryInstance")!);
+        // TODO:
+        // Warning: Found with AI
+        // The primaryInstance attribute is ignored, so the first instance becomes the primary one.
+        // That is only right when the primary instance comes first in the file.
 
         _ebx!.PartitionGuid = partitionGuid;
 
@@ -367,14 +372,12 @@ public sealed class DbxReader
         bool isRef = arrayTypeStr.StartsWith("ref(", StringComparison.Ordinal);
 
         Type arrayElementType = (isRef ? PointerType : TypeLibrary.GetType(arrayTypeStr)?.Type)
-                                ?? throw new ArgumentException($"Array element type doesn't exist? {arrayTypeStr}");
+                                ?? throw new InvalidDataException($"The array element type {arrayTypeStr} does not exist.");
 
         EbxTypeMetaAttribute? arrayTypeMeta = arrayElementType.GetCustomAttribute<EbxTypeMetaAttribute>();
         Type arrayType = CollectionType.MakeGenericType(arrayElementType);
 
-        object array = Activator.CreateInstance(arrayType)
-                       ?? throw new ArgumentException(
-                           $"Failed to create array with element type: {arrayElementType.Name}");
+        object array = Activator.CreateInstance(arrayType)!;
 
         foreach (XmlNode child in node.ChildNodes)
         {
@@ -387,10 +390,9 @@ public sealed class DbxReader
     private object ReadStruct(Type? structType, XmlNode node)
     {
         Type type = (structType ?? TypeLibrary.GetType(GetAttributeValue(node, "type")!)?.Type)
-                    ?? throw new ArgumentException("Struct type doesn't exist?");
+                    ?? throw new InvalidDataException($"The struct type {GetAttributeValue(node, "type")} does not exist.");
 
-        object obj = Activator.CreateInstance(type)
-                     ?? throw new ArgumentException($"Failed to create struct of type: {type.Name}");
+        object obj = Activator.CreateInstance(type)!;
 
         foreach (XmlNode child in node.ChildNodes)
         {

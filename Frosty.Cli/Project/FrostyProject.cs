@@ -7,6 +7,7 @@ using Frosty.Modding.Mod.Resources;
 using Frosty.Sdk;
 using Frosty.Sdk.Ebx;
 using Frosty.Sdk.IO;
+using Frosty.Sdk.IO.Ebx;
 using Frosty.Sdk.Utils;
 
 namespace Frosty.Cli.Project;
@@ -37,7 +38,7 @@ public class FrostyProject
                 writer.WritePartition(ebxAsset);
             }
 
-            Block<byte> compressedData = Cas.CompressData(data, ProfilesLibrary.EbxCompression, 0);
+            Block<byte> compressedData = new(Cas.CompressData(data, ProfilesLibrary.EbxCompression, 0));
             Sha1 sha1 = Sha1.HashData(compressedData);
 
             resources.Add(new EbxModResource(datas.Count, ebx.Name, sha1, data.Size, 0, 0, string.Empty, [], []));

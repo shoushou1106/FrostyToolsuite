@@ -7,15 +7,12 @@ public sealed class RiffWriter(DataAccessor inAccessor)
 {
     private long _curPos;
 
-    public void WriteHeader(FourCc inFourCc, FourCc inFileFourCc)
+    public void WriteHeader(FourCc inFileFourCc)
     {
         _curPos = inAccessor.Position;
-        if (inFourCc != "RIFF" && inFourCc != "RIFX")
-        {
-            throw new FormatException("Not a valid RIFF format.");
-        }
 
-        inAccessor.WriteUInt32(inFourCc);
+        FourCc riff = "RIFF";
+        inAccessor.WriteUInt32(riff);
 
         // Fixup after all chunks are written
         inAccessor.WriteUInt32(0xdeadbeef);
@@ -28,7 +25,12 @@ public sealed class RiffWriter(DataAccessor inAccessor)
         inAccessor.WriteUInt32(inFourCc);
         inAccessor.WriteInt32(inData.Length);
         inAccessor.Write(inData);
-        inAccessor.Pad(2);
+
+        // Written instead of skipped, so the last chunk keeps its pad byte too
+        if (inData.Length % 2 != 0)
+        {
+            inAccessor.WriteByte(0);
+        }
     }
 
     public void Fixup()

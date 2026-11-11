@@ -2,7 +2,7 @@ using Frosty.Sdk.Ebx;
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO.RiffEbx;
 
-namespace Frosty.Sdk.IO;
+namespace Frosty.Sdk.IO.Ebx;
 
 public abstract class BaseEbxReader(DataAccessor inAccessor)
 {

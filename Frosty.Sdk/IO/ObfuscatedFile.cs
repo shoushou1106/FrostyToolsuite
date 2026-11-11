@@ -27,6 +27,18 @@ public static class ObfuscatedFile
     private static ReadOnlySpan<byte> TrailerMagic => "@e!adnXd$^!rfOsrDyIrI!xVgHeA!6Vc"u8;
 
     /// <summary>
+    ///     Opens a file for reading, with its obfuscation removed.
+    /// </summary>
+    /// <remarks>The whole file is read into memory, see <see cref="ReadAllBytes" />.</remarks>
+    /// <param name="path">The path of the file.</param>
+    /// <returns>A read-only stream over what <see cref="ReadAllBytes" /> returns.</returns>
+    /// <inheritdoc cref="ReadAllBytes" path="/exception" />
+    public static Stream OpenRead(string path)
+    {
+        return new MemoryStream(ReadAllBytes(path), false);
+    }
+
+    /// <summary>
     ///     Reads a whole file and removes its obfuscation.
     /// </summary>
     /// <param name="path">The path of the file.</param>
@@ -157,7 +169,7 @@ public static class ObfuscatedFile
         RemoveHeaderKey(header, data);
         return data;
     }
-    
+
     private static bool IsHeader(ReadOnlySpan<byte> header)
     {
         return header[0] == 0x00 && header[1] == 0xD1 && header[2] == 0xCE && header[3] is 0x00 or 0x01 or 0x03;

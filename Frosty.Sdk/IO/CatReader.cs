@@ -1,4 +1,4 @@
-﻿using Frosty.Sdk.Managers.CatResources;
+using Frosty.Sdk.Managers.CatResources;
 
 namespace Frosty.Sdk.IO;
 
@@ -15,8 +15,7 @@ public sealed class CatReader : IDisposable
     public CatReader(string inFilename)
     {
         _isNewFormat = ProfilesLibrary.FrostbiteVersion > "2014.4.11";
-        byte[] data = _isNewFormat ? ObfuscatedFile.ReadAllBytes(inFilename) : File.ReadAllBytes(inFilename);
-        _accessor = new DataAccessor(new MemoryStream(data, false));
+        _accessor = new DataAccessor(_isNewFormat ? ObfuscatedFile.OpenRead(inFilename) : File.OpenRead(inFilename));
 
         string magic = _accessor.ReadFixedSizedString(16);
         if (magic != CatMagic)
@@ -73,7 +72,7 @@ public sealed class CatReader : IDisposable
             entry.LogicalOffset = _accessor.ReadUInt32();
         }
 
-        entry.ArchiveIndex = _accessor.ReadInt32() & 0xFF;
+        entry.ArchiveIndex = (byte)_accessor.ReadInt32();
         return entry;
     }
 
@@ -85,7 +84,7 @@ public sealed class CatReader : IDisposable
             Offset = _accessor.ReadUInt32(),
             Size = _accessor.ReadUInt32(),
             LogicalOffset = _accessor.ReadUInt32(),
-            ArchiveIndex = _accessor.ReadInt32() & 0xFF,
+            ArchiveIndex = (byte)_accessor.ReadInt32(),
             OriginalSize = _accessor.ReadUInt32(),
             IsEncrypted = true,
             KeyId = _accessor.ReadFixedSizedString(8),

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -14,9 +15,9 @@ namespace Frosty.Sdk.IO;
 public class DataAccessor : IDisposable
 {
     private readonly bool _leaveOpen;
-    private readonly Stack<long> _steps = new();
+    private Stack<long>? _steps;
     private bool _disposed;
-    private Block<byte>? _stringBuffer;
+    private byte[] _stringBuffer = [];
 
     protected DataAccessor()
     {
@@ -63,29 +64,73 @@ public class DataAccessor : IDisposable
         return BaseStream.Seek(offset, origin);
     }
 
-    /// <inheritdoc cref="Stream.CopyTo(Stream)" />
+    /// <summary>
+    ///     Copies the bytes from the current position to the end into <paramref name="destination" />.
+    /// </summary>
     public void CopyTo(Stream destination)
     {
-        CopyTo(destination, (int)(Length - Position));
+        BaseStream.CopyTo(destination);
     }
 
-    /// <inheritdoc cref="Stream.CopyTo(Stream, int)" />
-    // ReSharper disable once MemberCanBeProtected.Global
-    public virtual void CopyTo(Stream destination, int bufferSize)
-    {
-        BaseStream.CopyTo(destination, bufferSize);
-    }
-
-    public void CopyTo(DataAccessor destination)
-    {
-        CopyTo(destination, (int)(Length - Position));
-    }
-
-    public virtual void CopyTo(DataAccessor destination, int bufferSize)
+    /// <summary>
+    ///     Copies the next <paramref name="count" /> bytes into <paramref name="destination" />.
+    /// </summary>
+    /// <exception cref="EndOfStreamException">Fewer than <paramref name="count" /> bytes are left.</exception>
+    public void CopyTo(Stream destination, int count)
     {
         ArgumentNullException.ThrowIfNull(destination);
 
-        CopyTo(destination.BaseStream, bufferSize);
+        CopyBytes(count, destination, null);
+    }
+
+    /// <inheritdoc cref="CopyTo(Stream)" />
+    public void CopyTo(DataAccessor destination)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+
+        CopyTo(destination.BaseStream);
+    }
+
+    /// <inheritdoc cref="CopyTo(Stream, int)" />
+    public virtual void CopyTo(DataAccessor destination, int count)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+
+        CopyBytes(count, null, destination);
+    }
+
+    // Writes through the accessor when there is one, so an accessor that overrides Write sees the bytes
+    private void CopyBytes(int count, Stream? stream, DataAccessor? accessor)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(Math.Min(count, 81920));
+        try
+        {
+            while (count > 0)
+            {
+                int read = BaseStream.Read(buffer, 0, Math.Min(count, buffer.Length));
+                if (read == 0)
+                {
+                    throw new EndOfStreamException();
+                }
+
+                if (accessor is not null)
+                {
+                    accessor.Write(buffer.AsSpan(0, read));
+                }
+                else
+                {
+                    stream!.Write(buffer, 0, read);
+                }
+
+                count -= read;
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 
     /// <inheritdoc cref="Stream.SetLength" />
@@ -104,23 +149,23 @@ public class DataAccessor : IDisposable
 
     public void StepIn(long inPosition)
     {
-        _steps.Push(Position);
+        // Create when needed
+        (_steps ??= new Stack<long>()).Push(Position);
         Position = inPosition;
     }
 
     public void StepOut()
     {
-        Debug.Assert(_steps.Count > 0, "StepOut called when there were no steps taken.");
-        Position = _steps.Pop();
+        Debug.Assert(_steps is { Count: > 0 }, "StepOut called when there were no steps taken.");
+        Position = _steps!.Pop();
     }
 
     public virtual DataAccessor CreateSubAccessor(long inStartOffset, int inSize)
     {
-        StepIn(inStartOffset);
-
+        long position = Position;
+        Position = inStartOffset;
         DataAccessor retVal = new(new MemoryStream(ReadBytes(inSize)));
-
-        StepOut();
+        Position = position;
 
         return retVal;
     }
@@ -138,8 +183,6 @@ public class DataAccessor : IDisposable
         {
             BaseStream.Dispose();
         }
-
-        _stringBuffer?.Dispose();
     }
 
     #region -- Read --
@@ -302,20 +345,18 @@ public class DataAccessor : IDisposable
     {
         ArgumentNullException.ThrowIfNull(inEncoding);
 
-        _stringBuffer ??= new Block<byte>(Environment.SystemPageSize);
-
         int length = 0;
         while (true)
         {
             byte c = ReadByte();
             if (c == 0)
             {
-                return inEncoding.GetString(_stringBuffer.ToReadOnlySpan(0, length));
+                return inEncoding.GetString(_stringBuffer, 0, length);
             }
 
-            if (length >= _stringBuffer.Size)
+            if (length == _stringBuffer.Length)
             {
-                _stringBuffer.Resize(_stringBuffer.Size + Environment.SystemPageSize);
+                Array.Resize(ref _stringBuffer, Math.Max(256, length * 2));
             }
 
             _stringBuffer[length++] = c;
@@ -339,7 +380,7 @@ public class DataAccessor : IDisposable
     {
         ArgumentNullException.ThrowIfNull(inEncoding);
 
-        using Block<byte> buffer = Block<byte>.CreateUninitialized(size);
+        Span<byte> buffer = size <= 256 ? stackalloc byte[size] : new byte[size];
         BaseStream.ReadExactly(buffer);
         return inEncoding.GetString(buffer).TrimEnd('\0');
     }

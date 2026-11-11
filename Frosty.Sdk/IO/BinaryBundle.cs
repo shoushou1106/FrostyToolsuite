@@ -1,4 +1,4 @@
-﻿using System.Buffers.Binary;
+using System.Buffers.Binary;
 using System.Security.Cryptography;
 
 using Frosty.Sdk.Exceptions;
@@ -9,7 +9,10 @@ using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.IO;
 
-public class BinaryBundle
+/// <summary>
+///     The asset list of a bundle in the binary format (EBX, RES and Chunk entries).
+/// </summary>
+public sealed class BinaryBundle
 {
     // CA1008: Enums should have zero value
     // CA1028: Enum storage should be Int32
@@ -24,25 +27,26 @@ public class BinaryBundle
 
     private BinaryBundle(DataAccessor accessor)
     {
-        // Use big endian for default
-        Endian endian = Endian.Big;
+        // The header is the magic and 7 more fields
+        const int headerSize = 0x20;
 
         uint size = accessor.ReadUInt32(Endian.Big);
 
         long startPos = accessor.Position;
 
-        Magic magic = (Magic)(accessor.ReadUInt32(endian) ^ GetSalt());
+        uint salt = GetSalt();
+        uint rawMagic = accessor.ReadUInt32(Endian.Big);
+        Endian endian = Endian.Big;
+        Magic magic = (Magic)(rawMagic ^ salt);
 
-        // Check which endian is written
         if (!IsValidMagic(magic))
         {
             endian = Endian.Little;
-            uint value = (uint)magic ^ GetSalt();
-            magic = (Magic)(BinaryPrimitives.ReverseEndianness(value) ^ GetSalt());
+            magic = (Magic)(BinaryPrimitives.ReverseEndianness(rawMagic) ^ salt);
 
             if (!IsValidMagic(magic))
             {
-                throw new InvalidDataException("magic");
+                throw new InvalidDataException($"The bundle magic 0x{rawMagic:X8} is not valid.");
             }
         }
 
@@ -52,7 +56,7 @@ public class BinaryBundle
         int ebxCount = accessor.ReadInt32(endian);
         int resCount = accessor.ReadInt32(endian);
         int chunkCount = accessor.ReadInt32(endian);
-        long stringsOffset = accessor.ReadUInt32(endian) + startPos;
+        uint stringsOffsetInBundle = accessor.ReadUInt32(endian);
         accessor.Position += sizeof(uint) + sizeof(int); // metaOffset + metaSize
 
         EbxAssetEntry[] ebxList = new EbxAssetEntry[ebxCount];
@@ -61,76 +65,72 @@ public class BinaryBundle
 
         Sha1[] sha1 = new Sha1[totalCount];
 
-        // Decrypt the data
-        if (magic == Magic.Encrypted)
+        DataAccessor bundle = accessor;
+        long stringsOffset = startPos + stringsOffsetInBundle;
+        using DataAccessor? decrypted =
+            magic == Magic.Encrypted ?
+                Decrypt(accessor, (int)size - headerSize):
+                null;
+        if (decrypted is not null)
         {
-            if (accessor is not BlockAccessor blockAccessor)
-            {
-                throw new ArgumentException("Encrypted bundle. The bundle needs to be passed in as a BlockAccessor.",
-                    nameof(accessor));
-            }
-
-            if (!KeyManager.HasKey("BundleEncryptionKey"))
-            {
-                throw new MissingEncryptionKeyException("bundles");
-            }
-
-            blockAccessor.Decrypt(KeyManager.GetKey("BundleEncryptionKey"), (int)(size - 0x20), PaddingMode.None);
+            // The decrypted data starts after the header
+            bundle = decrypted;
+            stringsOffset = stringsOffsetInBundle - headerSize;
         }
 
         // Read SHA-1s
         for (int i = 0; i < totalCount; i++)
         {
-            sha1[i] = containsSha1 ? accessor.ReadSha1() : Sha1.Zero;
+            sha1[i] = containsSha1 ? bundle.ReadSha1() : Sha1.Zero;
         }
 
         int j = 0;
         for (int i = 0; i < ebxCount; i++, j++)
         {
-            uint nameOffset = accessor.ReadUInt32(endian);
-            uint originalSize = accessor.ReadUInt32(endian);
+            uint nameOffset = bundle.ReadUInt32(endian);
+            uint originalSize = bundle.ReadUInt32(endian);
 
-            long currentPos = accessor.Position;
-            accessor.Position = stringsOffset + nameOffset;
-            string name = accessor.ReadNullTerminatedString();
+            long currentPos = bundle.Position;
+            bundle.Position = stringsOffset + nameOffset;
+            string name = bundle.ReadNullTerminatedString();
 
             ebxList[i] = new EbxAssetEntry(name, sha1[j], originalSize);
 
-            accessor.Position = currentPos;
+            bundle.Position = currentPos;
         }
 
-        long resTypeOffset = accessor.Position + (resCount * 2 * sizeof(uint));
-        long resMetaOffset = accessor.Position + (resCount * 2 * sizeof(uint)) + (resCount * sizeof(uint));
-        long resRidOffset = accessor.Position + (resCount * 2 * sizeof(uint)) + (resCount * sizeof(uint)) +
+        long resTypeOffset = bundle.Position + (resCount * 2 * sizeof(uint));
+        long resMetaOffset = bundle.Position + (resCount * 2 * sizeof(uint)) + (resCount * sizeof(uint));
+        long resRidOffset = bundle.Position + (resCount * 2 * sizeof(uint)) + (resCount * sizeof(uint)) +
                             (resCount * 0x10);
         for (int i = 0; i < resCount; i++, j++)
         {
-            uint nameOffset = accessor.ReadUInt32(endian);
-            uint originalSize = accessor.ReadUInt32(endian);
+            uint nameOffset = bundle.ReadUInt32(endian);
+            uint originalSize = bundle.ReadUInt32(endian);
 
-            long currentPos = accessor.Position;
-            accessor.Position = stringsOffset + nameOffset;
-            string name = accessor.ReadNullTerminatedString();
+            long currentPos = bundle.Position;
+            bundle.Position = stringsOffset + nameOffset;
+            string name = bundle.ReadNullTerminatedString();
 
-            accessor.Position = resTypeOffset + (i * sizeof(uint));
-            uint resType = accessor.ReadUInt32(endian);
+            bundle.Position = resTypeOffset + (i * sizeof(uint));
+            uint resType = bundle.ReadUInt32(endian);
 
-            accessor.Position = resMetaOffset + (i * 0x10);
-            byte[] resMeta = accessor.ReadBytes(0x10);
+            bundle.Position = resMetaOffset + (i * 0x10);
+            byte[] resMeta = bundle.ReadBytes(0x10);
 
-            accessor.Position = resRidOffset + (i * sizeof(ulong));
-            ulong resRid = accessor.ReadUInt64(endian);
+            bundle.Position = resRidOffset + (i * sizeof(ulong));
+            ulong resRid = bundle.ReadUInt64(endian);
 
             resList[i] = new ResAssetEntry(name, sha1[j], originalSize, resRid, resType, resMeta);
 
-            accessor.Position = currentPos;
+            bundle.Position = currentPos;
         }
 
-        accessor.Position = resRidOffset + (resCount * sizeof(ulong));
+        bundle.Position = resRidOffset + (resCount * sizeof(ulong));
         for (int i = 0; i < chunkCount; i++, j++)
         {
-            chunkList[i] = new ChunkAssetEntry(accessor.ReadGuid(endian), sha1[j], accessor.ReadUInt32(endian),
-                accessor.ReadUInt32(endian));
+            chunkList[i] = new ChunkAssetEntry(bundle.ReadGuid(endian), sha1[j], bundle.ReadUInt32(endian),
+                bundle.ReadUInt32(endian));
         }
 
         EbxList = ebxList;
@@ -146,6 +146,28 @@ public class BinaryBundle
     public IReadOnlyList<ChunkAssetEntry> ChunkList { get; }
 
     /// <summary>
+    ///     Reads <paramref name="size" /> bytes and decrypts them with the bundle encryption key.
+    /// </summary>
+    /// <exception cref="MissingEncryptionKeyException">The bundle encryption key is not loaded.</exception>
+    private static DataAccessor Decrypt(DataAccessor accessor, int size)
+    {
+        if (!KeyManager.HasKey("BundleEncryptionKey"))
+        {
+            throw new MissingEncryptionKeyException("Bundle encryption key not found.");
+        }
+
+        byte[] key = KeyManager.GetKey("BundleEncryptionKey");
+        byte[] data = accessor.ReadBytes(size);
+
+        using Aes aes = Aes.Create();
+        aes.Key = key;
+        // The key is also the IV
+        aes.DecryptCbc(data, iv: key, data, PaddingMode.None);
+
+        return new DataAccessor(new MemoryStream(data, false));
+    }
+
+    /// <summary>
     ///     Only the games using the <see cref="BundleFormat.Kelvin" /> format have their own magic, the rest uses
     ///     <see cref="Magic.Standard" />.
     /// </summary>
@@ -154,10 +176,12 @@ public class BinaryBundle
         FileSystemManager.BundleFormat == BundleFormat.Kelvin ? Magic.Kelvin : Magic.Standard;
 
     /// <summary>
-    ///     Dependent on the FB version, games use different salts.
-    ///     If the game uses a version newer than 2017, it uses "pecn", else it uses "pecm".
-    ///     <see cref="ProfileVersion.Battlefield5" /> is the only game that uses "arie".
+    ///     Gets the salt the magic is XORed with.
     /// </summary>
+    /// <remarks>
+    ///     "pecn" for >= Frostbite 2017, other use "pecm".
+    ///     <see cref="ProfileVersion.Battlefield5" /> is the only game that uses "arie".
+    /// </remarks>
     /// <returns>The salt that the current game uses.</returns>
     public static uint GetSalt()
     {
@@ -179,11 +203,12 @@ public class BinaryBundle
     }
 
     /// <summary>
-    ///     Deserialize a binary-stored bundle as <see cref="DbObject" />.
+    ///     Reads a bundle in the binary format, starting at its big-endian size.
     /// </summary>
-    /// <param name="accessor">The <see cref="DataAccessor" /> from which the bundle should be Deserialized from.</param>
-    /// <returns></returns>
-    /// <exception cref="InvalidDataException">Is thrown when there is no valid <see cref="Magic" />.</exception>
+    /// <remarks><b>Encoding:</b> UTF-8 (asset names)</remarks>
+    /// <param name="accessor">The data, left at the end of the bundle.</param>
+    /// <exception cref="InvalidDataException">The bundle does not have valid <see cref="Magic" />.</exception>
+    /// <exception cref="MissingEncryptionKeyException">The bundle is encrypted and the key is not loaded.</exception>
     public static BinaryBundle Deserialize(DataAccessor accessor)
     {
         ArgumentNullException.ThrowIfNull(accessor);

@@ -79,7 +79,7 @@ internal struct EbxHeader
         }
 
         header.Imports = new EbxImportReference[header.ImportCount];
-        header.Dependencies = new HashSet<Guid>(header.ImportCount);
+        header.Dependencies = [with(header.ImportCount)];
         for (int i = 0; i < header.ImportCount; i++)
         {
             EbxImportReference import = new()

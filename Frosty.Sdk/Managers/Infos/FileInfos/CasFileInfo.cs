@@ -111,7 +111,7 @@ public class CasFileInfo : IFileInfo
             {
                 baseAccessor = new BlockAccessor(m_base.GetRawData());
             }
-            return Cas.DecompressData(deltaAccessor, baseAccessor, inOriginalSize);
+            return Block<byte>.Wrap(Cas.DecompressData(deltaAccessor, baseAccessor, inOriginalSize));
         }
     }
 

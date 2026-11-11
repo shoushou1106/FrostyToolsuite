@@ -50,7 +50,7 @@ internal static class EbxSharedTypeDescriptors
 
     private static void Read(Block<byte> inFile)
     {
-        using BlockAccessor accessor = new(inFile, true);
+        using DataAccessor accessor = new(inFile.ToStream());
         RiffReader riffReader = new(accessor);
         riffReader.ReadHeader(out FourCc fourCc, out uint size);
 

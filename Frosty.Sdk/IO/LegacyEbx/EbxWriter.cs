@@ -14,11 +14,7 @@ using TypeInfo = Frosty.Sdk.TypeSdk.TypeInfo;
 
 namespace Frosty.Sdk.IO.LegacyEbx;
 
-// _data only lives between building the payload and writing it out, which disposes it
-// CA1001: Types that own disposable fields should be disposable
-#pragma warning disable CA1001
 public sealed class EbxWriter : BaseEbxWriter
-#pragma warning restore CA1001
 {
     private const long HeaderStringsOffsetPos = 0x4;
     private const long HeaderTypeNamesLenPos = 0x1A;
@@ -35,7 +31,7 @@ public sealed class EbxWriter : BaseEbxWriter
 
     private readonly EbxTypeResolver _typeResolver;
 
-    private Block<byte>? _data;
+    private byte[] _data = [];
     private ushort _numExports;
 
     private ushort _uniqueClassCount;
@@ -139,8 +135,7 @@ public sealed class EbxWriter : BaseEbxWriter
         _stringsLength = (uint)(_accessor.Position - stringsOffset);
 
         offset = _accessor.Position;
-        _accessor.Write(_data!);
-        _data!.Dispose();
+        _accessor.Write(_data);
         _accessor.WriteByte(0);
 
         _accessor.Pad(16);
@@ -170,8 +165,7 @@ public sealed class EbxWriter : BaseEbxWriter
                 _accessor.WriteUInt32(array.Offset);
                 _accessor.StepOut();
 
-                _accessor.Write(_arrayData[j]);
-                _arrayData[j++].Dispose();
+                _accessor.Write(_arrayData[j++]);
             }
 
             _accessor.Pad(16);
@@ -193,7 +187,6 @@ public sealed class EbxWriter : BaseEbxWriter
                 _accessor.StepOut();
 
                 _accessor.Write(_boxedValueData[i]);
-                _boxedValueData[i].Dispose();
 
                 _boxedValues[i] = boxedValue;
             }
@@ -480,10 +473,10 @@ public sealed class EbxWriter : BaseEbxWriter
 
     private void ProcessData()
     {
-        HashSet<Type> uniqueTypes = new(_sortedInstances.Count);
+        HashSet<Type> uniqueTypes = [with(_sortedInstances.Count)];
 
-        _data = new Block<byte>(0);
-        using (BlockAccessor writer = new(_data, true))
+        using MemoryStream dataStream = new();
+        using (DataAccessor writer = new(dataStream, true))
         {
             Type type = _sortedInstances[0].GetType();
             int typeDescriptorRef = FindExistingType(type);
@@ -537,6 +530,8 @@ public sealed class EbxWriter : BaseEbxWriter
             inst.Count = count;
             _instances.Add(inst);
         }
+
+        _data = GetWrittenBytes(dataStream);
 
         _uniqueClassCount = (ushort)uniqueTypes.Count;
     }
@@ -724,16 +719,23 @@ public sealed class EbxWriter : BaseEbxWriter
                         arrayIdx = _arrays.Count;
                         _arrays.Add(
                             new EbxArray { Count = count, TypeDescriptorRef = typeDescriptorRef });
-                        Block<byte> data = new(0);
-                        _arrayData.Add(data);
-                        using BlockAccessor arrayWriter = new(data, true);
-                        for (int i = 0; i < count; i++)
-                        {
-                            object subValue = arrayObj[i]!;
+                        // Reserved before writing the elements, which can add arrays of their own
+                        int dataIndex = _arrayData.Count;
+                        _arrayData.Add([]);
 
-                            WriteField(subValue, arrayTypeDescriptor, ebxType, elementFieldDescriptor.TypeDescriptorRef,
-                                arrayWriter);
+                        using MemoryStream arrayStream = new();
+                        using (DataAccessor arrayWriter = new(arrayStream, true))
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+                                object subValue = arrayObj[i]!;
+
+                                WriteField(subValue, arrayTypeDescriptor, ebxType,
+                                    elementFieldDescriptor.TypeDescriptorRef, arrayWriter);
+                            }
                         }
+
+                        _arrayData[dataIndex] = GetWrittenBytes(arrayStream);
                     }
 
                     writer.WriteInt32(arrayIdx);
@@ -808,14 +810,17 @@ public sealed class EbxWriter : BaseEbxWriter
                                 : default
                         };
 
-                        Block<byte> data = new(0);
-                        _boxedValueData.Add(data);
-                        using (BlockAccessor accessor = new(data, true))
+                        // Reserved before writing the value, which can add boxed values of its own
+                        _boxedValues.Add(boxedValue);
+                        _boxedValueData.Add([]);
+
+                        using MemoryStream boxedStream = new();
+                        using (DataAccessor boxedWriter = new(boxedStream, true))
                         {
-                            WriteField(value.Value!, null, value.Type, boxedValue.TypeDescriptorRef, accessor);
+                            WriteField(value.Value!, null, value.Type, boxedValue.TypeDescriptorRef, boxedWriter);
                         }
 
-                        _boxedValues.Add(boxedValue);
+                        _boxedValueData[index] = GetWrittenBytes(boxedStream);
                     }
 
                     writer.WriteInt32(index);

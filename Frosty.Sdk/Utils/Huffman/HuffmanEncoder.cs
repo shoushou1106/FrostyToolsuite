@@ -52,7 +52,8 @@ public sealed class HuffmanEncoder
     public static int GetDataLengthInBytes(int numberOfBits, bool usePadding)
     {
         int byteSize = (numberOfBits + 7) / 8;
-        return usePadding ? (byteSize + 3) & ~3 : byteSize;
+        int remainder = byteSize % 4;
+        return usePadding && remainder != 0 ? byteSize + 4 - remainder : byteSize;
     }
 
     /// <summary>

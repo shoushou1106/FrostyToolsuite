@@ -5,12 +5,11 @@ using System.Text;
 using Frosty.Sdk.Attributes;
 using Frosty.Sdk.Ebx;
 using Frosty.Sdk.Interfaces;
-using Frosty.Sdk.IO.Ebx;
 using Frosty.Sdk.IO.RiffEbx;
 using Frosty.Sdk.Managers;
 using Frosty.Sdk.Utils;
 
-namespace Frosty.Sdk.IO;
+namespace Frosty.Sdk.IO.Ebx;
 
 public abstract class BaseEbxWriter(DataAccessor inAccessor)
 {
@@ -24,8 +23,8 @@ public abstract class BaseEbxWriter(DataAccessor inAccessor)
     private protected static readonly Type? BoxedValueRefType = TypeLibrary.GetType("BoxedValueRef")?.Type;
     private protected readonly DataAccessor _accessor = inAccessor;
 
-    private protected readonly List<Block<byte>> _arrayData = [];
-    private protected readonly List<Block<byte>> _boxedValueData = [];
+    private protected readonly List<byte[]> _arrayData = [];
+    private protected readonly List<byte[]> _boxedValueData = [];
     private protected readonly Dictionary<EbxImportReference, int> _importOrderFw = new();
 
     private protected readonly SortedSet<EbxImportReference> _imports = [];
@@ -51,8 +50,8 @@ public abstract class BaseEbxWriter(DataAccessor inAccessor)
     {
         ArgumentNullException.ThrowIfNull(inPartition);
 
-        List<IEbxInstance> exportedInstances = new(1);
-        List<IEbxInstance> internalInstances = new(inPartition.InternalInstances.Count);
+        List<IEbxInstance> exportedInstances = [with(1)];
+        List<IEbxInstance> internalInstances = [with(inPartition.InternalInstances.Count)];
 
         foreach (IEbxInstance instance in inPartition.InternalInstances)
         {
@@ -67,18 +66,16 @@ public abstract class BaseEbxWriter(DataAccessor inAccessor)
         }
 
         int exportedInstanceCount = exportedInstances.Count;
+        // The primary instance goes last, the others by GUID
+        Guid primaryInstanceGuid = inPartition.PrimaryInstanceGuid;
         exportedInstances.Sort((a, b) =>
         {
-            AssetClassGuid guidA = a.GetInstanceGuid();
-            AssetClassGuid guidB = b.GetInstanceGuid();
-            if (guidA.ExportedGuid == inPartition.PrimaryInstanceGuid)
-            {
-                return 1;
-            }
+            Guid guidA = a.GetInstanceGuid().ExportedGuid;
+            Guid guidB = b.GetInstanceGuid().ExportedGuid;
+            bool isPrimaryA = guidA == primaryInstanceGuid;
+            bool isPrimaryB = guidB == primaryInstanceGuid;
 
-            return guidB.ExportedGuid == inPartition.PrimaryInstanceGuid
-                ? -1
-                : guidA.ExportedGuid.CompareTo(guidB.ExportedGuid);
+            return isPrimaryA != isPrimaryB ? isPrimaryA.CompareTo(isPrimaryB) : guidA.CompareTo(guidB);
         });
 
         internalInstances.Sort(CompareInstances);
@@ -231,6 +228,21 @@ public abstract class BaseEbxWriter(DataAccessor inAccessor)
             _importOrderFw[import] = iter;
             iter++;
         }
+    }
+
+    /// <summary>
+    ///     Gets what was written to <paramref name="stream" />,
+    ///     zero padded up to its position.
+    /// </summary>
+    /// <remarks>A field that is skipped at the end of the data still takes up its bytes.</remarks>
+    private protected static byte[] GetWrittenBytes(MemoryStream stream)
+    {
+        if (stream.Position > stream.Length)
+        {
+            stream.SetLength(stream.Position);
+        }
+
+        return stream.ToArray();
     }
 
     private protected uint AddString(string stringToAdd)

@@ -198,12 +198,17 @@ public sealed partial class MemoryReader(Process inProcess) : IDisposable
                 : byte.Parse(parts[i], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
         }
 
+        byte[] buffer = [];
         foreach ((nint address, int size) in GetRegions())
         {
-            using Block<byte> region = new(size);
-            ReadMemory(address, region);
+            if (buffer.Length < size)
+            {
+                buffer = GC.AllocateUninitializedArray<byte>(size);
+            }
 
-            int index = IndexOfPattern(region, pattern, isWildcard);
+            int bytesRead = ReadMemory(address, buffer.AsSpan(0, size));
+
+            int index = IndexOfPattern(buffer.AsSpan(0, bytesRead), pattern, isWildcard);
             if (index != -1)
             {
                 return address + index;

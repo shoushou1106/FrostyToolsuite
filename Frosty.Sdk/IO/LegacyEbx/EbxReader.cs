@@ -116,7 +116,7 @@ public sealed class EbxReader : BaseEbxReader
                     {
                         if (propertyInfo is null)
                         {
-                            //FrostyLogger.Logger.LogDebug("Skipping field \"{}.{}\", because it does not exist in the type info", inTypeDescriptor.Name, fieldDescriptor.Name);
+                            // The field does not exist in the type info
                             continue;
                         }
 
@@ -134,7 +134,7 @@ public sealed class EbxReader : BaseEbxReader
                 default:
                     if (propertyInfo is null)
                     {
-                        //FrostyLogger.Logger.LogDebug("Skipping field \"{}.{}\", because it does not exist in the type info", inTypeDescriptor.Name, fieldDescriptor.Name);
+                        // The field does not exist in the type info
                         continue;
                     }
 
@@ -208,12 +208,10 @@ public sealed class EbxReader : BaseEbxReader
             case TypeFlags.TypeEnum.FileRef:
                 inAddFunc(ReadFileRef());
                 break;
-            // TODO:
-            // Potential Bug: Delegates are read as a TypeRef.
-            // As RiffEbx reader does,
-            // a delegate property should return IType?,
-            // so storing this may fails.
             case TypeFlags.TypeEnum.Delegate:
+                // Stored like a TypeRef, but a delegate takes the function type as IType
+                inAddFunc(ReadTypeRef().InternalType);
+                break;
             case TypeFlags.TypeEnum.TypeRef:
                 inAddFunc(ReadTypeRef());
                 break;
@@ -237,8 +235,7 @@ public sealed class EbxReader : BaseEbxReader
                 ReadArray(inParentTypeDescriptor, inTypeDescriptorRef, inAddFunc);
                 break;
             case TypeFlags.TypeEnum.DbObject:
-                throw new NotImplementedException(
-                    "DbObject as EBX field type"); // Remove this line and DbObject goes to Unknown
+                throw new NotImplementedException("DbObject as EBX field type");
             case TypeFlags.TypeEnum.Void:
             case TypeFlags.TypeEnum.Function:
             case TypeFlags.TypeEnum.Interface:
@@ -318,12 +315,6 @@ public sealed class EbxReader : BaseEbxReader
         {
             return new PointerRef();
         }
-
-        // TODO:
-        // Check is this useless code usefull
-        // if (index - 1 == 1)
-        // {
-        // }
 
         IEbxInstance? obj = _instances[(int)(index - 1)];
         if (obj is null)

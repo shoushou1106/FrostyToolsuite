@@ -45,7 +45,7 @@ public class CasCryptoResourceInfo : CasResourceInfo
         {
             accessor.Decrypt(KeyManager.GetKey(m_keyId), PaddingMode.None);
             accessor.SetLength((int)GetSize());
-            return Cas.DecompressData(accessor, inOriginalSize);
+            return Block<byte>.Wrap(Cas.DecompressData(accessor, inOriginalSize));
         }
     }
 

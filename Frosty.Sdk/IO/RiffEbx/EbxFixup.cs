@@ -1,5 +1,4 @@
 using Frosty.Sdk.IO.Ebx;
-using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.IO.RiffEbx;
 
@@ -26,7 +25,7 @@ internal struct EbxFixup
         EbxFixup fixup = new() { PartitionGuid = inAccessor.ReadGuid() };
 
         int typeGuidCount = inAccessor.ReadInt32();
-        fixup.TypeGuids = new List<Guid>(typeGuidCount);
+        fixup.TypeGuids = [with(typeGuidCount)];
         for (int i = 0; i < typeGuidCount; i++)
         {
             fixup.TypeGuids.Add(inAccessor.ReadGuid());
@@ -47,8 +46,8 @@ internal struct EbxFixup
         fixup.ResourceRefOffsets = ReadUInt32List(inAccessor);
 
         int importCount = inAccessor.ReadInt32();
-        fixup.Imports = new List<EbxImportReference>(importCount);
-        fixup.Dependencies = new HashSet<Guid>(importCount);
+        fixup.Imports = [with(importCount)];
+        fixup.Dependencies = [with(importCount)];
         for (int i = 0; i < importCount; i++)
         {
             EbxImportReference import = new()
@@ -74,13 +73,14 @@ internal struct EbxFixup
         return fixup;
     }
 
-    public static Block<byte> WriteFixup(EbxFixup inFixup)
+    public static byte[] WriteFixup(EbxFixup inFixup)
     {
-        Block<byte> retVal = new(((1 + inFixup.TypeGuids.Count + (2 * inFixup.Imports.Count)) * 16) + ((12 +
+        // Only the capacity: 16 bytes per GUID and 4 per count, offset or value
+        using MemoryStream stream = new(((1 + inFixup.TypeGuids.Count + (2 * inFixup.Imports.Count)) * 16) + ((13 +
                 inFixup.TypeSignatures.Count + inFixup.InstanceOffsets.Count + inFixup.PointerOffsets.Count +
                 inFixup.ResourceRefOffsets.Count + inFixup.ImportOffsets.Count + inFixup.TypeInfoOffsets.Count) *
             sizeof(int)));
-        using BlockAccessor accessor = new(retVal, true);
+        using DataAccessor accessor = new(stream, true);
         accessor.WriteGuid(inFixup.PartitionGuid);
 
         accessor.WriteInt32(inFixup.TypeGuids.Count);
@@ -115,14 +115,14 @@ internal struct EbxFixup
             accessor.WriteUInt32(0);
         }
 
-        return retVal;
+        return stream.ToArray();
     }
 
     // An int32 count followed by that many uint32 values
     private static List<uint> ReadUInt32List(DataAccessor inAccessor)
     {
         int count = inAccessor.ReadInt32();
-        List<uint> values = new(count);
+        List<uint> values = [with(count)];
         for (int i = 0; i < count; i++)
         {
             values.Add(inAccessor.ReadUInt32());

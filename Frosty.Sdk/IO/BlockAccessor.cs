@@ -54,33 +54,33 @@ public class BlockAccessor : DataAccessor
         base.WriteByte(value);
     }
 
-    public override void CopyTo(DataAccessor destination, int bufferSize)
+    public override void CopyTo(DataAccessor destination, int count)
     {
         if (destination is not BlockAccessor accessor)
         {
-            base.CopyTo(destination, bufferSize);
+            base.CopyTo(destination, count);
             return;
         }
 
-        if (bufferSize <= 0)
+        if (count <= 0)
         {
             return;
         }
 
-        accessor.ResizeStream(accessor.Position + bufferSize);
+        accessor.ResizeStream(accessor.Position + count);
 
-        if (accessor.Length < accessor.Position + bufferSize)
+        if (accessor.Length < accessor.Position + count)
         {
-            accessor.BaseStream.SetLength((int)accessor.Position + bufferSize);
+            accessor.BaseStream.SetLength((int)accessor.Position + count);
         }
 
-        using Block<byte> source = new(_block, (int)Position, bufferSize);
-        using Block<byte> dest = new(accessor._block, (int)accessor.Position, bufferSize);
+        using Block<byte> source = new(_block, (int)Position, count);
+        using Block<byte> dest = new(accessor._block, (int)accessor.Position, count);
         source.CopyTo(dest);
 
-        accessor.Position += bufferSize;
+        accessor.Position += count;
 
-        Position += bufferSize;
+        Position += count;
     }
 
     /// <summary>

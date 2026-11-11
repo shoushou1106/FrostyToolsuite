@@ -51,14 +51,7 @@ public readonly struct AssetClassGuid : IEquatable<AssetClassGuid>
 
     public override int GetHashCode()
     {
-        unchecked
-        {
-            int hash = (int)2166136261;
-            hash = (hash * 16777619) ^ ExportedGuid.GetHashCode();
-            hash = (hash * 16777619) ^ InternalId.GetHashCode();
-            hash = (hash * 16777619) ^ IsExported.GetHashCode();
-            return hash;
-        }
+        return HashCode.Combine(ExportedGuid, InternalId, IsExported);
     }
 
     public override string ToString()

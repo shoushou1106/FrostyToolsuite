@@ -1,5 +1,6 @@
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO;
+using Frosty.Sdk.IO.Ebx;
 
 namespace Frosty.Sdk.Ebx;
 

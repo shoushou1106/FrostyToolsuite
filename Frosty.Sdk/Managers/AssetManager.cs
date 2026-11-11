@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Frosty.Sdk.Ebx;
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO;
+using Frosty.Sdk.IO.Ebx;
 using Frosty.Sdk.Managers.Entries;
 using Frosty.Sdk.Managers.Infos;
 using Frosty.Sdk.Managers.Loaders;
