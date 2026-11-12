@@ -9,24 +9,22 @@ namespace Frosty.Sdk.IO.Compression;
 /// </summary>
 public sealed class CompressionLz4 : ICompressionFormat
 {
-    public string Identifier => "LZ4";
-
     public int Decompress(ReadOnlySpan<byte> inData, Span<byte> outData,
-        CompressionOptions inOptions = CompressionOptions.None)
+        CompressionOptions options = CompressionOptions.None)
     {
         int written = LZ4Codec.Decode(inData, outData);
         return written >= 0 ? written : throw new InvalidDataException("An LZ4 block could not be decompressed.");
     }
 
     public int Compress(ReadOnlySpan<byte> inData, Span<byte> outData,
-        CompressionOptions inOptions = CompressionOptions.None)
+        CompressionOptions options = CompressionOptions.None)
     {
         int written = LZ4Codec.Encode(inData, outData);
         return written >= 0 ? written : throw new ArgumentException("The destination is too small.", nameof(outData));
     }
 
-    public int GetCompressBounds(int inRawSize, CompressionOptions inOptions = CompressionOptions.None)
+    public int GetCompressBounds(int rawSize, CompressionOptions options = CompressionOptions.None)
     {
-        return LZ4Codec.MaximumOutputSize(inRawSize);
+        return LZ4Codec.MaximumOutputSize(rawSize);
     }
 }

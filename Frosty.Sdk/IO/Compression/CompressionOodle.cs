@@ -18,10 +18,8 @@ public sealed partial class CompressionOodle : ICompressionFormat
         OperatingSystem.IsWindows() ? "liboo2core.dll" :
         OperatingSystem.IsMacOS() ? "liboo2core.dylib" : "liboo2core.so");
 
-    public string Identifier => "Oodle";
-
     public int Decompress(ReadOnlySpan<byte> inData, Span<byte> outData,
-        CompressionOptions inOptions = CompressionOptions.None)
+        CompressionOptions options = CompressionOptions.None)
     {
         nint written = NativeMethods.OodleLZ_Decompress(inData, inData.Length, outData, outData.Length,
             OodleFuzzSafe.Yes, OodleCheckCrc.No, OodleVerbosity.None, 0, 0, 0, 0, 0, 0,
@@ -31,7 +29,7 @@ public sealed partial class CompressionOodle : ICompressionFormat
     }
 
     public int Compress(ReadOnlySpan<byte> inData, Span<byte> outData,
-        CompressionOptions inOptions = CompressionOptions.None)
+        CompressionOptions options = CompressionOptions.None)
     {
         // TODO:
         // Encode for the game's own Oodle version.
@@ -40,26 +38,26 @@ public sealed partial class CompressionOodle : ICompressionFormat
         // Oodle_SetConfigValues() with m_OodleLZ_BackwardsCompatible_MajorVersion
         // set to the game's major version fixes it.
         // Until then the output is 2.9.16 (Major 9).
-        nint written = NativeMethods.OodleLZ_Compress(GetCompressor(inOptions), inData, inData.Length, outData,
+        nint written = NativeMethods.OodleLZ_Compress(GetCompressor(options), inData, inData.Length, outData,
             OodleCompressionLevel.Optimal5, 0, 0, 0, 0, 0);
 
         return written > 0 ? (int)written : throw new InvalidOperationException("Oodle failed to compress the data.");
     }
 
-    public int GetCompressBounds(int inRawSize, CompressionOptions inOptions = CompressionOptions.None)
+    public int GetCompressBounds(int rawSize, CompressionOptions options = CompressionOptions.None)
     {
-        return checked((int)NativeMethods.OodleLZ_GetCompressedBufferSizeNeeded(GetCompressor(inOptions), inRawSize));
+        return checked((int)NativeMethods.OodleLZ_GetCompressedBufferSizeNeeded(GetCompressor(options), rawSize));
     }
 
-    private static OodleCompressor GetCompressor(CompressionOptions inOptions)
+    private static OodleCompressor GetCompressor(CompressionOptions options)
     {
         // ReSharper disable once SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
-        return inOptions switch
+        return options switch
         {
             CompressionOptions.OodleKraken => OodleCompressor.Kraken,
             CompressionOptions.OodleSelkie => OodleCompressor.Selkie,
             CompressionOptions.OodleLeviathan => OodleCompressor.Leviathan,
-            _ => throw new ArgumentOutOfRangeException(nameof(inOptions), inOptions, "Not an Oodle compressor.")
+            _ => throw new ArgumentOutOfRangeException(nameof(options), options, "Not an Oodle compressor.")
         };
     }
 
@@ -108,9 +106,9 @@ public sealed partial class CompressionOodle : ICompressionFormat
         ///     instead of letting the OS search for it. (macOS fails on relative paths)
         ///     Every other library of this assembly falls back to the default lookup.
         /// </summary>
-        private static nint ResolveLibrary(string inLibraryName, Assembly inAssembly, DllImportSearchPath? inSearchPath)
+        private static nint ResolveLibrary(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
         {
-            if (inLibraryName != LibraryName)
+            if (libraryName != LibraryName)
             {
                 return 0;
             }

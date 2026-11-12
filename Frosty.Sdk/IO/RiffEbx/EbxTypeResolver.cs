@@ -6,11 +6,11 @@ internal sealed class EbxTypeResolver
     private readonly IReadOnlyList<Guid> _typeGuids;
     private readonly IReadOnlyList<uint> _typeSignatures;
 
-    internal EbxTypeResolver(IReadOnlyList<Guid> inTypeGuids, IReadOnlyList<uint> inTypeSignatures)
+    internal EbxTypeResolver(IReadOnlyList<Guid> typeGuids, IReadOnlyList<uint> typeSignatures)
     {
         EbxSharedTypeDescriptors.Initialize();
-        _typeGuids = inTypeGuids;
-        _typeSignatures = inTypeSignatures;
+        _typeGuids = typeGuids;
+        _typeSignatures = typeSignatures;
     }
 
     public EbxTypeDescriptor ResolveType(int index)
@@ -18,9 +18,9 @@ internal sealed class EbxTypeResolver
         return EbxSharedTypeDescriptors.GetTypeDescriptor(_typeGuids[index], _typeSignatures[index]);
     }
 
-    public static EbxTypeDescriptor ResolveTypeFromField(ushort inTypeDescriptorRef)
+    public static EbxTypeDescriptor ResolveTypeFromField(ushort typeDescriptorRef)
     {
-        return EbxSharedTypeDescriptors.GetTypeDescriptor(inTypeDescriptorRef);
+        return EbxSharedTypeDescriptors.GetTypeDescriptor(typeDescriptorRef);
     }
 
     public static EbxFieldDescriptor ResolveField(int index)

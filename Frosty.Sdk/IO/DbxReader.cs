@@ -51,9 +51,9 @@ public sealed class DbxReader
         _xml.Load(filepath);
     }
 
-    public DbxReader(Stream inStream)
+    public DbxReader(Stream stream)
     {
-        _xml.Load(inStream);
+        _xml.Load(stream);
     }
 
     public EbxPartition ReadAsset()
@@ -130,7 +130,8 @@ public sealed class DbxReader
                 new ResourceRef(ulong.Parse(propValue,
                     NumberStyles.HexNumber, CultureInfo.InvariantCulture)),
                 propType),
-            _ => throw new NotImplementedException("Not implemented property type: " + frostbiteType)
+            _ => throw new NotImplementedException(
+                string.Create(CultureInfo.InvariantCulture, $"Not implemented property type: {frostbiteType}"))
         };
     }
 
@@ -372,7 +373,9 @@ public sealed class DbxReader
         bool isRef = arrayTypeStr.StartsWith("ref(", StringComparison.Ordinal);
 
         Type arrayElementType = (isRef ? PointerType : TypeLibrary.GetType(arrayTypeStr)?.Type)
-                                ?? throw new InvalidDataException($"The array element type {arrayTypeStr} does not exist.");
+                                ?? throw new InvalidDataException(
+                                    string.Create(CultureInfo.InvariantCulture,
+                                        $"The array element type {arrayTypeStr} does not exist."));
 
         EbxTypeMetaAttribute? arrayTypeMeta = arrayElementType.GetCustomAttribute<EbxTypeMetaAttribute>();
         Type arrayType = CollectionType.MakeGenericType(arrayElementType);
@@ -390,7 +393,9 @@ public sealed class DbxReader
     private object ReadStruct(Type? structType, XmlNode node)
     {
         Type type = (structType ?? TypeLibrary.GetType(GetAttributeValue(node, "type")!)?.Type)
-                    ?? throw new InvalidDataException($"The struct type {GetAttributeValue(node, "type")} does not exist.");
+                    ?? throw new InvalidDataException(
+                        string.Create(CultureInfo.InvariantCulture,
+                            $"The struct type {GetAttributeValue(node, "type")} does not exist."));
 
         object obj = Activator.CreateInstance(type)!;
 

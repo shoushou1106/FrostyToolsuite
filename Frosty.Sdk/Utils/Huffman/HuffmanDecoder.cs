@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -114,7 +115,8 @@ public sealed class HuffmanDecoder
                 ? string.Empty
                 : " No huffman encoded data was read with 'ReadEncodedData'!";
             throw new InvalidDataException(
-                $"HuffmanDecoder state is not initialized!{rootNodeMissingErrorPart}{dataMissingErrorPart}");
+                string.Create(CultureInfo.InvariantCulture,
+                    $"HuffmanDecoder state is not initialized!{rootNodeMissingErrorPart}{dataMissingErrorPart}"));
         }
 
         int dataLengthInBits = _data.Length * 32;
@@ -150,7 +152,7 @@ public sealed class HuffmanDecoder
     {
         // Read everything at once. The bytes were read in the host's endianness
         accessor.ReadExactly(MemoryMarshal.AsBytes(destination));
-        if ((endian == Endian.Big) == BitConverter.IsLittleEndian)
+        if (endian == Endian.Big == BitConverter.IsLittleEndian)
         {
             // Big endian expected but current host use Little.
             BinaryPrimitives.ReverseEndianness(destination, destination);

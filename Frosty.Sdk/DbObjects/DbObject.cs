@@ -1,5 +1,6 @@
 using System.Diagnostics;
-using Frosty.Sdk.Exceptions;
+using System.Globalization;
+
 using Frosty.Sdk.IO;
 using Frosty.Sdk.Utils;
 
@@ -49,7 +50,10 @@ public abstract class DbObject
 
         accessor.WriteByte((byte)value._type);
 
-        if (!value._type.HasFlag(Type.Anonymous)) accessor.WriteNullTerminatedString(value.Name);
+        if (!value._type.HasFlag(Type.Anonymous))
+        {
+            accessor.WriteNullTerminatedString(value.Name);
+        }
 
         value.InternalSerialize(accessor);
     }
@@ -76,13 +80,19 @@ public abstract class DbObject
     {
         ArgumentNullException.ThrowIfNull(accessor);
 
-        var type = (Type)accessor.ReadByte();
+        Type type = (Type)accessor.ReadByte();
 
-        var obj = CreateDbObject(type);
+        DbObject? obj = CreateDbObject(type);
 
-        if (obj is null) return obj;
+        if (obj is null)
+        {
+            return obj;
+        }
 
-        if (!type.HasFlag(Type.Anonymous)) obj.Name = accessor.ReadNullTerminatedString();
+        if (!type.HasFlag(Type.Anonymous))
+        {
+            obj.Name = accessor.ReadNullTerminatedString();
+        }
 
         obj.InternalDeserialize(accessor);
 
@@ -200,7 +210,10 @@ public abstract class DbObject
         using MemoryStream buffer = new();
         using DataAccessor bufferAccessor = new(buffer, true);
 
-        foreach (var child in children) Serialize(bufferAccessor, child);
+        foreach (DbObject child in children)
+        {
+            Serialize(bufferAccessor, child);
+        }
 
         bufferAccessor.WriteByte((byte)Type.Null);
 
@@ -225,10 +238,11 @@ public abstract class DbObject
             Type.Sha1 => new DbObjectSha1(type),
             Type.Blob => new DbObjectBlob(type),
             Type.Anonymous => throw new UnreachableException(),
-            _ => throw new InvalidDataException($"Unknown DbObject type {type}")
+            _ => throw new InvalidDataException(
+                string.Create(CultureInfo.InvariantCulture, $"Unknown DbObject type {type}"))
         };
     }
-    
+
     [Flags]
     internal enum Type
     {

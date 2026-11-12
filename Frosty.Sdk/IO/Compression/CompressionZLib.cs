@@ -9,10 +9,8 @@ namespace Frosty.Sdk.IO.Compression;
 /// </summary>
 public sealed class CompressionZLib : ICompressionFormat
 {
-    public string Identifier => "ZLib";
-
     public int Decompress(ReadOnlySpan<byte> inData, Span<byte> outData,
-        CompressionOptions inOptions = CompressionOptions.None)
+        CompressionOptions options = CompressionOptions.None)
     {
         return ZLibDecoder.TryDecompress(inData, outData, out int written)
             ? written
@@ -20,15 +18,15 @@ public sealed class CompressionZLib : ICompressionFormat
     }
 
     public int Compress(ReadOnlySpan<byte> inData, Span<byte> outData,
-        CompressionOptions inOptions = CompressionOptions.None)
+        CompressionOptions options = CompressionOptions.None)
     {
         return ZLibEncoder.TryCompress(inData, outData, out int written)
             ? written
             : throw new ArgumentException("The destination is too small.", nameof(outData));
     }
 
-    public int GetCompressBounds(int inRawSize, CompressionOptions inOptions = CompressionOptions.None)
+    public int GetCompressBounds(int rawSize, CompressionOptions options = CompressionOptions.None)
     {
-        return checked((int)ZLibEncoder.GetMaxCompressedLength(inRawSize));
+        return checked((int)ZLibEncoder.GetMaxCompressedLength(rawSize));
     }
 }

@@ -15,8 +15,8 @@ namespace Frosty.Sdk.IO;
 public class DataAccessor : IDisposable
 {
     private readonly bool _leaveOpen;
-    private Stack<long>? _steps;
     private bool _disposed;
+    private Stack<long>? _steps;
     private byte[] _stringBuffer = [];
 
     protected DataAccessor()
@@ -24,17 +24,17 @@ public class DataAccessor : IDisposable
         BaseStream = Stream.Null;
     }
 
-    /// <param name="inStream">The stream to read from and write to.</param>
-    /// <param name="inLeaveOpen">
-    ///     <see langword="true" /> to leave <paramref name="inStream" /> open when this <see cref="DataAccessor" /> is
+    /// <param name="stream">The stream to read from and write to.</param>
+    /// <param name="leaveOpen">
+    ///     <see langword="true" /> to leave <paramref name="stream" /> open when this <see cref="DataAccessor" /> is
     ///     disposed.
     /// </param>
-    public DataAccessor(Stream inStream, bool inLeaveOpen = false)
+    public DataAccessor(Stream stream, bool leaveOpen = false)
     {
-        ArgumentNullException.ThrowIfNull(inStream);
+        ArgumentNullException.ThrowIfNull(stream);
 
-        BaseStream = inStream;
-        _leaveOpen = inLeaveOpen;
+        BaseStream = stream;
+        _leaveOpen = leaveOpen;
     }
 
     /// <summary>
@@ -147,11 +147,11 @@ public class DataAccessor : IDisposable
         }
     }
 
-    public void StepIn(long inPosition)
+    public void StepIn(long position)
     {
         // Create when needed
         (_steps ??= new Stack<long>()).Push(Position);
-        Position = inPosition;
+        Position = position;
     }
 
     public void StepOut()
@@ -160,11 +160,11 @@ public class DataAccessor : IDisposable
         Position = _steps!.Pop();
     }
 
-    public virtual DataAccessor CreateSubAccessor(long inStartOffset, int inSize)
+    public virtual DataAccessor CreateSubAccessor(long startOffset, int size)
     {
         long position = Position;
-        Position = inStartOffset;
-        DataAccessor retVal = new(new MemoryStream(ReadBytes(inSize)));
+        Position = startOffset;
+        DataAccessor retVal = new(new MemoryStream(ReadBytes(size)));
         Position = position;
 
         return retVal;
@@ -341,9 +341,9 @@ public class DataAccessor : IDisposable
     }
 
     /// <inheritdoc cref="ReadNullTerminatedString()" />
-    public virtual string ReadNullTerminatedString(Encoding inEncoding)
+    public virtual string ReadNullTerminatedString(Encoding encoding)
     {
-        ArgumentNullException.ThrowIfNull(inEncoding);
+        ArgumentNullException.ThrowIfNull(encoding);
 
         int length = 0;
         while (true)
@@ -351,7 +351,7 @@ public class DataAccessor : IDisposable
             byte c = ReadByte();
             if (c == 0)
             {
-                return inEncoding.GetString(_stringBuffer, 0, length);
+                return encoding.GetString(_stringBuffer, 0, length);
             }
 
             if (length == _stringBuffer.Length)
@@ -376,13 +376,13 @@ public class DataAccessor : IDisposable
 
     /// <inheritdoc cref="ReadFixedSizedString(int)" />
     // ReSharper disable once MemberCanBePrivate.Global
-    public string ReadFixedSizedString(int size, Encoding inEncoding)
+    public string ReadFixedSizedString(int size, Encoding encoding)
     {
-        ArgumentNullException.ThrowIfNull(inEncoding);
+        ArgumentNullException.ThrowIfNull(encoding);
 
         Span<byte> buffer = size <= 256 ? stackalloc byte[size] : new byte[size];
         BaseStream.ReadExactly(buffer);
-        return inEncoding.GetString(buffer).TrimEnd('\0');
+        return encoding.GetString(buffer).TrimEnd('\0');
     }
 
     /// <summary>
@@ -396,9 +396,9 @@ public class DataAccessor : IDisposable
 
     /// <inheritdoc cref="ReadSizedString()" />
     // ReSharper disable once MemberCanBePrivate.Global
-    public string ReadSizedString(Encoding inEncoding)
+    public string ReadSizedString(Encoding encoding)
     {
-        return ReadFixedSizedString(Read7BitEncodedInt32(), inEncoding);
+        return ReadFixedSizedString(Read7BitEncodedInt32(), encoding);
     }
 
     #endregion
@@ -631,15 +631,15 @@ public class DataAccessor : IDisposable
 
     /// <inheritdoc cref="WriteNullTerminatedString(string)" />
     // ReSharper disable once MemberCanBePrivate.Global
-    public void WriteNullTerminatedString(string value, Encoding inEncoding)
+    public void WriteNullTerminatedString(string value, Encoding encoding)
     {
         ArgumentNullException.ThrowIfNull(value);
-        ArgumentNullException.ThrowIfNull(inEncoding);
+        ArgumentNullException.ThrowIfNull(encoding);
 
-        int size = inEncoding.GetByteCount(value) + 1;
+        int size = encoding.GetByteCount(value) + 1;
         Span<byte> buffer = size <= 256 ? stackalloc byte[size] : new byte[size];
 
-        inEncoding.GetBytes(value, buffer);
+        encoding.GetBytes(value, buffer);
         buffer[^1] = 0;
         Write(buffer);
     }
@@ -659,16 +659,16 @@ public class DataAccessor : IDisposable
 
     /// <inheritdoc cref="WriteFixedSizedString(string, int)" />
     // ReSharper disable once MemberCanBePrivate.Global
-    public void WriteFixedSizedString(string value, int size, Encoding inEncoding)
+    public void WriteFixedSizedString(string value, int size, Encoding encoding)
     {
         ArgumentNullException.ThrowIfNull(value);
-        ArgumentNullException.ThrowIfNull(inEncoding);
+        ArgumentNullException.ThrowIfNull(encoding);
 
         Span<byte> buffer = size <= 256 ? stackalloc byte[size] : new byte[size];
 
         // Use Encoding.GetBytes instead of string.Length so it doesn't kill other languages
         // GetBytes throws the documented ArgumentException when the buffer is too small
-        int written = inEncoding.GetBytes(value, buffer);
+        int written = encoding.GetBytes(value, buffer);
         // Span.Clear() fills 0 with good performance
         buffer[written..].Clear();
         Write(buffer);
@@ -687,14 +687,14 @@ public class DataAccessor : IDisposable
 
     /// <inheritdoc cref="WriteSizedString(string)" />
     // ReSharper disable once MemberCanBePrivate.Global
-    public void WriteSizedString(string value, Encoding inEncoding)
+    public void WriteSizedString(string value, Encoding encoding)
     {
         ArgumentNullException.ThrowIfNull(value);
-        ArgumentNullException.ThrowIfNull(inEncoding);
+        ArgumentNullException.ThrowIfNull(encoding);
 
-        int size = inEncoding.GetByteCount(value) + 1;
+        int size = encoding.GetByteCount(value) + 1;
         Write7BitEncodedInt32(size);
-        WriteFixedSizedString(value, size, inEncoding);
+        WriteFixedSizedString(value, size, encoding);
     }
 
     #endregion

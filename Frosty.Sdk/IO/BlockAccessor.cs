@@ -88,12 +88,12 @@ public class BlockAccessor : DataAccessor
     ///     but finds the terminator in memory instead of reading byte by byte.
     /// </summary>
     /// <remarks>
-    ///     <b>Encoding:</b> Any ASCII-compatible <paramref name="inEncoding" />.
+    ///     <b>Encoding:</b> Any ASCII-compatible <paramref name="encoding" />.
     ///     The UTF-8 <see cref="DataAccessor.ReadNullTerminatedString()" /> calls this override too.
     /// </remarks>
-    public override string ReadNullTerminatedString(Encoding inEncoding)
+    public override string ReadNullTerminatedString(Encoding encoding)
     {
-        ArgumentNullException.ThrowIfNull(inEncoding);
+        ArgumentNullException.ThrowIfNull(encoding);
 
         // All the 8-bit encoding, for example, UTF-8, uses high-order bytes,
         // that all chars are promised to be higher than 0x80.
@@ -111,12 +111,12 @@ public class BlockAccessor : DataAccessor
         }
 
         Position += length + 1;
-        return inEncoding.GetString(remaining[..length]);
+        return encoding.GetString(remaining[..length]);
     }
 
-    public override DataAccessor CreateSubAccessor(long inStartOffset, int inSize)
+    public override DataAccessor CreateSubAccessor(long startOffset, int size)
     {
-        Block<byte> sub = new(_block, (int)inStartOffset, inSize);
+        Block<byte> sub = new(_block, (int)startOffset, size);
         return new BlockAccessor(sub);
     }
 

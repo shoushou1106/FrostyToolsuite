@@ -4,15 +4,15 @@ using Frosty.Sdk.IO.RiffEbx;
 
 namespace Frosty.Sdk.IO.Ebx;
 
-public abstract class BaseEbxReader(DataAccessor inAccessor)
+public abstract class BaseEbxReader(DataAccessor accessor)
 {
-    private protected readonly DataAccessor _accessor = inAccessor;
+    private protected readonly DataAccessor _accessor = accessor;
     private protected readonly List<IEbxInstance?> _instances = [];
     private protected readonly List<int> _refCounts = [];
 
-    public static BaseEbxReader CreateReader(DataAccessor inAccessor)
+    public static BaseEbxReader CreateReader(DataAccessor accessor)
     {
-        return ProfilesLibrary.EbxVersion == 6 ? new EbxReader(inAccessor) : new LegacyEbx.EbxReader(inAccessor);
+        return ProfilesLibrary.EbxVersion == 6 ? new EbxReader(accessor) : new LegacyEbx.EbxReader(accessor);
     }
 
     public T ReadPartition<T>() where T : EbxPartition, new()
@@ -42,12 +42,12 @@ public abstract class BaseEbxReader(DataAccessor inAccessor)
     }
 
     /// <returns><see langword="false" /> when there is nothing to store.</returns>
-    private protected static bool TryWrapValue(Type inTargetType, ref object? value)
+    private protected static bool TryWrapValue(Type targetType, ref object? value)
     {
-        if (typeof(IDelegate).IsAssignableFrom(inTargetType))
+        if (typeof(IDelegate).IsAssignableFrom(targetType))
         {
             // A delegate without a function type is still stored
-            IDelegate @delegate = (IDelegate)Activator.CreateInstance(inTargetType)!;
+            IDelegate @delegate = (IDelegate)Activator.CreateInstance(targetType)!;
             @delegate.FunctionType = (IType?)value;
             value = @delegate;
             return true;
@@ -58,12 +58,12 @@ public abstract class BaseEbxReader(DataAccessor inAccessor)
             return false;
         }
 
-        if (!typeof(IPrimitive).IsAssignableFrom(inTargetType))
+        if (!typeof(IPrimitive).IsAssignableFrom(targetType))
         {
             return true;
         }
 
-        IPrimitive primitive = (IPrimitive)Activator.CreateInstance(inTargetType)!;
+        IPrimitive primitive = (IPrimitive)Activator.CreateInstance(targetType)!;
         primitive.FromActualType(value);
         value = primitive;
         return true;

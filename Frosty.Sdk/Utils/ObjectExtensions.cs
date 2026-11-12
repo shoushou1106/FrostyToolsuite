@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Reflection;
 
 using Frosty.Sdk.Interfaces;
@@ -9,15 +10,17 @@ public static class ObjectExtensions
 {
     extension(object obj)
     {
-        public T GetProperty<T>(string inPropertyName)
+        public T GetProperty<T>(string propertyName)
         {
             ArgumentNullException.ThrowIfNull(obj);
 
             Type type = obj.GetType();
-            PropertyInfo? property = type.GetProperty(inPropertyName);
+            PropertyInfo? property = type.GetProperty(propertyName);
             if (property is null)
             {
-                throw new MissingMemberException($"Property {inPropertyName} is not found in type {type}");
+                throw new MissingMemberException(
+                    string.Create(CultureInfo.InvariantCulture,
+                        $"Property {propertyName} is not found in type {type}"));
             }
 
             object? value = property.GetValue(obj);
@@ -26,16 +29,17 @@ public static class ObjectExtensions
                 T result => result,
                 IPrimitive primitive when primitive.ToActualType() is T result2 => result2,
                 _ => throw new InvalidCastException(
-                    $"Property {inPropertyName} of type {type} is not a {typeof(T)}")
+                    string.Create(CultureInfo.InvariantCulture,
+                        $"Property {propertyName} of type {type} is not a {typeof(T)}"))
             };
         }
 
-        public bool TryGetProperty<T>(string inPropertyName, [NotNullWhen(true)] out T? result)
+        public bool TryGetProperty<T>(string propertyName, [NotNullWhen(true)] out T? result)
         {
             ArgumentNullException.ThrowIfNull(obj);
 
             Type type = obj.GetType();
-            PropertyInfo? property = type.GetProperty(inPropertyName);
+            PropertyInfo? property = type.GetProperty(propertyName);
             if (property is null)
             {
                 result = default;

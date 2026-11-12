@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Frosty.Sdk.Utils.Huffman;
 
 /// <summary>
@@ -59,6 +61,6 @@ internal class HuffmanNode : IComparable<HuffmanNode>
             4294967285 => "newLine",
             _ => Letter.ToString()
         };
-        return $"[Value = <{Value}> | Letter = <{printLetter}>]";
+        return string.Create(CultureInfo.InvariantCulture, $"[Value = <{Value}> | Letter = <{printLetter}>]");
     }
 }

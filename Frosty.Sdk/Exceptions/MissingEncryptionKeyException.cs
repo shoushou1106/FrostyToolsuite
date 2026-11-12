@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using Frosty.Sdk.Managers;
 
 namespace Frosty.Sdk.Exceptions;
@@ -33,6 +35,8 @@ public sealed class MissingEncryptionKeyException : Exception
     /// <param name="keyId">The ID of the key in <see cref="KeyManager" />.</param>
     public static MissingEncryptionKeyException ForKey(string keyId)
     {
-        return new MissingEncryptionKeyException($"The encryption key \"{keyId}\" is not loaded.") { KeyId = keyId };
+        return new MissingEncryptionKeyException(
+            string.Create(CultureInfo.InvariantCulture,
+                $"The encryption key \"{keyId}\" is not loaded.")) { KeyId = keyId };
     }
 }

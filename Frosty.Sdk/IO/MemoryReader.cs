@@ -18,7 +18,7 @@ namespace Frosty.Sdk.IO;
 ///     <c>/proc/&lt;pid&gt;/mem</c> on Linux.
 ///     Both need the same rights as attaching a debugger to that process.
 /// </summary>
-public sealed partial class MemoryReader(Process inProcess) : IDisposable
+public sealed partial class MemoryReader(Process process) : IDisposable
 {
     // Linux only, lazy load.
     private SafeFileHandle? _memoryHandle;
@@ -183,17 +183,17 @@ public sealed partial class MemoryReader(Process inProcess) : IDisposable
         Position += bytesRead;
     }
 
-    public nint ScanPattern(string inPattern)
+    public nint ScanPattern(string pattern)
     {
-        ArgumentNullException.ThrowIfNull(inPattern);
+        ArgumentNullException.ThrowIfNull(pattern);
 
-        string[] parts = inPattern.Trim().Split(' ');
-        byte[] pattern = new byte[parts.Length];
+        string[] parts = pattern.Trim().Split(' ');
+        byte[] patternBytes = new byte[parts.Length];
         bool[] isWildcard = new bool[parts.Length];
         for (int i = 0; i < parts.Length; i++)
         {
             isWildcard[i] = parts[i].Contains('?', StringComparison.Ordinal);
-            pattern[i] = isWildcard[i]
+            patternBytes[i] = isWildcard[i]
                 ? (byte)0
                 : byte.Parse(parts[i], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
         }
@@ -208,7 +208,7 @@ public sealed partial class MemoryReader(Process inProcess) : IDisposable
 
             int bytesRead = ReadMemory(address, buffer.AsSpan(0, size));
 
-            int index = IndexOfPattern(buffer.AsSpan(0, bytesRead), pattern, isWildcard);
+            int index = IndexOfPattern(buffer.AsSpan(0, bytesRead), patternBytes, isWildcard);
             if (index != -1)
             {
                 return address + index;
@@ -218,18 +218,18 @@ public sealed partial class MemoryReader(Process inProcess) : IDisposable
         return nint.Zero;
     }
 
-    private static int IndexOfPattern(ReadOnlySpan<byte> inBuffer,
-        ReadOnlySpan<byte> inPattern, ReadOnlySpan<bool> inIsWildcard)
+    private static int IndexOfPattern(ReadOnlySpan<byte> buffer,
+        ReadOnlySpan<byte> pattern, ReadOnlySpan<bool> isWildcard)
     {
-        for (int i = 0; i <= inBuffer.Length - inPattern.Length; i++)
+        for (int i = 0; i <= buffer.Length - pattern.Length; i++)
         {
             int x = 0;
-            while (x < inPattern.Length && (inIsWildcard[x] || inBuffer[i + x] == inPattern[x]))
+            while (x < pattern.Length && (isWildcard[x] || buffer[i + x] == pattern[x]))
             {
                 x++;
             }
 
-            if (x == inPattern.Length)
+            if (x == pattern.Length)
             {
                 return i;
             }
@@ -242,11 +242,11 @@ public sealed partial class MemoryReader(Process inProcess) : IDisposable
     {
         if (OperatingSystem.IsWindows())
         {
-            nint currentAddress = inProcess.MainModule?.BaseAddress ?? 0;
+            nint currentAddress = process.MainModule?.BaseAddress ?? 0;
 
             while (true)
             {
-                if (NativeMethods.VirtualQueryEx(inProcess.SafeHandle, currentAddress,
+                if (NativeMethods.VirtualQueryEx(process.SafeHandle, currentAddress,
                         out MemoryBasicInformation64 region, (nuint)Unsafe.SizeOf<MemoryBasicInformation64>()) == 0)
                 {
                     int error = Marshal.GetLastPInvokeError();
@@ -270,7 +270,8 @@ public sealed partial class MemoryReader(Process inProcess) : IDisposable
         }
         else if (OperatingSystem.IsLinux())
         {
-            foreach (string region in File.ReadLines($"/proc/{inProcess.Id}/maps"))
+            foreach (string region in File.ReadLines(
+                         string.Create(CultureInfo.InvariantCulture, $"/proc/{process.Id}/maps")))
             {
                 string[] columns = region.Split(' ');
                 string range = columns[0];
@@ -297,11 +298,11 @@ public sealed partial class MemoryReader(Process inProcess) : IDisposable
         }
     }
 
-    private int ReadMemory(nint inAddress, Span<byte> outData)
+    private int ReadMemory(nint address, Span<byte> data)
     {
         if (OperatingSystem.IsWindows())
         {
-            if (!NativeMethods.ReadProcessMemory(inProcess.SafeHandle, inAddress, outData, (nuint)outData.Length,
+            if (!NativeMethods.ReadProcessMemory(process.SafeHandle, address, data, (nuint)data.Length,
                     out nuint bytesRead))
             {
                 throw new Win32Exception(Marshal.GetLastPInvokeError());
@@ -315,9 +316,10 @@ public sealed partial class MemoryReader(Process inProcess) : IDisposable
             throw new PlatformNotSupportedException("MemoryReader only supports Windows or Linux right now.");
         }
 
-        _memoryHandle ??= File.OpenHandle($"/proc/{inProcess.Id}/mem", FileMode.Open, FileAccess.Read,
+        _memoryHandle ??= File.OpenHandle(
+            string.Create(CultureInfo.InvariantCulture, $"/proc/{process.Id}/mem"), FileMode.Open, FileAccess.Read,
             FileShare.ReadWrite);
-        return RandomAccess.Read(_memoryHandle, outData, inAddress);
+        return RandomAccess.Read(_memoryHandle, data, address);
     }
 
     #region -- Windows --

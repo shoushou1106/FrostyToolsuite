@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.IO.Ebx;
@@ -39,6 +41,6 @@ public readonly record struct EbxImportReference(Guid PartitionGuid, Guid Instan
 
     public override string ToString()
     {
-        return $"{PartitionGuid}/{InstanceGuid}";
+        return string.Create(CultureInfo.InvariantCulture, $"{PartitionGuid}/{InstanceGuid}");
     }
 }

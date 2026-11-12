@@ -1,4 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+
 using Frosty.Sdk.IO;
 using Frosty.Sdk.Utils;
 
@@ -51,7 +53,7 @@ public sealed class DbObjectDict : DbObject
     [return: NotNullIfNotNull(nameof(defaultValue))]
     public DbObjectDict? AsDict(string name, DbObjectDict? defaultValue)
     {
-        return _items.TryGetValue(name, out var item) ? item.AsDict() : defaultValue;
+        return _items.TryGetValue(name, out DbObject? item) ? item.AsDict() : defaultValue;
     }
 
     public DbObjectList AsList(string name)
@@ -62,57 +64,57 @@ public sealed class DbObjectDict : DbObject
     [return: NotNullIfNotNull(nameof(defaultValue))]
     public DbObjectList? AsList(string name, DbObjectList? defaultValue)
     {
-        return _items.TryGetValue(name, out var item) ? item.AsList() : defaultValue;
+        return _items.TryGetValue(name, out DbObject? item) ? item.AsList() : defaultValue;
     }
 
     public bool AsBoolean(string name, bool defaultValue = default)
     {
-        return _items.TryGetValue(name, out var item) ? item.AsBoolean() : defaultValue;
+        return _items.TryGetValue(name, out DbObject? item) ? item.AsBoolean() : defaultValue;
     }
 
     public string AsString(string name, string defaultValue = "")
     {
-        return _items.TryGetValue(name, out var item) ? item.AsString() : defaultValue;
+        return _items.TryGetValue(name, out DbObject? item) ? item.AsString() : defaultValue;
     }
 
     public int AsInt(string name, int defaultValue = default)
     {
-        return _items.TryGetValue(name, out var item) ? item.AsInt() : defaultValue;
+        return _items.TryGetValue(name, out DbObject? item) ? item.AsInt() : defaultValue;
     }
 
     public uint AsUInt(string name, uint defaultValue = default)
     {
-        return _items.TryGetValue(name, out var item) ? item.AsUInt() : defaultValue;
+        return _items.TryGetValue(name, out DbObject? item) ? item.AsUInt() : defaultValue;
     }
 
     public long AsLong(string name, long defaultValue = default)
     {
-        return _items.TryGetValue(name, out var item) ? item.AsLong() : defaultValue;
+        return _items.TryGetValue(name, out DbObject? item) ? item.AsLong() : defaultValue;
     }
 
     public ulong AsULong(string name, ulong defaultValue = default)
     {
-        return _items.TryGetValue(name, out var item) ? item.AsULong() : defaultValue;
+        return _items.TryGetValue(name, out DbObject? item) ? item.AsULong() : defaultValue;
     }
 
     public float AsFloat(string name, float defaultValue = default)
     {
-        return _items.TryGetValue(name, out var item) ? item.AsFloat() : defaultValue;
+        return _items.TryGetValue(name, out DbObject? item) ? item.AsFloat() : defaultValue;
     }
 
     public double AsDouble(string name, double defaultValue = default)
     {
-        return _items.TryGetValue(name, out var item) ? item.AsDouble() : defaultValue;
+        return _items.TryGetValue(name, out DbObject? item) ? item.AsDouble() : defaultValue;
     }
 
     public Guid AsGuid(string name, Guid defaultValue = default)
     {
-        return _items.TryGetValue(name, out var item) ? item.AsGuid() : defaultValue;
+        return _items.TryGetValue(name, out DbObject? item) ? item.AsGuid() : defaultValue;
     }
 
     public Sha1 AsSha1(string name, Sha1 defaultValue = default)
     {
-        return _items.TryGetValue(name, out var item) ? item.AsSha1() : defaultValue;
+        return _items.TryGetValue(name, out DbObject? item) ? item.AsSha1() : defaultValue;
     }
 
     public byte[] AsBlob(string name)
@@ -123,7 +125,7 @@ public sealed class DbObjectDict : DbObject
     [return: NotNullIfNotNull(nameof(defaultValue))]
     public byte[]? AsBlob(string name, byte[]? defaultValue)
     {
-        return _items.TryGetValue(name, out var item) ? item.AsBlob() : defaultValue;
+        return _items.TryGetValue(name, out DbObject? item) ? item.AsBlob() : defaultValue;
     }
 
     public bool ContainsKey(string name)
@@ -215,7 +217,10 @@ public sealed class DbObjectDict : DbObject
         // The size of the children is not needed, they end with a terminator
         accessor.Read7BitEncodedInt64();
 
-        while (Deserialize(accessor) is { } child) _items.Add(child.Name, child);
+        while (Deserialize(accessor) is { } child)
+        {
+            _items.Add(child.Name, child);
+        }
     }
 
     private static void ThrowIfNameDiffers(string name, DbObject value)
@@ -223,7 +228,10 @@ public sealed class DbObjectDict : DbObject
         ArgumentNullException.ThrowIfNull(value);
 
         if (!string.Equals(value.Name, name, StringComparison.Ordinal))
+        {
             throw new ArgumentException(
-                $"The value is named '{value.Name}' but stored as '{name}'.", nameof(value));
+                string.Create(CultureInfo.InvariantCulture,
+                    $"The value is named '{value.Name}' but stored as '{name}'."), nameof(value));
+        }
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Globalization;
 using System.Reflection;
 
 using Frosty.Sdk.Attributes;
@@ -36,17 +37,17 @@ public sealed class EbxWriter : BaseEbxWriter
 
     private ushort _uniqueClassCount;
 
-    public EbxWriter(DataAccessor inAccessor)
-        : base(inAccessor)
+    public EbxWriter(DataAccessor accessor)
+        : base(accessor)
     {
         _typeResolver = new EbxTypeResolver(_typeDescriptors, _fieldDescriptors);
     }
 
-    protected override void InternalWriteEbx(Guid inPartitionGuid, int inExportedInstanceCount)
+    protected override void InternalWriteEbx(Guid partitionGuid, int exportedInstanceCount)
     {
         ProcessData();
 
-        WriteHeader(inPartitionGuid);
+        WriteHeader(partitionGuid);
 
         if (ProfilesLibrary.EbxVersion >= 4)
         {
@@ -216,35 +217,35 @@ public sealed class EbxWriter : BaseEbxWriter
         _accessor.Position = stringsOffset + stringsAndDataLen;
     }
 
-    protected override int CompareInstances(IEbxInstance inA, IEbxInstance inB)
+    protected override int CompareInstances(IEbxInstance a, IEbxInstance b)
     {
-        ArgumentNullException.ThrowIfNull(inA);
-        ArgumentNullException.ThrowIfNull(inB);
+        ArgumentNullException.ThrowIfNull(a);
+        ArgumentNullException.ThrowIfNull(b);
 
-        return string.Compare(inA.GetType().GetName(), inB.GetType().GetName(), StringComparison.Ordinal);
+        return string.Compare(a.GetType().GetName(), b.GetType().GetName(), StringComparison.Ordinal);
     }
 
-    protected override int AddType(Type inType)
+    protected override int AddType(Type type)
     {
-        ArgumentNullException.ThrowIfNull(inType);
+        ArgumentNullException.ThrowIfNull(type);
 
         if (_useSharedTypeDescriptors)
         {
-            _typeDescriptors.Add(EbxSharedTypeDescriptors.GetKey(inType.GetNameHash()));
-            _typeToDescriptor.Add(inType.GetNameHash(), _typeDescriptors.Count - 1);
+            _typeDescriptors.Add(EbxSharedTypeDescriptors.GetKey(type.GetNameHash()));
+            _typeToDescriptor.Add(type.GetNameHash(), _typeDescriptors.Count - 1);
 
             return _typeDescriptors.Count - 1;
         }
 
         int index;
-        EbxTypeMetaAttribute? typeMeta = inType.GetCustomAttribute<EbxTypeMetaAttribute>();
+        EbxTypeMetaAttribute? typeMeta = type.GetCustomAttribute<EbxTypeMetaAttribute>();
 
-        if (inType.IsEnum)
+        if (type.IsEnum)
         {
-            string[] enumNames = inType.GetEnumNames();
-            Array enumValues = inType.GetEnumValues();
+            string[] enumNames = type.GetEnumNames();
+            Array enumValues = type.GetEnumValues();
 
-            string name = inType.GetName();
+            string name = type.GetName();
 
             uint nameHash = (uint)Fnv1.HashString(name);
 
@@ -266,13 +267,13 @@ public sealed class EbxWriter : BaseEbxWriter
                     (uint)enumValue, _fieldDescriptors.Count - 1);
             }
         }
-        else if (inType.Name.Equals(CollectionName, StringComparison.Ordinal))
+        else if (type.Name.Equals(CollectionName, StringComparison.Ordinal))
         {
-            Type elementType = inType.GenericTypeArguments[0].Name == "PointerRef"
+            Type elementType = type.GenericTypeArguments[0].Name == "PointerRef"
                 ? DataContainerType
-                : inType.GenericTypeArguments[0];
+                : type.GenericTypeArguments[0];
 
-            string name = inType.GetName();
+            string name = type.GetName();
 
             uint nameHash = (uint)Fnv1.HashString(name);
 
@@ -288,22 +289,22 @@ public sealed class EbxWriter : BaseEbxWriter
                 elementType.GetCustomAttribute<EbxTypeMetaAttribute>()!.Flags,
                 arrayClassRef, 0, 0, _typeDescriptors[index].FieldIndex);
         }
-        else if (inType.IsClass)
+        else if (type.IsClass)
         {
             bool inherited = false;
             ushort superClassRef = 0;
-            if (inType.BaseType!.Namespace!.StartsWith(EbxNamespace, StringComparison.Ordinal))
+            if (type.BaseType!.Namespace!.StartsWith(EbxNamespace, StringComparison.Ordinal))
             {
-                superClassRef = FindOrAddType(inType.BaseType);
+                superClassRef = FindOrAddType(type.BaseType);
                 inherited = true;
             }
 
             PropertyInfo[] allProps =
-                inType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+                type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
             // Ignore transients if saving to project
             List<PropertyInfo> classProperties =
                 [.. allProps.Where(static pi => pi.GetCustomAttribute<IsTransientAttribute>() is null)];
-            string name = inType.GetName();
+            string name = type.GetName();
 
             uint nameHash = (uint)Fnv1.HashString(name);
             index = AddType(name, nameHash, _fieldDescriptors.Count, (byte)classProperties.Count, 4, typeMeta!.Flags,
@@ -354,15 +355,15 @@ public sealed class EbxWriter : BaseEbxWriter
 
             _typeDescriptors[index] = typeDesc;
         }
-        else if (inType.IsValueType)
+        else if (type.IsValueType)
         {
             PropertyInfo[] allProps =
-                inType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+                type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
             // Ignore transients
             List<PropertyInfo> objProperties =
                 [.. allProps.Where(static pi => pi.GetCustomAttribute<IsTransientAttribute>() is null)];
 
-            string name = inType.GetName();
+            string name = type.GetName();
 
             uint nameHash = (uint)Fnv1.HashString(name);
 
@@ -394,18 +395,19 @@ public sealed class EbxWriter : BaseEbxWriter
         }
         else
         {
-            throw new NotSupportedException($"The Legacy EBX writer does not support type {inType}.");
+            throw new NotSupportedException(
+                string.Create(CultureInfo.InvariantCulture, $"The Legacy EBX writer does not support type {type}."));
         }
 
         return index;
     }
 
-    private ushort FindOrAddType(Type inType)
+    private ushort FindOrAddType(Type type)
     {
-        int index = FindExistingType(inType);
+        int index = FindExistingType(type);
         if (index == -1)
         {
-            index = AddType(inType);
+            index = AddType(type);
         }
 
         return (ushort)index;
@@ -584,7 +586,7 @@ public sealed class EbxWriter : BaseEbxWriter
         _typeNames.Add(name);
     }
 
-    private void WriteHeader(Guid inPartitionGuid)
+    private void WriteHeader(Guid partitionGuid)
     {
         _accessor.WriteInt32((int)(ProfilesLibrary.EbxVersion >= 4 ? EbxVersion.Version4 : EbxVersion.Version2));
         _accessor.WriteInt32(0x00); // stringsOffset
@@ -599,17 +601,17 @@ public sealed class EbxWriter : BaseEbxWriter
         _accessor.WriteInt32(0x00); // stringsLen
         _accessor.WriteInt32(_arrays.Count);
         _accessor.WriteInt32(0x00); // dataLen
-        _accessor.WriteGuid(inPartitionGuid);
+        _accessor.WriteGuid(partitionGuid);
     }
 
-    private void WriteType(object obj, EbxTypeDescriptor inTypeDescriptor, DataAccessor writer, long startPos)
+    private void WriteType(object obj, EbxTypeDescriptor typeDescriptor, DataAccessor writer, long startPos)
     {
         Type objType = obj.GetType();
         PropertyInfo[] properties = objType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
-        for (int i = 0; i < inTypeDescriptor.GetFieldCount(); i++)
+        for (int i = 0; i < typeDescriptor.GetFieldCount(); i++)
         {
-            EbxFieldDescriptor field = _typeResolver.ResolveField(inTypeDescriptor.FieldIndex + i);
+            EbxFieldDescriptor field = _typeResolver.ResolveField(typeDescriptor.FieldIndex + i);
             PropertyInfo? ebxProperty = properties.FirstOrDefault(prop =>
             {
                 if (string.IsNullOrEmpty(field.Name))
@@ -626,21 +628,21 @@ public sealed class EbxWriter : BaseEbxWriter
             if (type == TypeEnum.Void)
             {
                 // Write superclass first
-                WriteType(obj, _typeResolver.ResolveType(inTypeDescriptor, field.TypeDescriptorRef), writer, startPos);
+                WriteType(obj, _typeResolver.ResolveType(typeDescriptor, field.TypeDescriptorRef), writer, startPos);
                 continue;
             }
 
             if (ebxProperty is not null)
             {
-                WriteField(ebxProperty.GetValue(obj)!, inTypeDescriptor, type, field.TypeDescriptorRef, writer);
+                WriteField(ebxProperty.GetValue(obj)!, typeDescriptor, type, field.TypeDescriptorRef, writer);
             }
         }
 
-        writer.Position = startPos + inTypeDescriptor.Size;
+        writer.Position = startPos + typeDescriptor.Size;
     }
 
-    private void WriteField(object ebxObj, EbxTypeDescriptor? inParentTypeDescriptor, TypeEnum ebxType,
-        ushort inTypeDescriptorRef, DataAccessor writer)
+    private void WriteField(object ebxObj, EbxTypeDescriptor? parentTypeDescriptor, TypeEnum ebxType,
+        ushort typeDescriptorRef, DataAccessor writer)
     {
         switch (ebxType)
         {
@@ -685,9 +687,9 @@ public sealed class EbxWriter : BaseEbxWriter
 
             case TypeEnum.Struct:
                 {
-                    EbxTypeDescriptor structType = inParentTypeDescriptor.HasValue
-                        ? _typeResolver.ResolveType(inParentTypeDescriptor.Value, inTypeDescriptorRef)
-                        : _typeResolver.ResolveType(inTypeDescriptorRef);
+                    EbxTypeDescriptor structType = parentTypeDescriptor.HasValue
+                        ? _typeResolver.ResolveType(parentTypeDescriptor.Value, typeDescriptorRef)
+                        : _typeResolver.ResolveType(typeDescriptorRef);
                     writer.Pad(structType.GetAlignment());
 
                     WriteType(ebxObj, structType, writer, writer.Position);
@@ -696,10 +698,10 @@ public sealed class EbxWriter : BaseEbxWriter
 
             case TypeEnum.Array:
                 {
-                    int typeDescriptorRef = FindExistingType(ebxObj.GetType());
+                    int arrayTypeDescriptorRef = FindExistingType(ebxObj.GetType());
                     int arrayIdx = 0;
 
-                    EbxTypeDescriptor arrayTypeDescriptor = _typeResolver.ResolveType(typeDescriptorRef);
+                    EbxTypeDescriptor arrayTypeDescriptor = _typeResolver.ResolveType(arrayTypeDescriptorRef);
                     EbxFieldDescriptor elementFieldDescriptor =
                         _typeResolver.ResolveField(arrayTypeDescriptor.FieldIndex);
 
@@ -711,14 +713,14 @@ public sealed class EbxWriter : BaseEbxWriter
                     if (_arrays.Count == 0)
                     {
                         _arrays.Add(
-                            new EbxArray { Count = 0, TypeDescriptorRef = typeDescriptorRef });
+                            new EbxArray { Count = 0, TypeDescriptorRef = arrayTypeDescriptorRef });
                     }
 
                     if (count > 0)
                     {
                         arrayIdx = _arrays.Count;
                         _arrays.Add(
-                            new EbxArray { Count = count, TypeDescriptorRef = typeDescriptorRef });
+                            new EbxArray { Count = count, TypeDescriptorRef = arrayTypeDescriptorRef });
                         // Reserved before writing the elements, which can add arrays of their own
                         int dataIndex = _arrayData.Count;
                         _arrayData.Add([]);
@@ -835,12 +837,13 @@ public sealed class EbxWriter : BaseEbxWriter
             case TypeEnum.Function:
             case TypeEnum.Interface:
             default:
-                throw new InvalidDataException($"Unknown EBX field type: {ebxType}");
+                throw new InvalidDataException(
+                    string.Create(CultureInfo.InvariantCulture, $"Unknown EBX field type: {ebxType}"));
         }
     }
 
-    private new uint AddString(string inValue)
+    private new uint AddString(string value)
     {
-        return string.IsNullOrEmpty(inValue) ? 0xFFFFFFFF : base.AddString(inValue);
+        return string.IsNullOrEmpty(value) ? 0xFFFFFFFF : base.AddString(value);
     }
 }

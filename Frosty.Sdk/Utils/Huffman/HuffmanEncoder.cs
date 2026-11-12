@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Runtime.InteropServices;
 
 using Frosty.Sdk.IO;
@@ -319,7 +320,8 @@ public sealed class HuffmanEncoder
         else
         {
             throw new InvalidOperationException(
-                $"Trying to find encoding for node <{node}> failed due to incorrectly setup encoding tree!");
+                string.Create(CultureInfo.InvariantCulture,
+                    $"Trying to find encoding for node <{node}> failed due to incorrectly setup encoding tree!"));
         }
 
         return encoding;
@@ -356,7 +358,9 @@ public sealed class HuffmanEncoder
             throw new KeyNotFoundException("Encoding does not contain mapping for end delimiter!");
         }
 
-        throw new KeyNotFoundException($"Encoding does not contain a mapping for symbol of value {(int)c}: '{c}'!");
+        throw new KeyNotFoundException(
+            string.Create(CultureInfo.InvariantCulture,
+                $"Encoding does not contain a mapping for symbol of value {(int)c}: '{c}'!"));
     }
 
     /// <summary>

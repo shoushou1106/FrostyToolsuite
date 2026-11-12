@@ -47,14 +47,14 @@ internal static class EbxSharedTypeDescriptors
         return FieldDescriptors[index];
     }
 
-    public static EbxTypeDescriptor GetKey(uint inNameHash)
+    public static EbxTypeDescriptor GetKey(uint nameHash)
     {
-        return new EbxTypeDescriptor(TypeKeyMapping[inNameHash]);
+        return new EbxTypeDescriptor(TypeKeyMapping[nameHash]);
     }
 
-    public static EbxTypeDescriptor GetSharedTypeDescriptor(uint inNameHash)
+    public static EbxTypeDescriptor GetSharedTypeDescriptor(uint nameHash)
     {
-        return TypeDescriptors[KeyTypeMapping[TypeKeyMapping[inNameHash]]];
+        return TypeDescriptors[KeyTypeMapping[TypeKeyMapping[nameHash]]];
     }
 
     private static void Read(Block<byte> file)

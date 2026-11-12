@@ -33,24 +33,24 @@ internal static class EbxSharedTypeDescriptors
         s_isInitialized = true;
     }
 
-    public static EbxTypeDescriptor GetTypeDescriptor(Guid inGuid, uint inSignature)
+    public static EbxTypeDescriptor GetTypeDescriptor(Guid guid, uint signature)
     {
-        return TypeDescriptors[Mapping[(inGuid, inSignature)]];
+        return TypeDescriptors[Mapping[(guid, signature)]];
     }
 
-    public static EbxTypeDescriptor GetTypeDescriptor(ushort inIndex)
+    public static EbxTypeDescriptor GetTypeDescriptor(ushort index)
     {
-        return TypeDescriptors[inIndex];
+        return TypeDescriptors[index];
     }
 
-    public static EbxFieldDescriptor GetFieldDescriptors(int inIndex)
+    public static EbxFieldDescriptor GetFieldDescriptors(int index)
     {
-        return FieldDescriptors[inIndex];
+        return FieldDescriptors[index];
     }
 
-    private static void Read(Block<byte> inFile)
+    private static void Read(Block<byte> file)
     {
-        using DataAccessor accessor = new(inFile.ToStream());
+        using DataAccessor accessor = new(file.ToStream());
         RiffReader riffReader = new(accessor);
         riffReader.ReadHeader(out FourCc fourCc, out uint size);
 
@@ -65,9 +65,9 @@ internal static class EbxSharedTypeDescriptors
         Debug.Assert(riffReader.Eof);
     }
 
-    private static void ProcessChunk(DataAccessor inAccessor, FourCc inFourCc, uint inSize)
+    private static void ProcessChunk(DataAccessor accessor, FourCc fourCc, uint size)
     {
-        if (inFourCc != "REFL" && inFourCc != "RFL2")
+        if (fourCc != "REFL" && fourCc != "RFL2")
         {
             return;
         }
@@ -75,42 +75,42 @@ internal static class EbxSharedTypeDescriptors
         int startFields = FieldDescriptors.Count;
         int startTypes = TypeDescriptors.Count;
 
-        int typeSigCount = inAccessor.ReadInt32();
+        int typeSigCount = accessor.ReadInt32();
         Dictionary<int, int> mapping = new();
         for (int i = 0; i < typeSigCount; i++)
         {
-            (Guid, uint) sig = (inAccessor.ReadGuid(), inAccessor.ReadUInt32());
+            (Guid, uint) sig = (accessor.ReadGuid(), accessor.ReadUInt32());
             if (!Mapping.TryAdd(sig, i + startTypes))
             {
                 mapping.Add(i, Mapping[sig]);
             }
         }
 
-        int typeDescriptorCount = inAccessor.ReadInt32();
+        int typeDescriptorCount = accessor.ReadInt32();
         TypeDescriptors.Capacity = typeDescriptorCount + TypeDescriptors.Count;
         for (int i = 0; i < typeDescriptorCount; i++)
         {
             TypeDescriptors.Add(new EbxTypeDescriptor
             {
-                NameHash = inAccessor.ReadUInt32(),
-                FieldIndex = inAccessor.ReadInt32() + startFields,
-                FieldCount = inAccessor.ReadUInt16(),
-                Flags = inAccessor.ReadUInt16(),
-                Size = inAccessor.ReadUInt16(),
-                Alignment = inAccessor.ReadUInt16()
+                NameHash = accessor.ReadUInt32(),
+                FieldIndex = accessor.ReadInt32() + startFields,
+                FieldCount = accessor.ReadUInt16(),
+                Flags = accessor.ReadUInt16(),
+                Size = accessor.ReadUInt16(),
+                Alignment = accessor.ReadUInt16()
             });
         }
 
-        int fieldDescriptorCount = inAccessor.ReadInt32();
+        int fieldDescriptorCount = accessor.ReadInt32();
         FieldDescriptors.Capacity = fieldDescriptorCount + FieldDescriptors.Count;
         for (int i = 0; i < fieldDescriptorCount; i++)
         {
             EbxFieldDescriptor field = new()
             {
-                NameHash = inAccessor.ReadUInt32(),
-                DataOffset = inAccessor.ReadUInt32(),
-                Flags = inAccessor.ReadUInt16(),
-                TypeDescriptorRef = inAccessor.ReadUInt16()
+                NameHash = accessor.ReadUInt32(),
+                DataOffset = accessor.ReadUInt32(),
+                Flags = accessor.ReadUInt16(),
+                TypeDescriptorRef = accessor.ReadUInt16()
             };
             if (field.TypeDescriptorRef != ushort.MaxValue)
             {
@@ -127,24 +127,24 @@ internal static class EbxSharedTypeDescriptors
             FieldDescriptors.Add(field);
         }
 
-        int unkCount = inAccessor.ReadInt32();
+        int unkCount = accessor.ReadInt32();
         for (int i = 0; i < unkCount; i++)
         {
-            _ = inAccessor.ReadUInt32(); // Unk
-            _ = inAccessor.ReadInt32(); // Count of unk2
-            _ = inAccessor.ReadUInt32(); // Index, maps into unk2
+            _ = accessor.ReadUInt32(); // Unk
+            _ = accessor.ReadInt32(); // Count of unk2
+            _ = accessor.ReadUInt32(); // Index, maps into unk2
         }
 
-        int unk2Count = inAccessor.ReadInt32();
+        int unk2Count = accessor.ReadInt32();
         for (int i = 0; i < unk2Count; i++)
         {
-            _ = inAccessor.ReadUInt32(); // Offset, stringtable offset?
-            _ = inAccessor.ReadInt32(); // Index, maps into signatures
+            _ = accessor.ReadUInt32(); // Offset, stringtable offset?
+            _ = accessor.ReadInt32(); // Index, maps into signatures
         }
 
-        if (inFourCc == "RFL2")
+        if (fourCc == "RFL2")
         {
-            _ = inAccessor.ReadInt32(); // Count of unk3
+            _ = accessor.ReadInt32(); // Count of unk3
         }
     }
 }

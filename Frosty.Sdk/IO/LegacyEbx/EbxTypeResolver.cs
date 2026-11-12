@@ -5,11 +5,11 @@ internal sealed class EbxTypeResolver
     private readonly IReadOnlyList<EbxFieldDescriptor> _fieldDescriptors;
     private readonly IReadOnlyList<EbxTypeDescriptor> _typeDescriptors;
 
-    internal EbxTypeResolver(IReadOnlyList<EbxTypeDescriptor> inTypeDescriptors,
+    internal EbxTypeResolver(IReadOnlyList<EbxTypeDescriptor> typeDescriptors,
         IReadOnlyList<EbxFieldDescriptor> inFieldDescriptors)
     {
         EbxSharedTypeDescriptors.Initialize();
-        _typeDescriptors = inTypeDescriptors;
+        _typeDescriptors = typeDescriptors;
         _fieldDescriptors = inFieldDescriptors;
     }
 

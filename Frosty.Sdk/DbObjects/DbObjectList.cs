@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+
 using Frosty.Sdk.IO;
 using Frosty.Sdk.Utils;
 
@@ -129,6 +130,9 @@ public sealed class DbObjectList : DbObject, IEnumerable<DbObject>
         // The size of the children is not needed, they end with a terminator
         accessor.Read7BitEncodedInt64();
 
-        while (Deserialize(accessor) is { } child) _items.Add(child);
+        while (Deserialize(accessor) is { } child)
+        {
+            _items.Add(child);
+        }
     }
 }

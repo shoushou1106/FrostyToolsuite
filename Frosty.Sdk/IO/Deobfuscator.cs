@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Globalization;
 
 using Microsoft.Extensions.Logging;
 
@@ -70,7 +71,8 @@ public static class Deobfuscator
         string source = GetSourceName(stream);
         if (stream.Length > Array.MaxLength)
         {
-            throw new IOException($"{source} is larger than {Array.MaxLength} bytes.");
+            throw new IOException(
+                string.Create(CultureInfo.InvariantCulture, $"{source} is larger than {Array.MaxLength} bytes."));
         }
 
         int length = (int)stream.Length;
@@ -94,7 +96,9 @@ public static class Deobfuscator
     /// <returns>The quoted file path for a file, otherwise the type of the stream.</returns>
     private static string GetSourceName(Stream stream)
     {
-        return stream is FileStream file ? $"\"{file.Name}\"" : $"The {stream.GetType().Name}";
+        return stream is FileStream file
+            ? string.Create(CultureInfo.InvariantCulture, $"\"{file.Name}\"")
+            : string.Create(CultureInfo.InvariantCulture, $"The {stream.GetType().Name}");
     }
 
     private static bool TryReadTrailerSize(Stream stream, int length, out int trailerSize)
@@ -118,7 +122,8 @@ public static class Deobfuscator
         trailerSize = BinaryPrimitives.ReadInt32LittleEndian(trailerEnd);
         if (trailerSize < TrailerEndSize || trailerSize > length)
         {
-            throw new InvalidDataException($"The obfuscation trailer size {trailerSize} is invalid.");
+            throw new InvalidDataException(
+                string.Create(CultureInfo.InvariantCulture, $"The obfuscation trailer size {trailerSize} is invalid."));
         }
 
         return true;
@@ -160,7 +165,8 @@ public static class Deobfuscator
             // Usually unreachable.
             // Decoding it needs the key from the trailer, see MEADeobfuscator in Frosty v1
             throw new NotImplementedException(
-                $"{source} has the obfuscation trailer, but its data does not start with an obfuscation header.");
+                string.Create(CultureInfo.InvariantCulture,
+                    $"{source} has the obfuscation trailer, but its data does not start with an obfuscation header."));
         }
 
         Span<byte> header = stackalloc byte[HeaderSize];
@@ -185,7 +191,8 @@ public static class Deobfuscator
             // Usually unreachable.
             // Decoding it needs the key from the trailer, see MEADeobfuscator in Frosty v1
             throw new NotImplementedException(
-                $"{source} has the obfuscation trailer, but its data does not start with an obfuscation header.");
+                string.Create(CultureInfo.InvariantCulture,
+                    $"{source} has the obfuscation trailer, but its data does not start with an obfuscation header."));
         }
 
         byte[] data = GC.AllocateUninitializedArray<byte>(length - HeaderSize);

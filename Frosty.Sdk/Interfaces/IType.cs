@@ -36,7 +36,8 @@ public interface IType
     Type Type { get; }
 
     /// <summary>
-    ///     Determines whether current type derives from the specified <paramref name="type" />, like <see cref="System.Type.IsSubclassOf" />.
+    ///     Determines whether current type derives from the specified <paramref name="type" />, like
+    ///     <see cref="System.Type.IsSubclassOf" />.
     /// </summary>
     /// <returns><see langword="false" /> if both are the same type.</returns>
     bool IsSubclassOf(IType type);

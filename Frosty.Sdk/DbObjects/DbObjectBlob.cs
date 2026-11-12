@@ -1,4 +1,6 @@
-﻿using Frosty.Sdk.IO;
+using System.Globalization;
+
+using Frosty.Sdk.IO;
 
 namespace Frosty.Sdk.DbObjects;
 
@@ -48,6 +50,6 @@ public sealed class DbObjectBlob : DbObject
     /// <remarks>Shows only the length, a blob can be megabytes long.</remarks>
     public override string ToString()
     {
-        return $"byte[{_value.Length}]";
+        return string.Create(CultureInfo.InvariantCulture, $"byte[{_value.Length}]");
     }
 }

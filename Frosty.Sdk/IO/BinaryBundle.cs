@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Globalization;
 using System.Security.Cryptography;
 
 using Frosty.Sdk.Exceptions;
@@ -46,7 +47,8 @@ public sealed class BinaryBundle
 
             if (!IsValidMagic(magic))
             {
-                throw new InvalidDataException($"The bundle magic 0x{rawMagic:X8} is not valid.");
+                throw new InvalidDataException(
+                    string.Create(CultureInfo.InvariantCulture, $"The bundle magic 0x{rawMagic:X8} is not valid."));
             }
         }
 
@@ -68,9 +70,7 @@ public sealed class BinaryBundle
         DataAccessor bundle = accessor;
         long stringsOffset = startPos + stringsOffsetInBundle;
         using DataAccessor? decrypted =
-            magic == Magic.Encrypted ?
-                Decrypt(accessor, (int)size - headerSize):
-                null;
+            magic == Magic.Encrypted ? Decrypt(accessor, (int)size - headerSize) : null;
         if (decrypted is not null)
         {
             // The decrypted data starts after the header
@@ -146,6 +146,14 @@ public sealed class BinaryBundle
     public IReadOnlyList<ChunkAssetEntry> ChunkList { get; }
 
     /// <summary>
+    ///     Only the games using the <see cref="BundleFormat.Kelvin" /> format have their own magic, the rest uses
+    ///     <see cref="Magic.Standard" />.
+    /// </summary>
+    /// <returns>The magic the current game uses.</returns>
+    public static Magic CurrentMagic =>
+        FileSystemManager.BundleFormat == BundleFormat.Kelvin ? Magic.Kelvin : Magic.Standard;
+
+    /// <summary>
     ///     Reads <paramref name="size" /> bytes and decrypts them with the bundle encryption key.
     /// </summary>
     /// <exception cref="MissingEncryptionKeyException">The bundle encryption key is not loaded.</exception>
@@ -162,18 +170,10 @@ public sealed class BinaryBundle
         using Aes aes = Aes.Create();
         aes.Key = key;
         // The key is also the IV
-        aes.DecryptCbc(data, iv: key, data, PaddingMode.None);
+        aes.DecryptCbc(data, key, data, PaddingMode.None);
 
         return new DataAccessor(new MemoryStream(data, false));
     }
-
-    /// <summary>
-    ///     Only the games using the <see cref="BundleFormat.Kelvin" /> format have their own magic, the rest uses
-    ///     <see cref="Magic.Standard" />.
-    /// </summary>
-    /// <returns>The magic the current game uses.</returns>
-    public static Magic CurrentMagic =>
-        FileSystemManager.BundleFormat == BundleFormat.Kelvin ? Magic.Kelvin : Magic.Standard;
 
     /// <summary>
     ///     Gets the salt the magic is XORed with.

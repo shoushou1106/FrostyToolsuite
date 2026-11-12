@@ -12,10 +12,10 @@ public sealed class CatReader : IDisposable
     private readonly DataAccessor _accessor;
     private readonly bool _isNewFormat;
 
-    public CatReader(string inFilename)
+    public CatReader(string fileName)
     {
         _isNewFormat = ProfilesLibrary.FrostbiteVersion > "2014.4.11";
-        _accessor = new DataAccessor(_isNewFormat ? Deobfuscator.OpenRead(inFilename) : File.OpenRead(inFilename));
+        _accessor = new DataAccessor(_isNewFormat ? Deobfuscator.OpenRead(fileName) : File.OpenRead(fileName));
 
         string magic = _accessor.ReadFixedSizedString(16);
         if (magic != CatMagic)

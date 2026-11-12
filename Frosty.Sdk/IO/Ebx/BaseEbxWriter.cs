@@ -11,7 +11,7 @@ using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.IO.Ebx;
 
-public abstract class BaseEbxWriter(DataAccessor inAccessor)
+public abstract class BaseEbxWriter(DataAccessor accessor)
 {
     private protected const string EbxNamespace = "Frostbite";
     private protected const string CollectionName = "ObservableCollection`1";
@@ -21,7 +21,7 @@ public abstract class BaseEbxWriter(DataAccessor inAccessor)
 
     // ReSharper disable once MemberCanBePrivate.Global
     private protected static readonly Type? BoxedValueRefType = TypeLibrary.GetType("BoxedValueRef")?.Type;
-    private protected readonly DataAccessor _accessor = inAccessor;
+    private protected readonly DataAccessor _accessor = accessor;
 
     private protected readonly List<byte[]> _arrayData = [];
     private protected readonly List<byte[]> _boxedValueData = [];
@@ -41,19 +41,19 @@ public abstract class BaseEbxWriter(DataAccessor inAccessor)
 
     private protected uint _stringsLength;
 
-    public static BaseEbxWriter CreateWriter(DataAccessor inAccessor)
+    public static BaseEbxWriter CreateWriter(DataAccessor accessor)
     {
-        return ProfilesLibrary.EbxVersion == 6 ? new EbxWriter(inAccessor) : new LegacyEbx.EbxWriter(inAccessor);
+        return ProfilesLibrary.EbxVersion == 6 ? new EbxWriter(accessor) : new LegacyEbx.EbxWriter(accessor);
     }
 
-    public void WritePartition(EbxPartition inPartition)
+    public void WritePartition(EbxPartition partition)
     {
-        ArgumentNullException.ThrowIfNull(inPartition);
+        ArgumentNullException.ThrowIfNull(partition);
 
         List<IEbxInstance> exportedInstances = [with(1)];
-        List<IEbxInstance> internalInstances = [with(inPartition.InternalInstances.Count)];
+        List<IEbxInstance> internalInstances = [with(partition.InternalInstances.Count)];
 
-        foreach (IEbxInstance instance in inPartition.InternalInstances)
+        foreach (IEbxInstance instance in partition.InternalInstances)
         {
             if (instance.GetInstanceGuid().IsExported)
             {
@@ -67,7 +67,7 @@ public abstract class BaseEbxWriter(DataAccessor inAccessor)
 
         int exportedInstanceCount = exportedInstances.Count;
         // The primary instance goes last, the others by GUID
-        Guid primaryInstanceGuid = inPartition.PrimaryInstanceGuid;
+        Guid primaryInstanceGuid = partition.PrimaryInstanceGuid;
         exportedInstances.Sort((a, b) =>
         {
             Guid guidA = a.GetInstanceGuid().ExportedGuid;
@@ -97,33 +97,33 @@ public abstract class BaseEbxWriter(DataAccessor inAccessor)
         }
 
         GenerateImportOrder();
-        InternalWriteEbx(inPartition.PartitionGuid, exportedInstanceCount);
+        InternalWriteEbx(partition.PartitionGuid, exportedInstanceCount);
     }
 
-    protected abstract void InternalWriteEbx(Guid inPartitionGuid, int inExportedInstanceCount);
+    protected abstract void InternalWriteEbx(Guid partitionGuid, int exportedInstanceCount);
 
-    protected abstract int CompareInstances(IEbxInstance inA, IEbxInstance inB);
+    protected abstract int CompareInstances(IEbxInstance a, IEbxInstance b);
 
-    protected abstract int AddType(Type inType);
+    protected abstract int AddType(Type type);
 
-    private void ProcessType(Type inType, object inObj, bool ignore = false)
+    private void ProcessType(Type type, object obj, bool ignore = false)
     {
         // Move real recursing into ProcessContainer()
         while (true)
         {
-            if (!_processedObjects.Add(inObj))
+            if (!_processedObjects.Add(obj))
             {
                 return;
             }
 
-            if (inType == PointerType)
+            if (type == PointerType)
             {
-                PointerRef value = (PointerRef)inObj;
+                PointerRef value = (PointerRef)obj;
                 switch (value.Type)
                 {
                     case PointerRefType.Internal when value.Internal is not null:
-                        inType = value.Internal.GetType();
-                        inObj = value.Internal;
+                        type = value.Internal.GetType();
+                        obj = value.Internal;
                         ignore = false;
                         continue;
                     case PointerRefType.External:
@@ -136,79 +136,79 @@ public abstract class BaseEbxWriter(DataAccessor inAccessor)
                 }
             }
 
-            if (inType == BoxedValueRefType)
+            if (type == BoxedValueRefType)
             {
-                BoxedValueRef boxedValueRef = (BoxedValueRef)((IPrimitive)inObj).ToActualType();
+                BoxedValueRef boxedValueRef = (BoxedValueRef)((IPrimitive)obj).ToActualType();
                 if (boxedValueRef.Value is null)
                 {
                     return;
                 }
 
-                inType = boxedValueRef.Value.GetType();
-                inObj = boxedValueRef.Value;
+                type = boxedValueRef.Value.GetType();
+                obj = boxedValueRef.Value;
                 ignore = false;
                 continue;
             }
 
-            ProcessContainer(inType, inObj, ignore);
+            ProcessContainer(type, obj, ignore);
             return;
         }
     }
 
-    private void ProcessContainer(Type inType, object inObj, bool ignore)
+    private void ProcessContainer(Type type, object obj, bool ignore)
     {
-        if (inType.IsAssignableTo(typeof(IPrimitive)))
+        if (type.IsAssignableTo(typeof(IPrimitive)))
         {
             // Other primitive types have no type descriptor
             return;
         }
 
         // Do not add the same type multiple times
-        bool addType = FindExistingType(inType) == -1 && !ignore;
+        bool addType = FindExistingType(type) == -1 && !ignore;
 
-        if (inType.IsEnum)
+        if (type.IsEnum)
         {
             if (addType)
             {
-                AddType(inType);
+                AddType(type);
             }
         }
-        else if (inType.Name.Equals(CollectionName, StringComparison.Ordinal))
+        else if (type.Name.Equals(CollectionName, StringComparison.Ordinal))
         {
-            foreach (object o in (IList)inObj)
+            foreach (object o in (IList)obj)
             {
                 ProcessType(o.GetType(), o);
             }
 
             if (addType)
             {
-                AddType(inType);
+                AddType(type);
             }
         }
-        else if (inType.IsClass)
+        else if (type.IsClass)
         {
             if (addType)
             {
-                AddType(inType);
+                AddType(type);
             }
 
-            ProcessProperties(inType.GetProperties(BindingFlags.Public | BindingFlags.Instance), inObj);
+            ProcessProperties(type.GetProperties(BindingFlags.Public | BindingFlags.Instance), obj);
         }
-        else if (inType.IsValueType)
+        else if (type.IsValueType)
         {
             if (addType)
             {
-                AddType(inType);
+                AddType(type);
             }
 
-            ProcessProperties(inType.GetProperties(
-                BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly), inObj);
+            ProcessProperties(type.GetProperties(
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly), obj);
         }
     }
 
-    private void ProcessProperties(PropertyInfo[] inProperties, object inObj)
+    private void ProcessProperties(PropertyInfo[] properties, object obj)
     {
-        foreach (PropertyInfo pi in inProperties)
+        foreach (PropertyInfo pi in properties)
         {
             // Ignore transients if saving to project
             if (pi.GetCustomAttribute<IsTransientAttribute>() is not null)
@@ -216,7 +216,7 @@ public abstract class BaseEbxWriter(DataAccessor inAccessor)
                 continue;
             }
 
-            ProcessType(pi.PropertyType, pi.GetValue(inObj)!, _useSharedTypeDescriptors);
+            ProcessType(pi.PropertyType, pi.GetValue(obj)!, _useSharedTypeDescriptors);
         }
     }
 
@@ -260,18 +260,18 @@ public abstract class BaseEbxWriter(DataAccessor inAccessor)
         return offset;
     }
 
-    protected int FindExistingType(Type inType)
+    protected int FindExistingType(Type type)
     {
-        uint hash = _useSharedTypeDescriptors ? inType.GetNameHash() : (uint)Fnv1.HashString(inType.GetName());
+        uint hash = _useSharedTypeDescriptors ? type.GetNameHash() : (uint)Fnv1.HashString(type.GetName());
 
         return _typeToDescriptor.GetValueOrDefault(hash, -1);
     }
 
-    protected int FindExistingType(IType inType)
+    protected int FindExistingType(IType type)
     {
-        ArgumentNullException.ThrowIfNull(inType);
+        ArgumentNullException.ThrowIfNull(type);
 
-        uint hash = _useSharedTypeDescriptors ? inType.NameHash : (uint)Fnv1.HashString(inType.Name);
+        uint hash = _useSharedTypeDescriptors ? type.NameHash : (uint)Fnv1.HashString(type.Name);
 
         return _typeToDescriptor.GetValueOrDefault(hash, -1);
     }

@@ -13,12 +13,10 @@ public sealed class CompressionZstd : ICompressionFormat
 {
     private static readonly Lazy<ZstandardDictionary> EbxDictionary = new(LoadEbxDictionary);
 
-    public string Identifier => "ZStandard";
-
     public int Decompress(ReadOnlySpan<byte> inData, Span<byte> outData,
-        CompressionOptions inOptions = CompressionOptions.None)
+        CompressionOptions options = CompressionOptions.None)
     {
-        bool success = inOptions.HasFlag(CompressionOptions.ZstdWithDict)
+        bool success = options.HasFlag(CompressionOptions.ZstdWithDict)
             ? ZstandardDecoder.TryDecompress(inData, outData, out int written, EbxDictionary.Value)
             : ZstandardDecoder.TryDecompress(inData, outData, out written);
 
@@ -26,16 +24,16 @@ public sealed class CompressionZstd : ICompressionFormat
     }
 
     public int Compress(ReadOnlySpan<byte> inData, Span<byte> outData,
-        CompressionOptions inOptions = CompressionOptions.None)
+        CompressionOptions options = CompressionOptions.None)
     {
         return ZstandardEncoder.TryCompress(inData, outData, out int written)
             ? written
             : throw new ArgumentException("The destination is too small.", nameof(outData));
     }
 
-    public int GetCompressBounds(int inRawSize, CompressionOptions inOptions = CompressionOptions.None)
+    public int GetCompressBounds(int rawSize, CompressionOptions options = CompressionOptions.None)
     {
-        return checked((int)ZstandardEncoder.GetMaxCompressedLength(inRawSize));
+        return checked((int)ZstandardEncoder.GetMaxCompressedLength(rawSize));
     }
 
     private static ZstandardDictionary LoadEbxDictionary()

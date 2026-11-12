@@ -45,37 +45,37 @@ internal struct EbxHeader
     // Only in Version4
     public EbxBoxedValue[] BoxedValues;
 
-    public static EbxHeader ReadHeader(DataAccessor inAccessor)
+    public static EbxHeader ReadHeader(DataAccessor accessor)
     {
         EbxHeader header = new()
         {
-            Magic = (EbxVersion)inAccessor.ReadUInt32(),
-            StringsOffset = inAccessor.ReadUInt32(),
-            StringsAndDataLength = inAccessor.ReadUInt32(),
-            ImportCount = inAccessor.ReadInt32(),
-            InstanceCount = inAccessor.ReadUInt16(),
-            ExportedInstanceCount = inAccessor.ReadUInt16(),
-            UniqueTypeCount = inAccessor.ReadUInt16(),
-            TypeDescriptorCount = inAccessor.ReadUInt16(),
-            FieldDescriptorCount = inAccessor.ReadUInt16(),
-            TypeNameTableLength = inAccessor.ReadUInt16(),
-            StringTableLength = inAccessor.ReadUInt32(),
-            ArrayCount = inAccessor.ReadInt32(),
-            DataLength = inAccessor.ReadUInt32(),
-            PartitionGuid = inAccessor.ReadGuid()
+            Magic = (EbxVersion)accessor.ReadUInt32(),
+            StringsOffset = accessor.ReadUInt32(),
+            StringsAndDataLength = accessor.ReadUInt32(),
+            ImportCount = accessor.ReadInt32(),
+            InstanceCount = accessor.ReadUInt16(),
+            ExportedInstanceCount = accessor.ReadUInt16(),
+            UniqueTypeCount = accessor.ReadUInt16(),
+            TypeDescriptorCount = accessor.ReadUInt16(),
+            FieldDescriptorCount = accessor.ReadUInt16(),
+            TypeNameTableLength = accessor.ReadUInt16(),
+            StringTableLength = accessor.ReadUInt32(),
+            ArrayCount = accessor.ReadInt32(),
+            DataLength = accessor.ReadUInt32(),
+            PartitionGuid = accessor.ReadGuid()
         };
 
         header.ArrayOffset = header.StringsOffset + header.StringTableLength + header.DataLength;
 
         if (header.Magic == EbxVersion.Version4)
         {
-            header.BoxedValueCount = inAccessor.ReadInt32();
-            header.BoxedValueOffset = inAccessor.ReadUInt32();
+            header.BoxedValueCount = accessor.ReadInt32();
+            header.BoxedValueOffset = accessor.ReadUInt32();
             header.BoxedValueOffset += header.StringsOffset + header.StringTableLength;
         }
         else
         {
-            inAccessor.Pad(16);
+            accessor.Pad(16);
         }
 
         header.Imports = new EbxImportReference[header.ImportCount];
@@ -84,7 +84,7 @@ internal struct EbxHeader
         {
             EbxImportReference import = new()
             {
-                PartitionGuid = inAccessor.ReadGuid(), InstanceGuid = inAccessor.ReadGuid()
+                PartitionGuid = accessor.ReadGuid(), InstanceGuid = accessor.ReadGuid()
             };
 
             header.Imports[i] = import;
@@ -93,10 +93,10 @@ internal struct EbxHeader
 
         Dictionary<int, string> typeNames = new();
 
-        long typeNamesOffset = inAccessor.Position;
-        while (inAccessor.Position - typeNamesOffset < header.TypeNameTableLength)
+        long typeNamesOffset = accessor.Position;
+        while (accessor.Position - typeNamesOffset < header.TypeNameTableLength)
         {
-            string typeName = inAccessor.ReadNullTerminatedString();
+            string typeName = accessor.ReadNullTerminatedString();
             int hash = Fnv1.HashString(typeName);
 
             typeNames.TryAdd(hash, typeName);
@@ -107,11 +107,11 @@ internal struct EbxHeader
         {
             EbxFieldDescriptor fieldDescriptor = new()
             {
-                NameHash = inAccessor.ReadUInt32(),
-                Flags = inAccessor.ReadUInt16(),
-                TypeDescriptorRef = inAccessor.ReadUInt16(),
-                DataOffset = inAccessor.ReadUInt32(),
-                SecondOffset = inAccessor.ReadUInt32()
+                NameHash = accessor.ReadUInt32(),
+                Flags = accessor.ReadUInt16(),
+                TypeDescriptorRef = accessor.ReadUInt16(),
+                DataOffset = accessor.ReadUInt32(),
+                SecondOffset = accessor.ReadUInt32()
             };
 
             fieldDescriptor.Name = typeNames.TryGetValue((int)fieldDescriptor.NameHash, out string? value)
@@ -126,13 +126,13 @@ internal struct EbxHeader
         {
             EbxTypeDescriptor typeDescriptor = new()
             {
-                NameHash = inAccessor.ReadUInt32(),
-                FieldIndex = inAccessor.ReadInt32(),
-                FieldCount = inAccessor.ReadByte(),
-                Alignment = inAccessor.ReadByte(),
-                Flags = inAccessor.ReadUInt16(),
-                Size = inAccessor.ReadUInt16(),
-                SecondSize = inAccessor.ReadUInt16(),
+                NameHash = accessor.ReadUInt32(),
+                FieldIndex = accessor.ReadInt32(),
+                FieldCount = accessor.ReadByte(),
+                Alignment = accessor.ReadByte(),
+                Flags = accessor.ReadUInt16(),
+                Size = accessor.ReadUInt16(),
+                SecondSize = accessor.ReadUInt16(),
                 Index = -1
             };
 
@@ -148,35 +148,35 @@ internal struct EbxHeader
         {
             header.Instances[i] = new EbxInstance
             {
-                TypeDescriptorRef = inAccessor.ReadUInt16(),
-                Count = inAccessor.ReadUInt16(),
+                TypeDescriptorRef = accessor.ReadUInt16(),
+                Count = accessor.ReadUInt16(),
                 IsExported = i < header.ExportedInstanceCount
             };
         }
 
-        inAccessor.Pad(16);
+        accessor.Pad(16);
 
         header.Arrays = new EbxArray[header.ArrayCount];
         for (int i = 0; i < header.ArrayCount; i++)
         {
             header.Arrays[i] = new EbxArray
             {
-                Offset = inAccessor.ReadUInt32(),
-                Count = inAccessor.ReadInt32(),
-                TypeDescriptorRef = inAccessor.ReadInt32()
+                Offset = accessor.ReadUInt32(),
+                Count = accessor.ReadInt32(),
+                TypeDescriptorRef = accessor.ReadInt32()
             };
         }
 
-        inAccessor.Pad(16);
+        accessor.Pad(16);
 
         header.BoxedValues = new EbxBoxedValue[header.BoxedValueCount];
         for (int i = 0; i < header.BoxedValueCount; i++)
         {
             header.BoxedValues[i] = new EbxBoxedValue
             {
-                Offset = inAccessor.ReadUInt32(),
-                TypeDescriptorRef = inAccessor.ReadUInt16(),
-                Type = inAccessor.ReadUInt16()
+                Offset = accessor.ReadUInt32(),
+                TypeDescriptorRef = accessor.ReadUInt16(),
+                Type = accessor.ReadUInt16()
             };
         }
 

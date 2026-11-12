@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Diagnostics;
+using System.Globalization;
 
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO.Compression;
@@ -22,10 +23,10 @@ public static class Cas
     private static readonly CompressionLz4 Lz4Format = new();
     private static readonly CompressionOodle OodleFormat = new();
 
-    public static byte[] CompressData(ReadOnlySpan<byte> inData, CompressionType inType, CompressionOptions inOptions)
+    public static byte[] CompressData(ReadOnlySpan<byte> data, CompressionType type, CompressionOptions options)
     {
         ICompressionFormat? compressor;
-        switch (inType)
+        switch (type)
         {
             case CompressionType.None:
                 compressor = null;
@@ -41,52 +42,52 @@ public static class Cas
                 break;
             case CompressionType.OodleKraken:
                 compressor = OodleFormat;
-                inOptions = CompressionOptions.OodleKraken;
+                options = CompressionOptions.OodleKraken;
                 break;
             case CompressionType.OodleSelkie:
                 compressor = OodleFormat;
-                inOptions = CompressionOptions.OodleSelkie;
+                options = CompressionOptions.OodleSelkie;
                 break;
             case CompressionType.OodleLeviathan:
                 compressor = OodleFormat;
-                inOptions = CompressionOptions.OodleLeviathan;
+                options = CompressionOptions.OodleLeviathan;
                 break;
             case CompressionType.Obfuscated:
                 throw new NotImplementedException("Writing Obfuscated CAS blocks is not supported yet.");
             default:
-                throw new ArgumentOutOfRangeException(nameof(inType), inType, "Not a CAS compression type.");
+                throw new ArgumentOutOfRangeException(nameof(type), type, "Not a CAS compression type.");
         }
 
-        byte flags = (byte)(inOptions == CompressionOptions.ZstdWithDict ? 1 : 0);
+        byte flags = (byte)(options == CompressionOptions.ZstdWithDict ? 1 : 0);
         int maxBufferSize = ProfilesLibrary.MaxBufferSize;
-        int blockCount = (inData.Length + maxBufferSize - 1) / maxBufferSize;
+        int blockCount = (data.Length + maxBufferSize - 1) / maxBufferSize;
 
         // Allocate a reusable buffer sized for the largest single block's compression bounds.
         byte[] compressBuffer = compressor is null || blockCount == 0
             ? [] // "= []" allocates nothing in memory
             : GC.AllocateUninitializedArray<byte>(
                 compressor.GetCompressBounds(
-                    Math.Min(maxBufferSize, inData.Length), inOptions));
-        
+                    Math.Min(maxBufferSize, data.Length), options));
+
         using MemoryStream stream = new();
         using (DataAccessor accessor = new(stream, true))
         {
             for (int i = 0; i < blockCount; i++)
             {
-                ReadOnlySpan<byte> data = inData.Slice(i * maxBufferSize,
-                    Math.Min(maxBufferSize, inData.Length - (i * maxBufferSize)));
+                ReadOnlySpan<byte> block = data.Slice(i * maxBufferSize,
+                    Math.Min(maxBufferSize, data.Length - (i * maxBufferSize)));
 
                 if (compressor is null)
                 {
-                    accessor.WriteUInt64(new BlockHeader(flags, data.Length, inType, data.Length).ToPacked(),
+                    accessor.WriteUInt64(new BlockHeader(flags, block.Length, type, block.Length).ToPacked(),
                         Endian.Big);
-                    accessor.Write(data);
+                    accessor.Write(block);
                 }
                 else
                 {
-                    int compressedSize = compressor.Compress(data, compressBuffer, inOptions);
+                    int compressedSize = compressor.Compress(block, compressBuffer, options);
 
-                    accessor.WriteUInt64(new BlockHeader(flags, data.Length, inType, compressedSize).ToPacked(),
+                    accessor.WriteUInt64(new BlockHeader(flags, block.Length, type, compressedSize).ToPacked(),
                         Endian.Big);
                     accessor.Write(compressBuffer.AsSpan(0, compressedSize));
                 }
@@ -95,19 +96,19 @@ public static class Cas
 
         return stream.ToArray();
     }
-    
-    public static byte[] DecompressData(DataAccessor inAccessor, int inOriginalSize)
-    {
-        ArgumentNullException.ThrowIfNull(inAccessor);
 
-        byte[] outBuffer = new byte[inOriginalSize];
+    public static byte[] DecompressData(DataAccessor accessor, int originalSize)
+    {
+        ArgumentNullException.ThrowIfNull(accessor);
+
+        byte[] outBuffer = new byte[originalSize];
         int outPos = 0;
-        while (inAccessor.Position < inAccessor.Length)
+        while (accessor.Position < accessor.Length)
         {
-            outPos += ReadBlock(inAccessor, outBuffer.AsSpan(outPos));
+            outPos += ReadBlock(accessor, outBuffer.AsSpan(outPos));
         }
 
-        Debug.Assert(outPos == inOriginalSize);
+        Debug.Assert(outPos == originalSize);
 
         return outBuffer;
     }
@@ -115,53 +116,56 @@ public static class Cas
     /// <summary>
     ///     Decompresses patched CAS data by applying delta instructions to base data.
     /// </summary>
-    /// <param name="inDeltaAccessor">The accessor containing delta instructions and new data blocks.</param>
-    /// <param name="inBaseAccessor">The accessor containing base data blocks, or <see langword="null" /> if no base data is required.</param>
-    /// <param name="inOriginalSize">The expected uncompressed size in bytes.</param>
+    /// <param name="deltaAccessor">The accessor containing delta instructions and new data blocks.</param>
+    /// <param name="baseAccessor">
+    ///     The accessor containing base data blocks, or <see langword="null" /> if no base data is
+    ///     required.
+    /// </param>
+    /// <param name="originalSize">The expected uncompressed size in bytes.</param>
     /// <remarks>
     ///     Delta instructions specify whether to copy base blocks, patch base blocks with delta bytes,
     ///     insert new blocks from the delta stream, or skip base blocks.
     /// </remarks>
-    public static byte[] DecompressData(DataAccessor inDeltaAccessor, DataAccessor? inBaseAccessor,
-        int inOriginalSize)
+    public static byte[] DecompressData(DataAccessor deltaAccessor, DataAccessor? baseAccessor,
+        int originalSize)
     {
-        ArgumentNullException.ThrowIfNull(inDeltaAccessor);
+        ArgumentNullException.ThrowIfNull(deltaAccessor);
 
-        byte[] outBuffer = new byte[inOriginalSize];
+        byte[] outBuffer = new byte[originalSize];
         int outPos = 0;
-        while (inDeltaAccessor.Position < inDeltaAccessor.Length)
+        while (deltaAccessor.Position < deltaAccessor.Length)
         {
-            (int instructionType, int instructionSize) = ReadInstruction(inDeltaAccessor);
+            (int instructionType, int instructionSize) = ReadInstruction(deltaAccessor);
 
             switch (instructionType)
             {
                 case 0:
                     {
-                        Debug.Assert(inBaseAccessor is not null);
+                        Debug.Assert(baseAccessor is not null);
                         // Read base blocks
                         while (instructionSize-- > 0)
                         {
-                            outPos += ReadBlock(inBaseAccessor, outBuffer.AsSpan(outPos));
+                            outPos += ReadBlock(baseAccessor, outBuffer.AsSpan(outPos));
                         }
 
                         break;
                     }
                 case 1:
                     {
-                        Debug.Assert(inBaseAccessor is not null);
+                        Debug.Assert(baseAccessor is not null);
                         // Apply block-level patches to a base block
-                        byte[] toPatch = ReadBlock(inBaseAccessor);
+                        byte[] toPatch = ReadBlock(baseAccessor);
                         int patchPos = 0;
                         while (instructionSize-- > 0)
                         {
-                            ushort offset = inDeltaAccessor.ReadUInt16(Endian.Big);
-                            ushort skipCount = inDeltaAccessor.ReadUInt16(Endian.Big);
+                            ushort offset = deltaAccessor.ReadUInt16(Endian.Big);
+                            ushort skipCount = deltaAccessor.ReadUInt16(Endian.Big);
 
                             // Copy base bytes up to the patch offset
                             CopyBase(toPatch, ref patchPos, offset - patchPos, outBuffer, ref outPos);
 
                             // Splice in replacement block from the delta stream
-                            outPos += ReadBlock(inDeltaAccessor, outBuffer.AsSpan(outPos));
+                            outPos += ReadBlock(deltaAccessor, outBuffer.AsSpan(outPos));
 
                             // Skip replaced base bytes
                             patchPos += skipCount;
@@ -174,9 +178,9 @@ public static class Cas
                     }
                 case 2:
                     {
-                        Debug.Assert(inBaseAccessor is not null);
+                        Debug.Assert(baseAccessor is not null);
                         // Apply byte-level patches to a base block
-                        ApplySmallFixes(inDeltaAccessor, inBaseAccessor, instructionSize, outBuffer, ref outPos);
+                        ApplySmallFixes(deltaAccessor, baseAccessor, instructionSize, outBuffer, ref outPos);
                         break;
                     }
                 case 3:
@@ -184,30 +188,32 @@ public static class Cas
                         // Append new blocks from the delta stream
                         while (instructionSize-- > 0)
                         {
-                            outPos += ReadBlock(inDeltaAccessor, outBuffer.AsSpan(outPos));
+                            outPos += ReadBlock(deltaAccessor, outBuffer.AsSpan(outPos));
                         }
 
                         break;
                     }
                 case 4:
                     {
-                        Debug.Assert(inBaseAccessor is not null);
+                        Debug.Assert(baseAccessor is not null);
 
                         // Skip base blocks
                         while (instructionSize-- > 0)
                         {
-                            SkipBlock(inBaseAccessor);
+                            SkipBlock(baseAccessor);
                         }
 
                         break;
                     }
                 default:
-                    throw new InvalidDataException($"Unknown delta instruction type {instructionType}.");
+                    throw new InvalidDataException(
+                        string.Create(CultureInfo.InvariantCulture,
+                            $"Unknown delta instruction type {instructionType}."));
             }
         }
 
-        Debug.Assert(inBaseAccessor?.Position == inBaseAccessor?.Length);
-        Debug.Assert(outPos == inOriginalSize);
+        Debug.Assert(baseAccessor?.Position == baseAccessor?.Length);
+        Debug.Assert(outPos == originalSize);
 
         return outBuffer;
     }
@@ -215,36 +221,39 @@ public static class Cas
     /// <summary>
     ///     Decompresses patched CAS data starting from a mid-instruction block offset.
     /// </summary>
-    /// <param name="inDeltaAccessor">The accessor containing delta instructions and new data blocks.</param>
-    /// <param name="inBaseAccessor">The accessor containing base data blocks, or <see langword="null" /> if no base data is required.</param>
-    /// <param name="inOriginalSize">The expected uncompressed size in bytes.</param>
+    /// <param name="deltaAccessor">The accessor containing delta instructions and new data blocks.</param>
+    /// <param name="baseAccessor">
+    ///     The accessor containing base data blocks, or <see langword="null" /> if no base data is
+    ///     required.
+    /// </param>
+    /// <param name="originalSize">The expected uncompressed size in bytes.</param>
     /// <param name="inMidInstructionSize">
     ///     The remaining block count threshold for the first delta instruction. Blocks processed while
     ///     the remaining count is >= this value are skipped. Pass -1 to process all blocks.
     /// </param>
-    public static byte[] DecompressData(DataAccessor inDeltaAccessor, DataAccessor? inBaseAccessor,
-        int inOriginalSize,
+    public static byte[] DecompressData(DataAccessor deltaAccessor, DataAccessor? baseAccessor,
+        int originalSize,
         int inMidInstructionSize)
     {
-        ArgumentNullException.ThrowIfNull(inDeltaAccessor);
+        ArgumentNullException.ThrowIfNull(deltaAccessor);
 
-        byte[] outBuffer = new byte[inOriginalSize];
+        byte[] outBuffer = new byte[originalSize];
         int outPos = 0;
         bool startBlock = true;
         int instructionSize;
-        while (inDeltaAccessor.Position < inDeltaAccessor.Length)
+        while (deltaAccessor.Position < deltaAccessor.Length)
         {
-            (int instructionType, instructionSize) = ReadInstruction(inDeltaAccessor);
+            (int instructionType, instructionSize) = ReadInstruction(deltaAccessor);
 
             switch (instructionType)
             {
                 case 0:
                     {
                         // Read base blocks
-                        Debug.Assert(inBaseAccessor is not null);
+                        Debug.Assert(baseAccessor is not null);
                         while (instructionSize-- > 0)
                         {
-                            outPos += ReadOrSkipBlock(inBaseAccessor, outBuffer.AsSpan(outPos), IsSkipped());
+                            outPos += ReadOrSkipBlock(baseAccessor, outBuffer.AsSpan(outPos), IsSkipped());
 
                             if (IsFinished())
                             {
@@ -257,13 +266,13 @@ public static class Cas
                 case 1:
                     {
                         // Apply block-level patches to a base block
-                        Debug.Assert(inBaseAccessor is not null);
-                        byte[] toPatch = ReadBlock(inBaseAccessor);
+                        Debug.Assert(baseAccessor is not null);
+                        byte[] toPatch = ReadBlock(baseAccessor);
                         int patchPos = 0;
                         while (instructionSize-- > 0)
                         {
-                            ushort offset = inDeltaAccessor.ReadUInt16(Endian.Big);
-                            ushort skipCount = inDeltaAccessor.ReadUInt16(Endian.Big);
+                            ushort offset = deltaAccessor.ReadUInt16(Endian.Big);
+                            ushort skipCount = deltaAccessor.ReadUInt16(Endian.Big);
                             bool isSkipped = IsSkipped();
 
                             // Copy base bytes up to the patch offset
@@ -280,7 +289,7 @@ public static class Cas
                             }
 
                             // Splice in replacement block from the delta stream
-                            outPos += ReadOrSkipBlock(inDeltaAccessor, outBuffer.AsSpan(outPos), isSkipped);
+                            outPos += ReadOrSkipBlock(deltaAccessor, outBuffer.AsSpan(outPos), isSkipped);
 
                             // Skip replaced base bytes
                             patchPos += skipCount;
@@ -299,8 +308,8 @@ public static class Cas
                 case 2:
                     {
                         // Apply byte-level patches to a base block
-                        Debug.Assert(inBaseAccessor is not null);
-                        ApplySmallFixes(inDeltaAccessor, inBaseAccessor, instructionSize, outBuffer, ref outPos);
+                        Debug.Assert(baseAccessor is not null);
+                        ApplySmallFixes(deltaAccessor, baseAccessor, instructionSize, outBuffer, ref outPos);
                         break;
                     }
                 case 3:
@@ -308,7 +317,7 @@ public static class Cas
                         // Append new blocks from the delta stream
                         while (instructionSize-- > 0)
                         {
-                            outPos += ReadOrSkipBlock(inDeltaAccessor, outBuffer.AsSpan(outPos), IsSkipped());
+                            outPos += ReadOrSkipBlock(deltaAccessor, outBuffer.AsSpan(outPos), IsSkipped());
 
                             if (IsFinished())
                             {
@@ -321,10 +330,10 @@ public static class Cas
                 case 4:
                     {
                         // Skip base blocks
-                        Debug.Assert(inBaseAccessor is not null);
+                        Debug.Assert(baseAccessor is not null);
                         while (instructionSize-- > 0)
                         {
-                            SkipBlock(inBaseAccessor);
+                            SkipBlock(baseAccessor);
 
                             // Terminate early just in case both base and delta streams are finish. Probably not needed.
                             if (IsFinished())
@@ -336,7 +345,9 @@ public static class Cas
                         break;
                     }
                 default:
-                    throw new InvalidDataException($"Unknown delta instruction type {instructionType}.");
+                    throw new InvalidDataException(
+                        string.Create(CultureInfo.InvariantCulture,
+                            $"Unknown delta instruction type {instructionType}."));
             }
 
             startBlock = false;
@@ -347,12 +358,12 @@ public static class Cas
             }
         }
 
-        while (inBaseAccessor is not null && inBaseAccessor.Position < inBaseAccessor.Length)
+        while (baseAccessor is not null && baseAccessor.Position < baseAccessor.Length)
         {
-            outPos += ReadBlock(inBaseAccessor, outBuffer.AsSpan(outPos));
+            outPos += ReadBlock(baseAccessor, outBuffer.AsSpan(outPos));
         }
 
-        Debug.Assert(outPos == inOriginalSize);
+        Debug.Assert(outPos == originalSize);
 
         return outBuffer;
 
@@ -364,16 +375,16 @@ public static class Cas
 
         bool IsFinished()
         {
-            return (inBaseAccessor is null || inBaseAccessor.Position >= inBaseAccessor.Length) &&
-                   inDeltaAccessor.Position >= inDeltaAccessor.Length;
+            return (baseAccessor is null || baseAccessor.Position >= baseAccessor.Length) &&
+                   deltaAccessor.Position >= deltaAccessor.Length;
         }
     }
 
-    public static long GetUncompressedSize(DataAccessor inAccessor)
+    public static long GetUncompressedSize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(inAccessor);
+        ArgumentNullException.ThrowIfNull(accessor);
 
-        ulong packed = inAccessor.ReadUInt64(Endian.Big);
+        ulong packed = accessor.ReadUInt64(Endian.Big);
 
         if (packed == 0)
         {
@@ -382,20 +393,20 @@ public static class Cas
 
         BlockHeader header = BlockHeader.FromPacked(packed);
 
-        inAccessor.Position += header.BufferSize;
+        accessor.Position += header.BufferSize;
 
         return header.DecompressedSize;
     }
 
-    public static long GetOriginalSize(DataAccessor inAccessor)
+    public static long GetOriginalSize(DataAccessor accessor)
     {
-        ArgumentNullException.ThrowIfNull(inAccessor);
+        ArgumentNullException.ThrowIfNull(accessor);
 
         long uncompressedSize = 0;
 
-        while (inAccessor.Position < inAccessor.Length)
+        while (accessor.Position < accessor.Length)
         {
-            ulong packed = inAccessor.ReadUInt64(Endian.Big);
+            ulong packed = accessor.ReadUInt64(Endian.Big);
 
             if (packed == 0)
             {
@@ -404,7 +415,7 @@ public static class Cas
 
             BlockHeader header = BlockHeader.FromPacked(packed);
 
-            inAccessor.Position += header.BufferSize;
+            accessor.Position += header.BufferSize;
 
             uncompressedSize += header.DecompressedSize;
         }
@@ -412,25 +423,25 @@ public static class Cas
         return uncompressedSize;
     }
 
-    public static long GetOriginalSize(DataAccessor inDeltaAccessor, DataAccessor? inBaseAccessor)
+    public static long GetOriginalSize(DataAccessor deltaAccessor, DataAccessor? baseAccessor)
     {
         throw new NotImplementedException();
     }
 
-    public static long GetOriginalSize(DataAccessor inDeltaAccessor, DataAccessor? inBaseAccessor,
+    public static long GetOriginalSize(DataAccessor deltaAccessor, DataAccessor? baseAccessor,
         int inMidInstructionSize)
     {
         throw new NotImplementedException();
     }
 
-    public static long GetCompressedSize(DataAccessor inAccessor, long inUncompressedSize)
+    public static long GetCompressedSize(DataAccessor accessor, long uncompressedSize)
     {
-        ArgumentNullException.ThrowIfNull(inAccessor);
+        ArgumentNullException.ThrowIfNull(accessor);
 
         long compressedSize = 0;
-        while (inAccessor.Position < inAccessor.Length)
+        while (accessor.Position < accessor.Length)
         {
-            ulong packed = inAccessor.ReadUInt64(Endian.Big);
+            ulong packed = accessor.ReadUInt64(Endian.Big);
 
             if (packed == 0)
             {
@@ -441,15 +452,15 @@ public static class Cas
 
             compressedSize += header.BufferSize + sizeof(ulong);
 
-            inAccessor.Position += header.BufferSize;
+            accessor.Position += header.BufferSize;
 
-            inUncompressedSize -= header.DecompressedSize;
-            if (inUncompressedSize > 0)
+            uncompressedSize -= header.DecompressedSize;
+            if (uncompressedSize > 0)
             {
                 continue;
             }
 
-            Debug.Assert(inUncompressedSize == 0);
+            Debug.Assert(uncompressedSize == 0);
             break;
         }
 
@@ -462,9 +473,9 @@ public static class Cas
     /// <remarks>
     ///     The high 4 bits specify the instruction type, and the lower 28 bits specify the block count or payload size.
     /// </remarks>
-    private static (int Type, int Size) ReadInstruction(DataAccessor inDeltaAccessor)
+    private static (int Type, int Size) ReadInstruction(DataAccessor deltaAccessor)
     {
-        uint packed = inDeltaAccessor.ReadUInt32(Endian.Big);
+        uint packed = deltaAccessor.ReadUInt32(Endian.Big);
         return ((int)(packed >> 28), (int)(packed & 0x0FFFFFFF));
     }
 
@@ -475,22 +486,22 @@ public static class Cas
     ///     Reads a base block and applies small replacements or insertions specified by offset,
     ///     skip count, and replacement bytes from the delta stream.
     /// </remarks>
-    private static void ApplySmallFixes(DataAccessor inDeltaAccessor, DataAccessor inBaseAccessor,
+    private static void ApplySmallFixes(DataAccessor deltaAccessor, DataAccessor baseAccessor,
         int inInstructionSize, byte[] outBuffer, ref int outPos)
     {
-        int newBlockSize = inDeltaAccessor.ReadUInt16(Endian.Big) + 1;
+        int newBlockSize = deltaAccessor.ReadUInt16(Endian.Big) + 1;
         int startPos = outPos;
 
-        long curPos = inDeltaAccessor.Position;
+        long curPos = deltaAccessor.Position;
 
         // Read base block
-        byte[] toPatch = ReadBlock(inBaseAccessor);
+        byte[] toPatch = ReadBlock(baseAccessor);
         int patchPos = 0;
-        while (inDeltaAccessor.Position < curPos + inInstructionSize)
+        while (deltaAccessor.Position < curPos + inInstructionSize)
         {
-            ushort offset = inDeltaAccessor.ReadUInt16(Endian.Big);
-            byte skipCount = inDeltaAccessor.ReadByte();
-            byte addCount = inDeltaAccessor.ReadByte();
+            ushort offset = deltaAccessor.ReadUInt16(Endian.Big);
+            byte skipCount = deltaAccessor.ReadByte();
+            byte addCount = deltaAccessor.ReadByte();
 
             // Copy base bytes up to the patch offset
             CopyBase(toPatch, ref patchPos, offset - patchPos, outBuffer, ref outPos);
@@ -499,7 +510,7 @@ public static class Cas
             patchPos += skipCount;
 
             // Append replacement bytes from the delta stream
-            inDeltaAccessor.ReadExactly(outBuffer.AsSpan(outPos, addCount));
+            deltaAccessor.ReadExactly(outBuffer.AsSpan(outPos, addCount));
             outPos += addCount;
         }
 
@@ -525,14 +536,14 @@ public static class Cas
         outPos += size;
     }
 
-    private static int ReadOrSkipBlock(DataAccessor inAccessor, Span<byte> destination, bool skip)
+    private static int ReadOrSkipBlock(DataAccessor accessor, Span<byte> destination, bool skip)
     {
         if (!skip)
         {
-            return ReadBlock(inAccessor, destination);
+            return ReadBlock(accessor, destination);
         }
 
-        SkipBlock(inAccessor);
+        SkipBlock(accessor);
         return 0;
     }
 
@@ -540,9 +551,9 @@ public static class Cas
     ///     Reads and decompresses a single CAS block into <paramref name="destination" />.
     /// </summary>
     /// <returns>The number of decompressed bytes written, or 0 for an empty block.</returns>
-    private static int ReadBlock(DataAccessor inAccessor, Span<byte> destination)
+    private static int ReadBlock(DataAccessor accessor, Span<byte> destination)
     {
-        ulong packed = inAccessor.ReadUInt64(Endian.Big);
+        ulong packed = accessor.ReadUInt64(Endian.Big);
 
         if (packed == 0)
         {
@@ -551,56 +562,56 @@ public static class Cas
         }
 
         BlockHeader header = BlockHeader.FromPacked(packed);
-        ReadBlockData(inAccessor, header, destination[..header.DecompressedSize]);
+        ReadBlockData(accessor, header, destination[..header.DecompressedSize]);
         return header.DecompressedSize;
     }
 
     /// <summary>
     ///     Reads and decompresses an entire CAS block into a newly allocated byte array.
     /// </summary>
-    private static byte[] ReadBlock(DataAccessor inAccessor)
+    private static byte[] ReadBlock(DataAccessor accessor)
     {
-        BlockHeader header = BlockHeader.FromPacked(inAccessor.ReadUInt64(Endian.Big));
+        BlockHeader header = BlockHeader.FromPacked(accessor.ReadUInt64(Endian.Big));
 
         byte[] outBuffer = GC.AllocateUninitializedArray<byte>(header.DecompressedSize);
-        ReadBlockData(inAccessor, header, outBuffer);
+        ReadBlockData(accessor, header, outBuffer);
         return outBuffer;
     }
 
-    private static void SkipBlock(DataAccessor inAccessor)
+    private static void SkipBlock(DataAccessor accessor)
     {
-        ulong packed = inAccessor.ReadUInt64(Endian.Big);
+        ulong packed = accessor.ReadUInt64(Endian.Big);
 
         if (packed != 0)
         {
-            inAccessor.Position += BlockHeader.FromPacked(packed).BufferSize;
+            accessor.Position += BlockHeader.FromPacked(packed).BufferSize;
         }
     }
 
     /// <summary>
     ///     Reads and decompresses CAS block payload data following its header.
     /// </summary>
-    /// <param name="inAccessor">The accessor positioned at the block payload.</param>
-    /// <param name="inHeader">The parsed header describing the block.</param>
+    /// <param name="accessor">The accessor positioned at the block payload.</param>
+    /// <param name="header">The parsed header describing the block.</param>
     /// <param name="destination">The destination span sized to the block decompressed size.</param>
-    private static void ReadBlockData(DataAccessor inAccessor, BlockHeader inHeader, Span<byte> destination)
+    private static void ReadBlockData(DataAccessor accessor, BlockHeader header, Span<byte> destination)
     {
-        if (inHeader.IsUncompressed)
+        if (header.IsUncompressed)
         {
             // Data is read right into the destination
-            inAccessor.ReadExactly(destination);
-            Deobfuscate(destination, inHeader);
+            accessor.ReadExactly(destination);
+            Deobfuscate(destination, header);
             return;
         }
 
-        byte[] rented = ArrayPool<byte>.Shared.Rent(inHeader.BufferSize);
+        byte[] rented = ArrayPool<byte>.Shared.Rent(header.BufferSize);
         try
         {
             // Memory rented from ArrayPool may be larger than requested.
-            Span<byte> compressed = rented.AsSpan(0, inHeader.BufferSize);
-            inAccessor.ReadExactly(compressed);
-            Deobfuscate(compressed, inHeader);
-            Decompress(compressed, inHeader, destination);
+            Span<byte> compressed = rented.AsSpan(0, header.BufferSize);
+            accessor.ReadExactly(compressed);
+            Deobfuscate(compressed, header);
+            Decompress(compressed, header, destination);
         }
         finally
         {
@@ -608,9 +619,9 @@ public static class Cas
         }
     }
 
-    private static void Deobfuscate(Span<byte> data, BlockHeader inHeader)
+    private static void Deobfuscate(Span<byte> data, BlockHeader header)
     {
-        if (!inHeader.Type.HasFlag(CompressionType.Obfuscated))
+        if (!header.Type.HasFlag(CompressionType.Obfuscated))
         {
             return;
         }
@@ -631,25 +642,27 @@ public static class Cas
         }
     }
 
-    private static void Decompress(ReadOnlySpan<byte> compressed, BlockHeader inHeader, Span<byte> destination)
+    private static void Decompress(ReadOnlySpan<byte> compressed, BlockHeader header, Span<byte> destination)
     {
-        ICompressionFormat decompressor = (inHeader.Type & ~CompressionType.Obfuscated) switch
+        ICompressionFormat decompressor = (header.Type & ~CompressionType.Obfuscated) switch
         {
             CompressionType.ZLib => ZLibFormat,
             CompressionType.Zstd => ZstdFormat,
             CompressionType.Lz4 => Lz4Format,
             CompressionType.OodleKraken or CompressionType.OodleSelkie or CompressionType.OodleLeviathan => OodleFormat,
-            _ => throw new NotImplementedException($"Compression type: {inHeader.Type}")
+            _ => throw new NotImplementedException(
+                string.Create(CultureInfo.InvariantCulture, $"Compression type: {header.Type}"))
         };
 
         // Oodle fails if the destination buffer is larger than the exact decompressed size.
         // Oodle decompression detects the compression type automatically from the payload.
         int written = decompressor.Decompress(compressed, destination,
-            inHeader.Flags != 0 ? CompressionOptions.ZstdWithDict : CompressionOptions.None);
-        if (written != inHeader.DecompressedSize)
+            header.Flags != 0 ? CompressionOptions.ZstdWithDict : CompressionOptions.None);
+        if (written != header.DecompressedSize)
         {
             throw new InvalidDataException(
-                $"A {decompressor.Identifier} block decompressed to {written} bytes instead of {inHeader.DecompressedSize}.");
+                string.Create(CultureInfo.InvariantCulture,
+                    $"A {header.Type} block decompressed to {written} bytes instead of {header.DecompressedSize}."));
         }
     }
 
@@ -660,16 +673,16 @@ public static class Cas
     {
         public bool IsUncompressed => (Type & ~CompressionType.Obfuscated) == CompressionType.None;
 
-        public static BlockHeader FromPacked(ulong inPacked)
+        public static BlockHeader FromPacked(ulong packed)
         {
-            Debug.Assert(((inPacked >> 20) & 0xF) == 7, "Invalid CAS data");
+            Debug.Assert(((packed >> 20) & 0xF) == 7, "Invalid CAS data");
 
-            int decompressedSize = (int)((inPacked >> 32) & 0x00FFFFFF);
-            CompressionType type = (CompressionType)(byte)(inPacked >> 24);
+            int decompressedSize = (int)((packed >> 32) & 0x00FFFFFF);
+            CompressionType type = (CompressionType)(byte)(packed >> 24);
             bool isUncompressed = (type & ~CompressionType.Obfuscated) == CompressionType.None;
 
-            return new BlockHeader((byte)(inPacked >> 56), decompressedSize, type,
-                isUncompressed ? decompressedSize : (int)(inPacked & 0x000FFFFF));
+            return new BlockHeader((byte)(packed >> 56), decompressedSize, type,
+                isUncompressed ? decompressedSize : (int)(packed & 0x000FFFFF));
         }
 
         public ulong ToPacked()

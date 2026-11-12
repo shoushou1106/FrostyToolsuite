@@ -68,7 +68,9 @@ public interface IFileInfo
                 accessor.WriteByte(2);
                 break;
             default:
-                throw new ArgumentException($"{fileInfo.GetType().Name} cannot be serialized.", nameof(fileInfo));
+                throw new ArgumentException(
+                    string.Create(CultureInfo.InvariantCulture,
+                        $"{fileInfo.GetType().Name} cannot be serialized."), nameof(fileInfo));
         }
 
         fileInfo.SerializeInternal(accessor);

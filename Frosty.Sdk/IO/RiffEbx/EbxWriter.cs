@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Diagnostics;
+using System.Globalization;
 using System.Reflection;
 
 using Frosty.Sdk.Attributes;
@@ -20,8 +21,8 @@ public sealed class EbxWriter : BaseEbxWriter
 
     private EbxFixup _fixup;
 
-    public EbxWriter(DataAccessor inAccessor)
-        : base(inAccessor)
+    public EbxWriter(DataAccessor accessor)
+        : base(accessor)
     {
         _fixup = new EbxFixup
         {
@@ -37,10 +38,10 @@ public sealed class EbxWriter : BaseEbxWriter
         _typeResolver = new EbxTypeResolver(_fixup.TypeGuids, _fixup.TypeSignatures);
     }
 
-    protected override void InternalWriteEbx(Guid inPartitionGuid, int inExportedInstanceCount)
+    protected override void InternalWriteEbx(Guid partitionGuid, int exportedInstanceCount)
     {
-        _fixup.PartitionGuid = inPartitionGuid;
-        _fixup.ExportedInstanceCount = inExportedInstanceCount;
+        _fixup.PartitionGuid = partitionGuid;
+        _fixup.ExportedInstanceCount = exportedInstanceCount;
 
         byte[] payload = ProcessData();
 
@@ -97,40 +98,40 @@ public sealed class EbxWriter : BaseEbxWriter
         riffWriter.Fixup();
     }
 
-    protected override int CompareInstances(IEbxInstance inA, IEbxInstance inB)
+    protected override int CompareInstances(IEbxInstance a, IEbxInstance b)
     {
-        ArgumentNullException.ThrowIfNull(inA);
-        ArgumentNullException.ThrowIfNull(inB);
+        ArgumentNullException.ThrowIfNull(a);
+        ArgumentNullException.ThrowIfNull(b);
 
-        Type typeA = inA.GetType();
-        Type typeB = inB.GetType();
+        Type typeA = a.GetType();
+        Type typeB = b.GetType();
 
         Guid typeGuidA = typeA.GetGuid();
         Guid typeGuidB = typeB.GetGuid();
 
         // Sort for highest alignment first
-        int a = typeB.GetCustomAttribute<EbxTypeMetaAttribute>()!.Alignment.CompareTo(
+        int result = typeB.GetCustomAttribute<EbxTypeMetaAttribute>()!.Alignment.CompareTo(
             typeA.GetCustomAttribute<EbxTypeMetaAttribute>()!.Alignment);
-        if (a != 0)
+        if (result != 0)
         {
-            return a;
+            return result;
         }
 
         // Then sort for type, and the ID
-        a = typeGuidA.CompareTo(typeGuidB);
-        return a != 0 ? a : inA.GetInstanceGuid().InternalId.CompareTo(inB.GetInstanceGuid().InternalId);
+        result = typeGuidA.CompareTo(typeGuidB);
+        return result != 0 ? result : a.GetInstanceGuid().InternalId.CompareTo(b.GetInstanceGuid().InternalId);
     }
 
-    protected override int AddType(Type inType)
+    protected override int AddType(Type type)
     {
-        ArgumentNullException.ThrowIfNull(inType);
+        ArgumentNullException.ThrowIfNull(type);
 
-        if (inType.Name.Equals(CollectionName, StringComparison.Ordinal))
+        if (type.Name.Equals(CollectionName, StringComparison.Ordinal))
         {
             return -1;
         }
 
-        return AddType(inType, true);
+        return AddType(type, true);
     }
 
     private byte[] ProcessData()
@@ -228,13 +229,13 @@ public sealed class EbxWriter : BaseEbxWriter
         return GetWrittenBytes(data);
     }
 
-    private ushort GetAlignment(EbxExtra inExtra)
+    private ushort GetAlignment(EbxExtra extra)
     {
-        TypeFlags.TypeEnum type = inExtra.Flags.GetTypeEnum();
+        TypeFlags.TypeEnum type = extra.Flags.GetTypeEnum();
 
         return type switch
         {
-            TypeFlags.TypeEnum.Struct => _typeResolver.ResolveType(inExtra.TypeDescriptorRef).Alignment,
+            TypeFlags.TypeEnum.Struct => _typeResolver.ResolveType(extra.TypeDescriptorRef).Alignment,
             TypeFlags.TypeEnum.Float64 or TypeFlags.TypeEnum.Int64 or TypeFlags.TypeEnum.UInt64
                 or TypeFlags.TypeEnum.CString or TypeFlags.TypeEnum.FileRef or TypeFlags.TypeEnum.Delegate
                 or TypeFlags.TypeEnum.Class or TypeFlags.TypeEnum.ResourceRef or TypeFlags.TypeEnum.BoxedValueRef => 8,
@@ -242,29 +243,29 @@ public sealed class EbxWriter : BaseEbxWriter
         };
     }
 
-    private int AddType(Type inType, bool inAddSignature)
+    private int AddType(Type type, bool addSignature)
     {
-        _typeToDescriptor.Add(inType.GetNameHash(), _fixup.TypeGuids.Count);
+        _typeToDescriptor.Add(type.GetNameHash(), _fixup.TypeGuids.Count);
 
-        _fixup.TypeGuids.Add(inType.GetGuid());
+        _fixup.TypeGuids.Add(type.GetGuid());
 
-        if (inAddSignature)
+        if (addSignature)
         {
-            _fixup.TypeSignatures.Add(inType.GetSignature());
+            _fixup.TypeSignatures.Add(type.GetSignature());
         }
 
         return _fixup.TypeGuids.Count - 1;
     }
 
-    private int AddType(IType inType, bool inAddSignature)
+    private int AddType(IType type, bool addSignature)
     {
-        _typeToDescriptor.Add(inType.NameHash, _fixup.TypeGuids.Count);
+        _typeToDescriptor.Add(type.NameHash, _fixup.TypeGuids.Count);
 
-        _fixup.TypeGuids.Add(inType.Guid);
+        _fixup.TypeGuids.Add(type.Guid);
 
-        if (inAddSignature)
+        if (addSignature)
         {
-            _fixup.TypeSignatures.Add(inType.Signature);
+            _fixup.TypeSignatures.Add(type.Signature);
         }
 
         return _fixup.TypeGuids.Count - 1;
@@ -407,17 +408,18 @@ public sealed class EbxWriter : BaseEbxWriter
             case TypeFlags.TypeEnum.Interface:
             case TypeFlags.TypeEnum.Delegate:
             default:
-                throw new InvalidDataException($"Unknown EBX field type {ebxType}.");
+                throw new InvalidDataException(
+                    string.Create(CultureInfo.InvariantCulture, $"Unknown EBX field type {ebxType}."));
         }
     }
 
-    private void WriteField(object ebxObj, EbxFieldDescriptor inFieldDescriptor, DataAccessor writer)
+    private void WriteField(object ebxObj, EbxFieldDescriptor fieldDescriptor, DataAccessor writer)
     {
-        TypeFlags.TypeEnum type = inFieldDescriptor.Flags.GetTypeEnum();
+        TypeFlags.TypeEnum type = fieldDescriptor.Flags.GetTypeEnum();
         if (type == TypeFlags.TypeEnum.Struct)
         {
             EbxTypeDescriptor typeDescriptor =
-                EbxTypeResolver.ResolveTypeFromField(inFieldDescriptor.TypeDescriptorRef);
+                EbxTypeResolver.ResolveTypeFromField(fieldDescriptor.TypeDescriptorRef);
             writer.Pad(typeDescriptor.Alignment);
             WriteType(ebxObj, typeDescriptor, writer, writer.Position);
             return;
@@ -426,27 +428,27 @@ public sealed class EbxWriter : BaseEbxWriter
         SharedWriteField(ebxObj, type, writer);
     }
 
-    private void WriteBoxedField(object ebxObj, TypeFlags.TypeEnum inType, int inTypeDescriptorRef, DataAccessor writer)
+    private void WriteBoxedField(object ebxObj, TypeFlags.TypeEnum type, int typeDescriptorRef, DataAccessor writer)
     {
-        if (inType == TypeFlags.TypeEnum.Struct)
+        if (type == TypeFlags.TypeEnum.Struct)
         {
-            EbxTypeDescriptor typeDescriptor = _typeResolver.ResolveType(inTypeDescriptorRef);
+            EbxTypeDescriptor typeDescriptor = _typeResolver.ResolveType(typeDescriptorRef);
             writer.Pad(typeDescriptor.Alignment);
             WriteType(ebxObj, typeDescriptor, writer, writer.Position);
             return;
         }
 
-        SharedWriteField(ebxObj, inType, writer);
+        SharedWriteField(ebxObj, type, writer);
     }
 
-    private void WriteBoxedValueRef(BoxedValueRef inBoxedValueRef, DataAccessor inWriter)
+    private void WriteBoxedValueRef(BoxedValueRef boxedValueRef, DataAccessor writer)
     {
-        Type? type = inBoxedValueRef.Value?.GetType();
+        Type? type = boxedValueRef.Value?.GetType();
         TypeRef typeRef = type is null ? new TypeRef() : new TypeRef(new SdkType(type));
-        (TypeFlags Flags, ushort TypeDescriptorRef) tiPair = WriteTypeRef(typeRef, inWriter, true);
+        (TypeFlags Flags, ushort TypeDescriptorRef) tiPair = WriteTypeRef(typeRef, writer, true);
 
         int index = _boxedValues.Count;
-        if (inBoxedValueRef.Value is not null)
+        if (boxedValueRef.Value is not null)
         {
             EbxExtra boxedValue = new()
             {
@@ -460,12 +462,12 @@ public sealed class EbxWriter : BaseEbxWriter
             {
                 if (boxedValue.Flags.GetCategoryEnum() == TypeFlags.CategoryEnum.Array)
                 {
-                    WriteBoxedArray(inBoxedValueRef.Value, inBoxedValueRef.Type, boxedValue.TypeDescriptorRef,
+                    WriteBoxedArray(boxedValueRef.Value, boxedValueRef.Type, boxedValue.TypeDescriptorRef,
                         accessor);
                 }
                 else
                 {
-                    WriteBoxedField(inBoxedValueRef.Value, inBoxedValueRef.Type, boxedValue.TypeDescriptorRef,
+                    WriteBoxedField(boxedValueRef.Value, boxedValueRef.Type, boxedValue.TypeDescriptorRef,
                         accessor);
                 }
             }
@@ -477,10 +479,10 @@ public sealed class EbxWriter : BaseEbxWriter
             index = 0;
         }
 
-        inWriter.WriteInt64(index);
+        writer.WriteInt64(index);
     }
 
-    private (TypeFlags, ushort) WriteTypeRef(TypeRef typeRef, DataAccessor writer, bool inAddSignature)
+    private (TypeFlags, ushort) WriteTypeRef(TypeRef typeRef, DataAccessor writer, bool addSignature)
     {
         if (typeRef.IsNull())
         {
@@ -506,7 +508,7 @@ public sealed class EbxWriter : BaseEbxWriter
             {
                 // Boxed value type refs shouldn't end up here,
                 // as they're already handled when processing classes
-                typeIdx = (ushort)AddType(typeRef.InternalType!, inAddSignature);
+                typeIdx = (ushort)AddType(typeRef.InternalType!, addSignature);
             }
 
             writer.WriteUInt32((uint)(typeIdx << 2) | 2);
@@ -516,10 +518,10 @@ public sealed class EbxWriter : BaseEbxWriter
         return (typeFlags, typeIdx);
     }
 
-    private void WriteArray(object inObj, EbxFieldDescriptor inFieldDescriptor, DataAccessor writer)
+    private void WriteArray(object obj, EbxFieldDescriptor fieldDescriptor, DataAccessor writer)
     {
         // Cast to IList to avoid invoking methods manually
-        IList arrayObj = (IList)inObj;
+        IList arrayObj = (IList)obj;
         int count = arrayObj.Count;
         int arrayIdx = 0;
 
@@ -530,8 +532,8 @@ public sealed class EbxWriter : BaseEbxWriter
                 new EbxExtra
                 {
                     Count = count,
-                    TypeDescriptorRef = (ushort)FindExistingType(inObj.GetType().GenericTypeArguments[0]),
-                    Flags = inFieldDescriptor.Flags
+                    TypeDescriptorRef = (ushort)FindExistingType(obj.GetType().GenericTypeArguments[0]),
+                    Flags = fieldDescriptor.Flags
                 });
 
             // Reserved before writing the elements, which can add arrays of their own
@@ -545,7 +547,7 @@ public sealed class EbxWriter : BaseEbxWriter
                 {
                     object subValue = arrayObj[i]!;
 
-                    WriteField(subValue, inFieldDescriptor, arrayWriter);
+                    WriteField(subValue, fieldDescriptor, arrayWriter);
                 }
             }
 
@@ -555,10 +557,10 @@ public sealed class EbxWriter : BaseEbxWriter
         writer.WriteInt64(arrayIdx);
     }
 
-    private void WriteBoxedArray(object inObj, TypeFlags.TypeEnum inType, int inTypeDescriptorRef, DataAccessor writer)
+    private void WriteBoxedArray(object obj, TypeFlags.TypeEnum type, int typeDescriptorRef, DataAccessor writer)
     {
         // Cast to IList to avoid having to invoke methods manually
-        IList arrayObj = (IList)inObj;
+        IList arrayObj = (IList)obj;
         int count = arrayObj.Count;
         int arrayIdx = 0;
 
@@ -569,8 +571,8 @@ public sealed class EbxWriter : BaseEbxWriter
                 new EbxExtra
                 {
                     Count = count,
-                    TypeDescriptorRef = (ushort)FindExistingType(inObj.GetType().GenericTypeArguments[0]),
-                    Flags = new TypeFlags(inType, TypeFlags.CategoryEnum.Array, unk: 0)
+                    TypeDescriptorRef = (ushort)FindExistingType(obj.GetType().GenericTypeArguments[0]),
+                    Flags = new TypeFlags(type, TypeFlags.CategoryEnum.Array, unk: 0)
                 });
 
             // Reserved before writing the elements, which can add arrays of their own
@@ -584,7 +586,7 @@ public sealed class EbxWriter : BaseEbxWriter
                 {
                     object subValue = arrayObj[i]!;
 
-                    WriteBoxedField(subValue, inType, inTypeDescriptorRef, arrayWriter);
+                    WriteBoxedField(subValue, type, typeDescriptorRef, arrayWriter);
                 }
             }
 
@@ -655,9 +657,9 @@ public sealed class EbxWriter : BaseEbxWriter
         writer.Position = startPos + type.Size;
     }
 
-    private void SharedFixupField(object obj, TypeFlags.TypeEnum inType, DataAccessor writer)
+    private void SharedFixupField(object obj, TypeFlags.TypeEnum type, DataAccessor writer)
     {
-        switch (inType)
+        switch (type)
         {
             case TypeFlags.TypeEnum.TypeRef:
                 FixupTypeRef(writer);
@@ -680,7 +682,9 @@ public sealed class EbxWriter : BaseEbxWriter
                         writer.Position += sizeof(long);
                         break;
                     default:
-                        throw new InvalidDataException($"Unknown pointer type: {((PointerRef)obj).Type}");
+                        throw new InvalidDataException(
+                            string.Create(CultureInfo.InvariantCulture,
+                                $"Unknown pointer type: {((PointerRef)obj).Type}"));
                 }
 
                 break;
@@ -739,17 +743,18 @@ public sealed class EbxWriter : BaseEbxWriter
             case TypeFlags.TypeEnum.Function:
             case TypeFlags.TypeEnum.Interface:
             default:
-                throw new InvalidDataException($"Unknown EBX field type {inType}.");
+                throw new InvalidDataException(
+                    string.Create(CultureInfo.InvariantCulture, $"Unknown EBX field type {type}."));
         }
     }
 
-    private void FixupField(object obj, EbxFieldDescriptor inFieldDescriptor, DataAccessor writer)
+    private void FixupField(object obj, EbxFieldDescriptor fieldDescriptor, DataAccessor writer)
     {
-        TypeFlags.TypeEnum type = inFieldDescriptor.Flags.GetTypeEnum();
+        TypeFlags.TypeEnum type = fieldDescriptor.Flags.GetTypeEnum();
         if (type == TypeFlags.TypeEnum.Struct)
         {
             EbxTypeDescriptor typeDescriptor =
-                EbxTypeResolver.ResolveTypeFromField(inFieldDescriptor.TypeDescriptorRef);
+                EbxTypeResolver.ResolveTypeFromField(fieldDescriptor.TypeDescriptorRef);
             writer.Pad(typeDescriptor.Alignment);
             FixupType(obj, typeDescriptor, writer, writer.Position);
             return;
@@ -758,17 +763,17 @@ public sealed class EbxWriter : BaseEbxWriter
         SharedFixupField(obj, type, writer);
     }
 
-    private void FixupBoxedField(object obj, TypeFlags.TypeEnum inType, int inTypeDescriptorRef, DataAccessor writer)
+    private void FixupBoxedField(object obj, TypeFlags.TypeEnum type, int typeDescriptorRef, DataAccessor writer)
     {
-        if (inType == TypeFlags.TypeEnum.Struct)
+        if (type == TypeFlags.TypeEnum.Struct)
         {
-            EbxTypeDescriptor typeDescriptor = _typeResolver.ResolveType(inTypeDescriptorRef);
+            EbxTypeDescriptor typeDescriptor = _typeResolver.ResolveType(typeDescriptorRef);
             writer.Pad(typeDescriptor.Alignment);
             FixupType(obj, typeDescriptor, writer, writer.Position);
             return;
         }
 
-        SharedFixupField(obj, inType, writer);
+        SharedFixupField(obj, type, writer);
     }
 
     private void FixupPointer(long sectionOffset, DataAccessor writer)
@@ -802,7 +807,7 @@ public sealed class EbxWriter : BaseEbxWriter
         writer.WriteInt32(0);
     }
 
-    private void FixupArray(object obj, EbxFieldDescriptor inFieldDescriptor, DataAccessor writer)
+    private void FixupArray(object obj, EbxFieldDescriptor fieldDescriptor, DataAccessor writer)
     {
         // Array pointers need to be in the pointer list
         long fieldOffset = writer.Position;
@@ -834,14 +839,14 @@ public sealed class EbxWriter : BaseEbxWriter
             for (int i = 0; i < array.Count; i++)
             {
                 object subValue = arrayObj[i]!;
-                FixupField(subValue, inFieldDescriptor, writer);
+                FixupField(subValue, fieldDescriptor, writer);
             }
 
             writer.StepOut();
         }
     }
 
-    private void FixupBoxedArray(object obj, TypeFlags.TypeEnum inType, int inTypeDescriptorRef, DataAccessor writer)
+    private void FixupBoxedArray(object obj, TypeFlags.TypeEnum type, int typeDescriptorRef, DataAccessor writer)
     {
         // Array pointers need to be in the pointer list
         long fieldOffset = writer.Position;
@@ -873,7 +878,7 @@ public sealed class EbxWriter : BaseEbxWriter
             for (int i = 0; i < array.Count; i++)
             {
                 object subValue = arrayObj[i]!;
-                FixupBoxedField(subValue, inType, inTypeDescriptorRef, writer);
+                FixupBoxedField(subValue, type, typeDescriptorRef, writer);
             }
 
             writer.StepOut();

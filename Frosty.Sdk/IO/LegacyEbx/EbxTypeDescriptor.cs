@@ -20,10 +20,10 @@ internal struct EbxTypeDescriptor
     /// <summary>
     ///     Unpacks a shared type descriptor key, which is the descriptor itself stored in the 16 bytes of a guid.
     /// </summary>
-    public EbxTypeDescriptor(Guid inKey)
+    public EbxTypeDescriptor(Guid key)
     {
         Span<byte> bytes = stackalloc byte[16];
-        inKey.TryWriteBytes(bytes);
+        key.TryWriteBytes(bytes);
 
         Name = string.Empty;
         NameHash = BinaryPrimitives.ReadUInt32LittleEndian(bytes);
