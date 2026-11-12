@@ -79,7 +79,7 @@ internal struct EbxHeader
         }
 
         header.Imports = new EbxImportReference[header.ImportCount];
-        header.Dependencies = [with(header.ImportCount)];
+        header.Dependencies = new HashSet<Guid>(header.ImportCount);
         for (int i = 0; i < header.ImportCount; i++)
         {
             EbxImportReference import = new()
@@ -91,7 +91,7 @@ internal struct EbxHeader
             header.Dependencies.Add(import.PartitionGuid);
         }
 
-        Dictionary<int, string> typeNames = new();
+        Dictionary<int, string> typeNames = [];
 
         long typeNamesOffset = accessor.Position;
         while (accessor.Position - typeNamesOffset < header.TypeNameTableLength)

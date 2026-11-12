@@ -31,10 +31,10 @@ public sealed class DbxReader
     private readonly string _filepath = string.Empty;
 
     // Key - Instance guid, value - Instance and its XML representation
-    private readonly Dictionary<Guid, (IEbxInstance ebxInstance, XmlNode dbxInstance)> _guidToObjAndXmlNode = new();
+    private readonly Dictionary<Guid, (IEbxInstance ebxInstance, XmlNode dbxInstance)> _guidToObjAndXmlNode = [];
 
     // Used to keep track of number of refs pointing to an instance
-    private readonly Dictionary<Guid, int> _guidToRefCount = new();
+    private readonly Dictionary<Guid, int> _guidToRefCount = [];
 
     // The loaded dbx file
     private readonly XmlDocument _xml = new();

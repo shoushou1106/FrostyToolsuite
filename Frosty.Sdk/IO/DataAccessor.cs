@@ -150,7 +150,7 @@ public class DataAccessor : IDisposable
     public void StepIn(long position)
     {
         // Create when needed
-        (_steps ??= new Stack<long>()).Push(Position);
+        (_steps ??= []).Push(Position);
         Position = position;
     }
 

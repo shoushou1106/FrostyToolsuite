@@ -26,21 +26,21 @@ internal sealed class HuffmanTests
         return decoder;
     }
 
-    private static void ReadEncodedData(HuffmanDecoder inDecoder, byte[] inData, Endian? inEndian = null)
+    private static void ReadEncodedData(HuffmanDecoder decoder, byte[] data, Endian? endian = null)
     {
         using MemoryStream stream = new();
         using DataAccessor accessor = new(stream);
 
-        accessor.Write(inData);
+        accessor.Write(data);
         accessor.Position = 0;
 
-        if (inEndian.HasValue)
+        if (endian.HasValue)
         {
-            inDecoder.ReadOddSizedEncodedData(accessor, (uint)inData.Length, inEndian.Value);
+            decoder.ReadOddSizedEncodedData(accessor, (uint)data.Length, endian.Value);
         }
         else
         {
-            inDecoder.ReadOddSizedEncodedData(accessor, (uint)inData.Length);
+            decoder.ReadOddSizedEncodedData(accessor, (uint)data.Length);
         }
     }
 
@@ -53,8 +53,8 @@ internal sealed class HuffmanTests
     [TestCase(false, 195, 28, Endian.Big)]
     [TestCase(true, 175, 22, Endian.Little)]
     [TestCase(true, 175, 24, Endian.Big)]
-    public void EncodeThenDecode(bool inCompressResults, int inEncodedBitSize, int inEncodedByteSize,
-        Endian inEndian)
+    public void EncodeThenDecode(bool compressResults, int encodedBitSize, int encodedByteSize,
+        Endian endian)
     {
         string[] texts = ["These are ", "", "some ", "Test Texts", " for tests ", "some ", " these are"];
 
@@ -68,21 +68,21 @@ internal sealed class HuffmanTests
         ];
 
         // No padding here
-        HuffmanEncodedTextArray<int> encodingResult = encoder.EncodeTexts(input, inEndian, inCompressResults, false);
+        HuffmanEncodedTextArray<int> encodingResult = encoder.EncodeTexts(input, endian, compressResults, false);
         byte[]? encoded = encodingResult.EncodedTexts;
         Assert.That(encoded, Is.Not.Null);
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(encodingResult.EncodedTextsAsBoolList, Has.Count.EqualTo(inEncodedBitSize),
+            Assert.That(encodingResult.EncodedTextsAsBoolList, Has.Count.EqualTo(encodedBitSize),
                 "Encoded bit count does not match expected count");
-            Assert.That(encoded, Has.Length.EqualTo(inEncodedByteSize),
+            Assert.That(encoded, Has.Length.EqualTo(encodedByteSize),
                 "Encoded data-length does not match expected length");
             Assert.That(encodingResult.EncodedTextPositions, Has.Count.EqualTo(texts.Length),
                 "Encoded text position has different number of entries than the number of encoded texts!");
         }
 
         HuffmanDecoder decoder = CreateDecoderFromTree(encodingTree);
-        ReadEncodedData(decoder, encoded, inEndian);
+        ReadEncodedData(decoder, encoded, endian);
 
         List<string> decoded =
         [
@@ -201,9 +201,9 @@ internal sealed class HuffmanTests
     [TestCase(33, true, ExpectedResult = 8)]
     [TestCase(2400, false, ExpectedResult = 300)]
     [TestCase(2400, true, ExpectedResult = 300)]
-    public int GetDataLengthInBytes_WithPadding(int inBitSize, bool inUsePadding)
+    public int GetDataLengthInBytes_WithPadding(int bitSize, bool usePadding)
     {
-        return HuffmanEncoder.GetDataLengthInBytes(inBitSize, inUsePadding);
+        return HuffmanEncoder.GetDataLengthInBytes(bitSize, usePadding);
     }
 
     // ReSharper disable StringLiteralTypo
@@ -212,9 +212,9 @@ internal sealed class HuffmanTests
     [TestCase("Frosty.Sdk.Tests.TestData.new_huffman", Endian.Little,
         ExpectedResult = "win32/content/cinematic/scenes/livinghubs/f22_pap_lh_ll/f22_pap_lh_ll_set_sublevel")]
     // ReSharper enable StringLiteralTypo
-    public string TestReadFirstEntryFromFile(string inTestFilePath, Endian inEndian)
+    public string TestReadFirstEntryFromFile(string testFilePath, Endian endian)
     {
-        using Stream? stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(inTestFilePath);
+        using Stream? stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(testFilePath);
         Assert.That(stream, Is.Not.Null,
             "Cannot read resource file!");
 
@@ -225,7 +225,7 @@ internal sealed class HuffmanTests
         using (DataAccessor accessor = new(stream))
         {
             // New Huffman was created when writing the string data ignored endianness and always used little endian.
-            decoder.ReadOddSizedEncodedData(accessor, textLengthInBytes, inEndian);
+            decoder.ReadOddSizedEncodedData(accessor, textLengthInBytes, endian);
 
             accessor.Position = textLengthInBytes;
 

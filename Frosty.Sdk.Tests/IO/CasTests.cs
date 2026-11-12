@@ -23,13 +23,13 @@ internal sealed class CasTests
             $"Frostbite CAS block {i}. The Zombies broke into the EA server room and ate them. Unfortunately that means the servers are currently down. Please try again later.\n"))
     ];
 
-    private static byte[] CompressWithOodle(byte[] inData, CompressionOptions inOptions)
+    private static byte[] CompressWithOodle(byte[] data, CompressionOptions options)
     {
         CompressionOodle oodle = new();
         int bounds;
         try
         {
-            bounds = oodle.GetCompressBounds(inData.Length, inOptions);
+            bounds = oodle.GetCompressBounds(data.Length, options);
         }
         catch (DllNotFoundException)
         {
@@ -38,25 +38,25 @@ internal sealed class CasTests
         }
 
         byte[] compressed = new byte[bounds];
-        return compressed[..oodle.Compress(inData, compressed, inOptions)];
+        return compressed[..oodle.Compress(data, compressed, options)];
     }
 
-    private static byte[] CreateBlock(CompressionType inType, int inDecompressedSize, ReadOnlySpan<byte> inPayload)
+    private static byte[] CreateBlock(CompressionType type, int decompressedSize, ReadOnlySpan<byte> payload)
     {
         // flags (8) | decompressed size (24) | compression type (8) | magic 0x7 (4) | buffer size (20), big endian
-        ulong packed = ((ulong)(uint)inDecompressedSize << 32) | ((ulong)(byte)inType << 24) | (0x7UL << 20) |
-                       (uint)inPayload.Length;
+        ulong packed = ((ulong)(uint)decompressedSize << 32) | ((ulong)(byte)type << 24) | (0x7UL << 20) |
+                       (uint)payload.Length;
 
-        byte[] block = new byte[sizeof(ulong) + inPayload.Length];
+        byte[] block = new byte[sizeof(ulong) + payload.Length];
         BinaryPrimitives.WriteUInt64BigEndian(block, packed);
-        inPayload.CopyTo(block.AsSpan(sizeof(ulong)));
+        payload.CopyTo(block.AsSpan(sizeof(ulong)));
         return block;
     }
 
-    private static byte[] DecompressBlocks(int inOriginalSize, params byte[][] inBlocks)
+    private static byte[] DecompressBlocks(int originalSize, params byte[][] blocks)
     {
-        using DataAccessor accessor = new(new MemoryStream([.. inBlocks.SelectMany(static b => b)]));
-        return Cas.DecompressData(accessor, inOriginalSize);
+        using DataAccessor accessor = new(new MemoryStream([.. blocks.SelectMany(static b => b)]));
+        return Cas.DecompressData(accessor, originalSize);
     }
 
     /// <summary>
@@ -71,9 +71,9 @@ internal sealed class CasTests
         "28b52ffd20a3dd030042491b1a706bda406c71544a22a291c6c22d2f4131e843f9bfde25a0eabc28bfa67cc918e627d757bb3218dd03193f6aef998ec24fb3ead997d79af5a3be76ce262e0e61b4be66e6cc0b319d77e4d588c06fd6b897fc06e6627d5a1626fc46312029989018ad5ef10109f89b9655cc4103005a2558281b8c5b330a")]
     [TestCase(CompressionType.Lz4,
         "f36046726f7374626974652043415320546573742e204f48204e4f2120546865205a6f6d626965732062726f6b6520696e746f207468652045412073657276657220726f6f6d20616e6420617465207468656d2e20556e666f7274756e6174656c792074686174206d65616e73207468653700f01e73206172652063757272656e746c7920646f776e2e20506c656173652074727920616761696e206c617465722e")]
-    public void DecompressData_ReadsReferenceEncoderOutput(CompressionType inType, string inPayloadHex)
+    public void DecompressData_ReadsReferenceEncoderOutput(CompressionType type, string payloadHex)
     {
-        byte[] block = CreateBlock(inType, Plain.Length, Convert.FromHexString(inPayloadHex));
+        byte[] block = CreateBlock(type, Plain.Length, Convert.FromHexString(payloadHex));
 
         Assert.That(DecompressBlocks(Plain.Length, block), Is.EqualTo(Plain));
     }
@@ -100,10 +100,10 @@ internal sealed class CasTests
     [TestCase(CompressionType.OodleKraken, CompressionOptions.OodleKraken)]
     [TestCase(CompressionType.OodleSelkie, CompressionOptions.OodleSelkie)]
     [TestCase(CompressionType.OodleLeviathan, CompressionOptions.OodleLeviathan)]
-    public void Compress_RoundTripsOodleThroughCasBlock(CompressionType inType, CompressionOptions inOptions)
+    public void Compress_RoundTripsOodleThroughCasBlock(CompressionType type, CompressionOptions options)
     {
-        byte[] compressed = CompressWithOodle(OodlePlain, inOptions);
-        byte[] block = CreateBlock(inType, OodlePlain.Length, compressed);
+        byte[] compressed = CompressWithOodle(OodlePlain, options);
+        byte[] block = CreateBlock(type, OodlePlain.Length, compressed);
 
         using (Assert.EnterMultipleScope())
         {

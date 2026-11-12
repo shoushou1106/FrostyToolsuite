@@ -25,7 +25,7 @@ internal struct EbxFixup
         EbxFixup fixup = new() { PartitionGuid = accessor.ReadGuid() };
 
         int typeGuidCount = accessor.ReadInt32();
-        fixup.TypeGuids = [with(typeGuidCount)];
+        fixup.TypeGuids = new List<Guid>(typeGuidCount);
         for (int i = 0; i < typeGuidCount; i++)
         {
             fixup.TypeGuids.Add(accessor.ReadGuid());
@@ -46,8 +46,8 @@ internal struct EbxFixup
         fixup.ResourceRefOffsets = ReadUInt32List(accessor);
 
         int importCount = accessor.ReadInt32();
-        fixup.Imports = [with(importCount)];
-        fixup.Dependencies = [with(importCount)];
+        fixup.Imports = new List<EbxImportReference>(importCount);
+        fixup.Dependencies = new HashSet<Guid>(importCount);
         for (int i = 0; i < importCount; i++)
         {
             EbxImportReference import = new()
@@ -122,7 +122,7 @@ internal struct EbxFixup
     private static List<uint> ReadUInt32List(DataAccessor accessor)
     {
         int count = accessor.ReadInt32();
-        List<uint> values = [with(count)];
+        List<uint> values = new(count);
         for (int i = 0; i < count; i++)
         {
             values.Add(accessor.ReadUInt32());

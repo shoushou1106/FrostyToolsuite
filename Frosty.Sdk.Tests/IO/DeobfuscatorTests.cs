@@ -24,9 +24,9 @@ internal sealed class DeobfuscatorTests
     [TestCase(0)]
     [TestCase(10)]
     [TestCase(HeaderSize + 100)]
-    public void Deobfuscate_ReturnsPlainFile(int inLength)
+    public void Deobfuscate_ReturnsPlainFile(int length)
     {
-        byte[] file = CreateBody(inLength);
+        byte[] file = CreateBody(length);
 
         Assert.That(Deobfuscate(file), Is.EqualTo(file));
     }
@@ -36,13 +36,13 @@ internal sealed class DeobfuscatorTests
     /// </summary>
     [TestCase((byte)0x01)]
     [TestCase((byte)0x03)]
-    public void Deobfuscate_RemovesHeader(byte inVersion)
+    public void Deobfuscate_RemovesHeader(byte version)
     {
-        byte[] header = CreateHeader(inVersion);
+        byte[] header = CreateHeader(version);
         byte[] body = CreateBody(600);
 
         byte[] obfuscated = (byte[])body.Clone();
-        if (inVersion == 0x01)
+        if (version == 0x01)
         {
             for (int i = 0; i < obfuscated.Length; i++)
             {
@@ -97,33 +97,33 @@ internal sealed class DeobfuscatorTests
     /// </summary>
     [TestCase(10)]
     [TestCase(HeaderSize + 100)]
-    public void Deobfuscate_ThrowsOnTrailerWithoutHeader(int inLength)
+    public void Deobfuscate_ThrowsOnTrailerWithoutHeader(int length)
     {
         byte[] trailer = CreateMeaTrailer(4, 0x5A, 0, out _);
 
-        Assert.That(() => Deobfuscate([.. CreateBody(inLength), .. trailer]), Throws.TypeOf<NotImplementedException>());
+        Assert.That(() => Deobfuscate([.. CreateBody(length), .. trailer]), Throws.TypeOf<NotImplementedException>());
     }
 
     /// <summary>
     ///     Creates the trailer that v1 reads, in blocks obfuscated with their own key.
     /// </summary>
-    /// <param name="inMagic">4 if the file is obfuscated, which v1 decodes with obfuscation type 2.</param>
-    /// <param name="inKeySeed">The plain byte 5, which the initial key is derived from.</param>
-    /// <param name="inExtraLength">The length of the optional block at 410.</param>
-    /// <param name="outInitialValue">The key of the first byte of the file.</param>
-    private static byte[] CreateMeaTrailer(uint inMagic, byte inKeySeed, short inExtraLength, out byte outInitialValue)
+    /// <param name="magic">4 if the file is obfuscated, which v1 decodes with obfuscation type 2.</param>
+    /// <param name="keySeed">The plain byte 5, which the initial key is derived from.</param>
+    /// <param name="extraLength">The length of the optional block at 410.</param>
+    /// <param name="initialValue">The key of the first byte of the file.</param>
+    private static byte[] CreateMeaTrailer(uint magic, byte keySeed, short extraLength, out byte initialValue)
     {
         const int extraOffset = 410;
-        int size = extraOffset + inExtraLength + sizeof(int) + TrailerMagic.Length;
+        int size = extraOffset + extraLength + sizeof(int) + TrailerMagic.Length;
 
         byte[] trailer = CreateBody(size);
-        BinaryPrimitives.WriteUInt32LittleEndian(trailer, inMagic);
+        BinaryPrimitives.WriteUInt32LittleEndian(trailer, magic);
         trailer[4] = 2;
-        trailer[5] = inKeySeed;
-        BinaryPrimitives.WriteInt16LittleEndian(trailer.AsSpan(392), inExtraLength);
+        trailer[5] = keySeed;
+        BinaryPrimitives.WriteInt16LittleEndian(trailer.AsSpan(392), extraLength);
 
         // v1 reads the length at 392 and byte 391 as they are, everything else here is obfuscated
-        (int Offset, int Length)[] blocks = [(extraOffset, inExtraLength), (394, 4), (0, 4), (402, 4), (406, 4), (4, 387)];
+        (int Offset, int Length)[] blocks = [(extraOffset, extraLength), (394, 4), (0, 4), (402, 4), (406, 4), (4, 387)];
         foreach ((int offset, int length) in blocks)
         {
             EncodeTrailerBlock(trailer.AsSpan(offset, length));
@@ -137,7 +137,7 @@ internal sealed class DeobfuscatorTests
         }
 
         total += GetTrailerChecksum(trailer.AsSpan(391, 1));
-        outInitialValue = (byte)(inKeySeed ^ total);
+        initialValue = (byte)(keySeed ^ total);
 
         BinaryPrimitives.WriteInt32LittleEndian(trailer.AsSpan(size - TrailerMagic.Length - sizeof(int)), size);
         TrailerMagic.CopyTo(trailer.AsSpan(size - TrailerMagic.Length));
@@ -178,19 +178,19 @@ internal sealed class DeobfuscatorTests
         return sum;
     }
 
-    private static byte[] CreateHeader(byte inVersion)
+    private static byte[] CreateHeader(byte version)
     {
         byte[] header = CreateBody(HeaderSize);
         header[0] = 0x00;
         header[1] = 0xD1;
         header[2] = 0xCE;
-        header[3] = inVersion;
+        header[3] = version;
         return header;
     }
 
-    private static byte[] CreateBody(int inLength)
+    private static byte[] CreateBody(int length)
     {
-        byte[] body = new byte[inLength];
+        byte[] body = new byte[length];
         for (int i = 0; i < body.Length; i++)
         {
             body[i] = (byte)((i * 7) + 1);
@@ -199,9 +199,9 @@ internal sealed class DeobfuscatorTests
         return body;
     }
 
-    private static byte[] Deobfuscate(byte[] inFile)
+    private static byte[] Deobfuscate(byte[] file)
     {
-        using MemoryStream stream = new(inFile, false);
+        using MemoryStream stream = new(file, false);
         return Deobfuscator.Deobfuscate(stream);
     }
 }

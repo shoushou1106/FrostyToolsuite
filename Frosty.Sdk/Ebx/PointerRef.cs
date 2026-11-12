@@ -5,6 +5,9 @@ using Frosty.Sdk.IO.Ebx;
 
 namespace Frosty.Sdk.Ebx;
 
+/// <summary>
+///     A value of an EBX field that points to an instance in the same partition (internal) or in another one (external).
+/// </summary>
 public readonly struct PointerRef : IEquatable<PointerRef>
 {
     public EbxImportReference External { get; }
@@ -49,19 +52,9 @@ public readonly struct PointerRef : IEquatable<PointerRef>
         return !a.Equals(b);
     }
 
-    public static bool operator ==(PointerRef a, object? b)
-    {
-        return a.Equals(b);
-    }
-
-    public static bool operator !=(PointerRef a, object? b)
-    {
-        return !a.Equals(b);
-    }
-
     public override bool Equals([NotNullWhen(true)] object? obj)
     {
-        return obj is PointerRef b && Equals(b);
+        return obj is PointerRef other && Equals(other);
     }
 
     public bool Equals(PointerRef other)

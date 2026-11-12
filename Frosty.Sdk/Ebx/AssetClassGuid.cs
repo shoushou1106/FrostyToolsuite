@@ -1,52 +1,59 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 
 namespace Frosty.Sdk.Ebx;
 
+/// <summary>
+///     The ID of an instance in an EBX partition. Usually an exported GUID, an internal index, or both.
+/// </summary>
 public readonly struct AssetClassGuid : IEquatable<AssetClassGuid>
 {
-    public Guid ExportedGuid { get; }
-    public int InternalId { get; }
-    public bool IsExported { get; }
-
-    public AssetClassGuid(Guid inGuid, int inId)
+    public AssetClassGuid(Guid exportedGuid, int internalId)
     {
-        ExportedGuid = inGuid;
-        InternalId = inId;
-        IsExported = inGuid != Guid.Empty;
+        ExportedGuid = exportedGuid;
+        InternalId = internalId;
+        IsExported = exportedGuid != Guid.Empty;
     }
 
-    public AssetClassGuid(int inId)
+    public AssetClassGuid(int internalId)
     {
         ExportedGuid = Guid.Empty;
-        InternalId = inId;
+        InternalId = internalId;
         IsExported = false;
     }
 
-    public static bool operator ==(AssetClassGuid a, object? b)
+    /// <summary>
+    ///     The GUID that other partitions use to reference the instance, or <see cref="Guid.Empty" /> if not exported.
+    /// </summary>
+    public Guid ExportedGuid { get; }
+
+    /// <summary>
+    ///     The index of the instance in its partition, or -1 if not set yet.
+    /// </summary>
+    public int InternalId { get; }
+
+    public bool IsExported { get; }
+
+    public static bool operator ==(AssetClassGuid a, AssetClassGuid b)
     {
         return a.Equals(b);
     }
 
-    public static bool operator !=(AssetClassGuid a, object? b)
+    public static bool operator !=(AssetClassGuid a, AssetClassGuid b)
     {
         return !a.Equals(b);
     }
 
     public override bool Equals([NotNullWhen(true)] object? obj)
     {
-        return obj switch
-        {
-            AssetClassGuid reference => Equals(reference),
-            Guid guid => IsExported && guid == ExportedGuid,
-            int id => InternalId == id,
-            _ => false
-        };
+        return obj is AssetClassGuid other && Equals(other);
     }
 
     public bool Equals(AssetClassGuid other)
     {
-        return ExportedGuid.Equals(other.ExportedGuid) && InternalId == other.InternalId &&
-               IsExported == other.IsExported;
+        return ExportedGuid == other.ExportedGuid
+               && InternalId == other.InternalId
+               && IsExported == other.IsExported;
     }
 
     public override int GetHashCode()
@@ -56,6 +63,8 @@ public readonly struct AssetClassGuid : IEquatable<AssetClassGuid>
 
     public override string ToString()
     {
-        return IsExported ? ExportedGuid.ToString() : $"00000000-0000-0000-0000-{InternalId:x12}";
+        return IsExported
+            ? ExportedGuid.ToString()
+            : string.Create(CultureInfo.InvariantCulture, $"00000000-0000-0000-0000-{InternalId:x12}");
     }
 }

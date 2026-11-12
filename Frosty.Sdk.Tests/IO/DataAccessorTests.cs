@@ -19,19 +19,19 @@ internal sealed class DataAccessorTests
     [TestCase("Magie givrée")]
     [TestCase("寒霜魔法")]
     [TestCase("❄ ❄️ 🧊🧊")]
-    public void Strings_RoundTripNonAscii(string inText)
+    public void Strings_RoundTripNonAscii(string text)
     {
         using DataAccessor accessor = new(new MemoryStream());
-        accessor.WriteNullTerminatedString(inText);
-        accessor.WriteSizedString(inText);
-        accessor.WriteFixedSizedString(inText, 64);
+        accessor.WriteNullTerminatedString(text);
+        accessor.WriteSizedString(text);
+        accessor.WriteFixedSizedString(text, 64);
         accessor.Position = 0;
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(accessor.ReadNullTerminatedString(), Is.EqualTo(inText));
-            Assert.That(accessor.ReadSizedString(), Is.EqualTo(inText));
-            Assert.That(accessor.ReadFixedSizedString(64), Is.EqualTo(inText));
+            Assert.That(accessor.ReadNullTerminatedString(), Is.EqualTo(text));
+            Assert.That(accessor.ReadSizedString(), Is.EqualTo(text));
+            Assert.That(accessor.ReadFixedSizedString(64), Is.EqualTo(text));
             Assert.That(accessor.Position, Is.EqualTo(accessor.Length));
         }
     }
@@ -80,12 +80,12 @@ internal sealed class DataAccessorTests
     /// </summary>
     [TestCase(true)]
     [TestCase(false)]
-    public void Dispose_ClosesStreamUnlessLeftOpen(bool inLeaveOpen)
+    public void Dispose_ClosesStreamUnlessLeftOpen(bool leaveOpen)
     {
         using MemoryStream inner = new();
-        new DataAccessor(inner, inLeaveOpen).Dispose();
+        new DataAccessor(inner, leaveOpen).Dispose();
 
-        Assert.That(inner.CanRead, Is.EqualTo(inLeaveOpen));
+        Assert.That(inner.CanRead, Is.EqualTo(leaveOpen));
     }
 
     /// <summary>

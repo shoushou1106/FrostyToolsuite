@@ -1,22 +1,38 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 
 using Frosty.Sdk.TypeSdk;
 
 namespace Frosty.Sdk.Ebx;
 
-public struct BoxedValueRef(object? inValue, TypeFlags inFlags) : IEquatable<BoxedValueRef>
+/// <summary>
+///     A value of an EBX field whose type is stored next to the value, like a boxed <see cref="object" />.
+/// </summary>
+public struct BoxedValueRef(object? value, TypeFlags flags) : IEquatable<BoxedValueRef>
 {
-    public object? Value { get; private set; } = inValue;
-    public TypeFlags.TypeEnum Type => _flags.GetTypeEnum();
-    public TypeFlags.CategoryEnum Category => _flags.GetCategoryEnum();
-
-    private TypeFlags _flags = inFlags;
-
     private const string CollectionName = "ObservableCollection`1";
 
-    public void SetValue(object inValue)
+    private TypeFlags _flags = flags;
+
+    public object? Value { get; private set; } = value;
+
+    public TypeFlags.TypeEnum Type => _flags.GetTypeEnum();
+
+    public TypeFlags.CategoryEnum Category => _flags.GetCategoryEnum();
+
+    public static bool operator ==(BoxedValueRef a, BoxedValueRef b)
     {
-        Value = inValue;
+        return a.Equals(b);
+    }
+
+    public static bool operator !=(BoxedValueRef a, BoxedValueRef b)
+    {
+        return !a.Equals(b);
+    }
+
+    public void SetValue(object value)
+    {
+        Value = value;
     }
 
     public override string ToString()
@@ -27,33 +43,27 @@ public struct BoxedValueRef(object? inValue, TypeFlags inFlags) : IEquatable<Box
         }
 
         Type type = Value.GetType();
+        string typeName = type.Name == CollectionName
+            ? string.Create(CultureInfo.InvariantCulture, $"Array<{type.GenericTypeArguments[0].GetName()}>")
+            : type == typeof(PointerRef)
+                ? "Class"
+                : type.GetName();
 
-        return
-            $"BoxedValueRef '{(type.Name == CollectionName ? $"Array<{type.GenericTypeArguments[0].GetName()}>" : type == typeof(PointerRef) ? "Class" : type.GetName())}'";
+        return string.Create(CultureInfo.InvariantCulture, $"BoxedValueRef '{typeName}'");
     }
 
     public override bool Equals([NotNullWhen(true)] object? obj)
     {
-        return obj is BoxedValueRef b && Equals(b);
+        return obj is BoxedValueRef other && Equals(other);
     }
 
     public bool Equals(BoxedValueRef other)
     {
-        return Value == other.Value && _flags == other._flags;
+        return Equals(Value, other.Value) && _flags == other._flags;
     }
 
     public override int GetHashCode()
     {
         return HashCode.Combine(Value, (ushort)_flags);
-    }
-
-    public static bool operator ==(BoxedValueRef a, object? b)
-    {
-        return a.Equals(b);
-    }
-
-    public static bool operator !=(BoxedValueRef a, object? b)
-    {
-        return !a.Equals(b);
     }
 }

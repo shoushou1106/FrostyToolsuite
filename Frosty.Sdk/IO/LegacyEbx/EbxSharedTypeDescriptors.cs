@@ -7,8 +7,8 @@ internal static class EbxSharedTypeDescriptors
 {
     private static bool s_isInitialized;
 
-    private static readonly Dictionary<uint, Guid> TypeKeyMapping = new();
-    private static readonly Dictionary<Guid, int> KeyTypeMapping = new();
+    private static readonly Dictionary<uint, Guid> TypeKeyMapping = [];
+    private static readonly Dictionary<Guid, int> KeyTypeMapping = [];
     private static readonly List<EbxFieldDescriptor> FieldDescriptors = [];
     private static readonly List<EbxTypeDescriptor> TypeDescriptors = [];
 

@@ -1,9 +1,13 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 
 using Frosty.Sdk.Interfaces;
 
 namespace Frosty.Sdk.Ebx;
 
+/// <summary>
+///     A value of an EBX field that holds a type, or <c>null</c>.
+/// </summary>
 public readonly struct TypeRef : IEquatable<TypeRef>
 {
     public string? Name => InternalType?.Name;
@@ -21,15 +25,16 @@ public readonly struct TypeRef : IEquatable<TypeRef>
     {
     }
 
-    public TypeRef(string inName)
+    /// <param name="name">The name of the type, or <c>null</c> for no type.</param>
+    public TypeRef(string name)
     {
-        if (inName == "null")
+        if (name == "null")
         {
             InternalType = null;
             return;
         }
 
-        InternalType = TypeLibrary.GetType(inName);
+        InternalType = TypeLibrary.GetType(name);
     }
 
     public TypeRef(Guid typeGuid)
@@ -37,9 +42,9 @@ public readonly struct TypeRef : IEquatable<TypeRef>
         InternalType = TypeLibrary.GetType(typeGuid);
     }
 
-    public TypeRef(IType? inType)
+    public TypeRef(IType? type)
     {
-        InternalType = inType;
+        InternalType = type;
     }
 
     public static implicit operator string(TypeRef value)
@@ -74,7 +79,7 @@ public readonly struct TypeRef : IEquatable<TypeRef>
 
     public override bool Equals([NotNullWhen(true)] object? obj)
     {
-        return obj is TypeRef b && Equals(b);
+        return obj is TypeRef other && Equals(other);
     }
 
     public bool Equals(TypeRef other)
@@ -97,18 +102,8 @@ public readonly struct TypeRef : IEquatable<TypeRef>
         return !a.Equals(b);
     }
 
-    public static bool operator ==(TypeRef a, object? b)
-    {
-        return a.Equals(b);
-    }
-
-    public static bool operator !=(TypeRef a, object? b)
-    {
-        return !a.Equals(b);
-    }
-
     public override string ToString()
     {
-        return $"TypeRef '{(IsNull() ? "(null)" : Name)}'";
+        return string.Create(CultureInfo.InvariantCulture, $"TypeRef '{(IsNull() ? "(null)" : Name)}'");
     }
 }

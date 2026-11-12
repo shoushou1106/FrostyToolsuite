@@ -475,7 +475,7 @@ public sealed class EbxWriter : BaseEbxWriter
 
     private void ProcessData()
     {
-        HashSet<Type> uniqueTypes = [with(_sortedInstances.Count)];
+        HashSet<Type> uniqueTypes = new(_sortedInstances.Count);
 
         using MemoryStream dataStream = new();
         using (DataAccessor writer = new(dataStream, true))

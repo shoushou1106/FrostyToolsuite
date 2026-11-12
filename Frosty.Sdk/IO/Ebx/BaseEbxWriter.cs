@@ -19,13 +19,12 @@ public abstract class BaseEbxWriter(DataAccessor accessor)
     private protected static readonly Type PointerType = typeof(PointerRef);
     private protected static readonly Type DataContainerType = TypeLibrary.GetType("DataContainer")!.Type;
 
-    // ReSharper disable once MemberCanBePrivate.Global
     private protected static readonly Type? BoxedValueRefType = TypeLibrary.GetType("BoxedValueRef")?.Type;
     private protected readonly DataAccessor _accessor = accessor;
 
     private protected readonly List<byte[]> _arrayData = [];
     private protected readonly List<byte[]> _boxedValueData = [];
-    private protected readonly Dictionary<EbxImportReference, int> _importOrderFw = new();
+    private protected readonly Dictionary<EbxImportReference, int> _importOrderFw = [];
 
     private protected readonly SortedSet<EbxImportReference> _imports = [];
 
@@ -34,7 +33,7 @@ public abstract class BaseEbxWriter(DataAccessor accessor)
     private readonly Dictionary<string, uint> _stringOffsets = new(StringComparer.Ordinal);
     private protected readonly List<string> _strings = [];
 
-    private protected readonly Dictionary<uint, int> _typeToDescriptor = new();
+    private protected readonly Dictionary<uint, int> _typeToDescriptor = [];
 
     private protected readonly bool _useSharedTypeDescriptors =
         FileSystemManager.HasFileInMemoryFs("SharedTypeDescriptors.ebx");
@@ -50,8 +49,8 @@ public abstract class BaseEbxWriter(DataAccessor accessor)
     {
         ArgumentNullException.ThrowIfNull(partition);
 
-        List<IEbxInstance> exportedInstances = [with(1)];
-        List<IEbxInstance> internalInstances = [with(partition.InternalInstances.Count)];
+        List<IEbxInstance> exportedInstances = new(1);
+        List<IEbxInstance> internalInstances = new(partition.InternalInstances.Count);
 
         foreach (IEbxInstance instance in partition.InternalInstances)
         {
@@ -247,7 +246,6 @@ public abstract class BaseEbxWriter(DataAccessor accessor)
 
     private protected uint AddString(string stringToAdd)
     {
-        // Dictionary<string, uint> _stringOffsets = new(StringComparer.Ordinal)
         if (_stringOffsets.TryGetValue(stringToAdd, out uint offset))
         {
             return offset;

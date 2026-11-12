@@ -9,7 +9,7 @@ internal static class EbxSharedTypeDescriptors
 {
     private static bool s_isInitialized;
 
-    private static readonly Dictionary<(Guid, uint), int> Mapping = new();
+    private static readonly Dictionary<(Guid, uint), int> Mapping = [];
     private static readonly List<EbxFieldDescriptor> FieldDescriptors = [];
     private static readonly List<EbxTypeDescriptor> TypeDescriptors = [];
 
@@ -76,7 +76,7 @@ internal static class EbxSharedTypeDescriptors
         int startTypes = TypeDescriptors.Count;
 
         int typeSigCount = accessor.ReadInt32();
-        Dictionary<int, int> mapping = new();
+        Dictionary<int, int> mapping = [];
         for (int i = 0; i < typeSigCount; i++)
         {
             (Guid, uint) sig = (accessor.ReadGuid(), accessor.ReadUInt32());

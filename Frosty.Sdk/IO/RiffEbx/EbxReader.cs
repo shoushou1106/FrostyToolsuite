@@ -16,7 +16,7 @@ public sealed class EbxReader : BaseEbxReader
 {
     private const string CollectionName = "ObservableCollection`1";
 
-    private readonly Dictionary<uint, EbxExtra> _boxedValues = new();
+    private readonly Dictionary<uint, EbxExtra> _boxedValues = [];
     private readonly EbxTypeResolver _typeResolver;
     private EbxFixup _fixup;
     private long _payloadOffset;

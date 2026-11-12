@@ -186,12 +186,12 @@ public abstract class DbObject
 
     public static DbObjectList CreateList(int capacity = 0)
     {
-        return [with(capacity)];
+        return new DbObjectList(capacity);
     }
 
     public static DbObjectList CreateList(string name, int capacity = 0)
     {
-        return [with(name, capacity)];
+        return new DbObjectList(name, capacity);
     }
 
     private protected abstract void InternalSerialize(DataAccessor accessor);

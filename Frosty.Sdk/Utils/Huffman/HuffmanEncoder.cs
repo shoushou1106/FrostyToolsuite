@@ -217,7 +217,7 @@ public sealed class HuffmanEncoder
 
         charNumbers[Delimiter] = texts.Count;
 
-        List<HuffmanConstructionNode> nodeList = [with(charNumbers.Count)];
+        List<HuffmanConstructionNode> nodeList = new(charNumbers.Count);
         foreach ((char key, int value) in charNumbers)
         {
             nodeList.Add(new HuffmanConstructionNode(key, value));
@@ -285,7 +285,7 @@ public sealed class HuffmanEncoder
         // Branch values are unique, so the order they were found in does not matter
         branches.Sort();
 
-        List<HuffmanNode> nodesSansRoot = [with(branches.Count * 2)];
+        List<HuffmanNode> nodesSansRoot = new(branches.Count * 2);
         foreach (HuffmanNode branch in branches)
         {
             nodesSansRoot.Add(branch.Left!);

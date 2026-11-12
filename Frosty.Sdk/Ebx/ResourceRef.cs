@@ -3,6 +3,9 @@ using System.Globalization;
 
 namespace Frosty.Sdk.Ebx;
 
+/// <summary>
+///     A value of an EBX field that holds the resource ID (RID) of a RES asset.
+/// </summary>
 public readonly struct ResourceRef(ulong value) : IEquatable<ResourceRef>
 {
     public static readonly ResourceRef Zero = new(0);
@@ -31,12 +34,7 @@ public readonly struct ResourceRef(ulong value) : IEquatable<ResourceRef>
 
     public override bool Equals([NotNullWhen(true)] object? obj)
     {
-        return obj switch
-        {
-            ResourceRef a => Equals(a),
-            ulong b => Equals(b),
-            _ => false
-        };
+        return obj is ResourceRef other && Equals(other);
     }
 
     public bool Equals(ResourceRef other)
