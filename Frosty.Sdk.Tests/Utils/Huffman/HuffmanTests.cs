@@ -1,5 +1,3 @@
-using System.Reflection;
-
 using Frosty.Sdk.IO;
 using Frosty.Sdk.Utils.Huffman;
 
@@ -207,16 +205,15 @@ internal sealed class HuffmanTests
     }
 
     // ReSharper disable StringLiteralTypo
-    [TestCase("Frosty.Sdk.Tests.TestData.original_huffman", Endian.Big,
+    [TestCase("TestData/Huffman/OriginalHuffman.bin", Endian.Big,
         ExpectedResult = "win32/content/common/configs/bundles/careermodestory_sba")]
-    [TestCase("Frosty.Sdk.Tests.TestData.new_huffman", Endian.Little,
+    [TestCase("TestData/Huffman/NewHuffman.bin", Endian.Little,
         ExpectedResult = "win32/content/cinematic/scenes/livinghubs/f22_pap_lh_ll/f22_pap_lh_ll_set_sublevel")]
     // ReSharper enable StringLiteralTypo
     public string TestReadFirstEntryFromFile(string testFilePath, Endian endian)
     {
-        using Stream? stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(testFilePath);
-        Assert.That(stream, Is.Not.Null,
-            "Cannot read resource file!");
+        using Stream stream = File.OpenRead(
+            Path.Combine(TestContext.CurrentContext.TestDirectory, testFilePath));
 
         // Same for both test files
         const uint textLengthInBytes = 300;

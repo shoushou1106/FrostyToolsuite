@@ -23,8 +23,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="TestData/original_huffman" LogicalName="Frosty.Sdk.Tests.TestData.original_huffman"/>
-    <EmbeddedResource Include="TestData/new_huffman" LogicalName="Frosty.Sdk.Tests.TestData.new_huffman"/>
+    <None Update="TestData/**/*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
