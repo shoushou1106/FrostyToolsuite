@@ -92,7 +92,7 @@ public class CasFileInfo : IFileInfo
         throw new NotImplementedException();
     }
 
-    public Block<byte> GetData(int inOriginalSize)
+    public Block<byte> GetData(int originalSize)
     {
         if (m_delta is null)
         {
@@ -101,7 +101,7 @@ public class CasFileInfo : IFileInfo
                 throw new Exception("Base CasResourceInfo can't be null.");
             }
 
-            return m_base.GetData(inOriginalSize);
+            return m_base.GetData(originalSize);
         }
 
         using (BlockAccessor deltaAccessor = new(m_delta.GetRawData()))
@@ -111,7 +111,7 @@ public class CasFileInfo : IFileInfo
             {
                 baseAccessor = new BlockAccessor(m_base.GetRawData());
             }
-            return Block<byte>.Wrap(Cas.DecompressData(deltaAccessor, baseAccessor, inOriginalSize));
+            return Block<byte>.Wrap(Cas.DecompressData(deltaAccessor, baseAccessor, originalSize));
         }
     }
 

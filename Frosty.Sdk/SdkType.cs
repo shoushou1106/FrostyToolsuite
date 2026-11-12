@@ -22,9 +22,9 @@ public class SdkType : IType
         Type = inType;
     }
 
-    public bool IsSubClassOf(IType inType)
+    public bool IsSubclassOf(IType type)
     {
-        return Type.IsSubclassOf(inType.Type);
+        return Type.IsSubclassOf(type.Type);
     }
 
     public TypeFlags GetFlags()

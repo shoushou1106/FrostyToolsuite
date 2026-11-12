@@ -178,7 +178,7 @@ public static class TypeLibrary
             return false;
         }
 
-        return type.IsSubClassOf(checkType) || checkType.Name == type.Name;
+        return type.IsSubclassOf(checkType) || checkType.Name == type.Name;
     }
 
     /// <summary>
@@ -193,7 +193,7 @@ public static class TypeLibrary
         IType? type = GetType(inB);
 
         return sourceType is not null && type is not null &&
-               (sourceType.IsSubClassOf(type) || sourceType.Name == type.Name);
+               (sourceType.IsSubclassOf(type) || sourceType.Name == type.Name);
     }
 
     public static string GetName(this MemberInfo type)

@@ -36,7 +36,7 @@ public class TypeInfoAsset : IType
         Signature = uint.MaxValue;
     }
 
-    public bool IsSubClassOf(IType inType)
+    public bool IsSubclassOf(IType type)
     {
         throw new NotImplementedException();
     }
