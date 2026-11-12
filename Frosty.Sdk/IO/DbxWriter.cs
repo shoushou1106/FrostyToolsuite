@@ -146,7 +146,7 @@ public sealed class DbxWriter : IDisposable
     /// <param name="fieldType">The Frostbite type of the field.</param>
     /// <param name="obj">The value of the field.</param>
     /// <param name="objType">The .NET type of the field.</param>
-    /// <param name="arrayBaseType">The element type of an array of pointers.</param>
+    /// <param name="arrayBaseType">The element type of the array of pointers.</param>
     /// <param name="fieldName">
     ///     The name of the field, or <see langword="null" /> to write only the value into the current element.
     /// </param>

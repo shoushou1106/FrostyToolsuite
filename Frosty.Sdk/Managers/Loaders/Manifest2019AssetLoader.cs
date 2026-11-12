@@ -160,7 +160,7 @@ public class Manifest2019AssetLoader : IAssetLoader
                             bundleAccessor = accessor;
                             break;
                         default:
-                            throw new UnknownValueException<byte>("bundle load flag", bundleLoadFlag);
+                            throw new UnknownValueException("bundle load flag", bundleLoadFlag);
                     }
                     LoadBundle(bundleAccessor, bundleOffset, bundleSize, ref bundle);
                 }
@@ -210,7 +210,7 @@ public class Manifest2019AssetLoader : IAssetLoader
                     }
                     else
                     {
-                        throw new UnknownValueException<byte>("file identifier flag", fileIdentifierFlag);
+                        throw new UnknownValueException("file identifier flag", fileIdentifierFlag);
                     }
 
                     uint offset = BinaryPrimitives.ReverseEndianness(chunkData[index++]);
@@ -342,7 +342,7 @@ public class Manifest2019AssetLoader : IAssetLoader
             case 0x80:
                 return CasFileIdentifier.FromFileIdentifier(accessor.ReadUInt32(Endian.Big), accessor.ReadUInt32(Endian.Big));
             default:
-                throw new UnknownValueException<byte>("file identifier flag", inFlag);
+                throw new UnknownValueException("file identifier flag", inFlag);
         }
     }
 }

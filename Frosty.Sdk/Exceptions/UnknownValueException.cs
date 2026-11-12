@@ -1,6 +1,11 @@
+using System.Globalization;
+
 namespace Frosty.Sdk.Exceptions;
 
-public class UnknownValueException<T> : Exception
+// Temporary, lists the callers left until it is deleted.
+[Obsolete("UnknownValueException will be removed. Throw an InvalidDataException with the value in message instead.",
+    DiagnosticId = "FrostyTempUnknownValueExceptionIsDeprecated")]
+public sealed class UnknownValueException : Exception
 {
     public UnknownValueException()
     {
@@ -16,8 +21,16 @@ public class UnknownValueException<T> : Exception
     {
     }
 
-    public UnknownValueException(string inName, T inValue)
-        : base($"Unknown value of {inName}: {inValue}.")
+    /// <param name="valueName">What the value is.</param>
+    /// <param name="value">The value that is unknown.</param>
+    public UnknownValueException(string valueName, object? value)
+        : base(string.Create(CultureInfo.InvariantCulture, $"Unknown value of {valueName}: {value}."))
     {
+        ValueName = valueName;
+        Value = value;
     }
+
+    public string? ValueName { get; }
+
+    public object? Value { get; }
 }

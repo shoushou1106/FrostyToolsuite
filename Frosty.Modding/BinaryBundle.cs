@@ -60,7 +60,7 @@ public static class BinaryBundle
         {
             if (!KeyManager.HasKey("BundleEncryptionKey"))
             {
-                throw new MissingEncryptionKeyException("bundles");
+                throw MissingEncryptionKeyException.ForKey("BundleEncryptionKey");
             }
 
             inAccessor.Decrypt(KeyManager.GetKey("BundleEncryptionKey"), (int)(size - 0x20), PaddingMode.None);

@@ -411,7 +411,7 @@ internal class Manifest2019 : IDisposable
                                 accessor.Position = curPos;
                                 break;
                             default:
-                                throw new UnknownValueException<byte>("bundle load flag", bundleLoadFlag);
+                                throw new UnknownValueException("bundle load flag", bundleLoadFlag);
                         }
                     }
                     else
@@ -428,7 +428,7 @@ internal class Manifest2019 : IDisposable
                                 bundleAccessor = accessor;
                                 break;
                             default:
-                                throw new UnknownValueException<byte>("bundle load flag", bundleLoadFlag);
+                                throw new UnknownValueException("bundle load flag", bundleLoadFlag);
                         }
 
                         (Block<byte> BundleMeta, List<(CasFileIdentifier, uint, uint)> Files, bool IsInline)
@@ -493,7 +493,7 @@ internal class Manifest2019 : IDisposable
                     }
                     else
                     {
-                        throw new UnknownValueException<byte>("file identifier flag", fileIdentifierFlag);
+                        throw new UnknownValueException("file identifier flag", fileIdentifierFlag);
                     }
 
                     uint offset = BinaryPrimitives.ReverseEndianness(chunkData[index++]);
@@ -744,7 +744,7 @@ internal class Manifest2019 : IDisposable
             case 0x80:
                 return CasFileIdentifier.FromFileIdentifier(accessor.ReadUInt32(Endian.Big), accessor.ReadUInt32(Endian.Big));
             default:
-                throw new UnknownValueException<byte>("file identifier flag", inFlag);
+                throw new UnknownValueException("file identifier flag", inFlag);
         }
     }
 

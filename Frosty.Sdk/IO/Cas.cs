@@ -1,7 +1,6 @@
 using System.Buffers;
 using System.Diagnostics;
 
-using Frosty.Sdk.Exceptions;
 using Frosty.Sdk.Interfaces;
 using Frosty.Sdk.IO.Compression;
 using Frosty.Sdk.Managers;
@@ -55,7 +54,7 @@ public static class Cas
             case CompressionType.Obfuscated:
                 throw new NotImplementedException("Writing Obfuscated CAS blocks is not supported yet.");
             default:
-                throw new UnknownValueException<CompressionType>("CompressionType", inType);
+                throw new ArgumentOutOfRangeException(nameof(inType), inType, "Not a CAS compression type.");
         }
 
         byte flags = (byte)(inOptions == CompressionOptions.ZstdWithDict ? 1 : 0);

@@ -225,7 +225,7 @@ public abstract class DbObject
             Type.Sha1 => new DbObjectSha1(type),
             Type.Blob => new DbObjectBlob(type),
             Type.Anonymous => throw new UnreachableException(),
-            _ => throw new UnknownValueException<Type>("DbObject " + nameof(Type), type)
+            _ => throw new InvalidDataException($"Unknown DbObject type {type}")
         };
     }
     

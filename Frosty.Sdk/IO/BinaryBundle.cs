@@ -153,7 +153,7 @@ public sealed class BinaryBundle
     {
         if (!KeyManager.HasKey("BundleEncryptionKey"))
         {
-            throw new MissingEncryptionKeyException("Bundle encryption key not found.");
+            throw MissingEncryptionKeyException.ForKey("BundleEncryptionKey");
         }
 
         byte[] key = KeyManager.GetKey("BundleEncryptionKey");
