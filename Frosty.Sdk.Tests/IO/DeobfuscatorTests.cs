@@ -5,16 +5,16 @@ using Frosty.Sdk.IO;
 namespace Frosty.Sdk.Tests.IO;
 
 /// <summary>
-///     Tests for <see cref="ObfuscatedFile" />.
+///     Tests for <see cref="Deobfuscator" />.
 /// </summary>
 /// <remarks>
-///     No profile is loaded, so the Frostbite version is 0.0.0 and the version 1 header key applies.
-///     TODO: These tests were heavily written by AI. Planned to revise.
+///     Frostbite version is 0.0.0 because no profile is loaded. Apply version 1 header key.
 /// </remarks>
-internal sealed class ObfuscatedFileTests
+internal sealed class DeobfuscatorTests
 {
     private const int HeaderSize = 0x22C;
 
+    // MEA trailer magic
     private static ReadOnlySpan<byte> TrailerMagic => "@e!adnXd$^!rfOsrDyIrI!xVgHeA!6Vc"u8;
 
     /// <summary>
@@ -24,19 +24,19 @@ internal sealed class ObfuscatedFileTests
     [TestCase(0)]
     [TestCase(10)]
     [TestCase(HeaderSize + 100)]
-    public void ReadAllBytes_ReturnsPlainFile(int inLength)
+    public void Deobfuscate_ReturnsPlainFile(int inLength)
     {
         byte[] file = CreateBody(inLength);
 
-        Assert.That(ReadAllBytes(file), Is.EqualTo(file));
+        Assert.That(Deobfuscate(file), Is.EqualTo(file));
     }
 
     /// <summary>
-    ///     Verify that the header is removed, and that version 1 removes the 257 byte key from the data.
+    ///     Verify that version 1 header is removed.
     /// </summary>
     [TestCase((byte)0x01)]
     [TestCase((byte)0x03)]
-    public void ReadAllBytes_RemovesHeader(byte inVersion)
+    public void Deobfuscate_RemovesHeader(byte inVersion)
     {
         byte[] header = CreateHeader(inVersion);
         byte[] body = CreateBody(600);
@@ -50,18 +50,18 @@ internal sealed class ObfuscatedFileTests
             }
         }
 
-        Assert.That(ReadAllBytes([.. header, .. obfuscated]), Is.EqualTo(body));
+        Assert.That(Deobfuscate([.. header, .. obfuscated]), Is.EqualTo(body));
     }
 
     /// <summary>
-    ///     Verify that a file obfuscated as a whole, with the trailer of Mass Effect Andromeda, is decoded.
+    ///     Verify that an obfuscated whole file (with MEA trailer) is decoded.
     /// </summary>
     /// <remarks>
-    ///     The file is encoded as the inverse of Frosty v1's <c>MEADeobfuscator</c>, which takes the initial key
-    ///     from the obfuscated trailer.
+    ///     The file is encoded as the inverse of Frosty v1's <c>MEADeobfuscator</c>,
+    ///     which takes the initial key from the obfuscated trailer.
     /// </remarks>
     [Test]
-    public void ReadAllBytes_RemovesTrailerObfuscation()
+    public void Deobfuscate_RemovesTrailerObfuscation()
     {
         byte[] body = CreateBody(600);
         byte[] plain = [.. CreateHeader(0x03), .. body];
@@ -75,39 +75,39 @@ internal sealed class ObfuscatedFileTests
             key = (byte)((initialValue ^ obfuscated[i]) - i);
         }
 
-        Assert.That(ReadAllBytes([.. obfuscated, .. trailer]), Is.EqualTo(body));
+        Assert.That(Deobfuscate([.. obfuscated, .. trailer]), Is.EqualTo(body));
     }
 
     /// <summary>
-    ///     Verify that a file with the trailer but without obfuscation (magic 0 in the trailer) loses the trailer and
-    ///     the header, like in v1.
+    ///     Verify that a file with MEA trailer but without obfuscation (magic 0 in the trailer)
+    ///     returned without trailer and header, like v1 <c>MEADeobfuscator</c>.
     /// </summary>
     [Test]
-    public void ReadAllBytes_RemovesTrailerFromPlainFile()
+    public void Deobfuscate_RemovesTrailerFromPlainFile()
     {
         byte[] body = CreateBody(600);
         byte[] trailer = CreateMeaTrailer(0, 0x5A, 0, out _);
 
-        Assert.That(ReadAllBytes([.. CreateHeader(0x03), .. body, .. trailer]), Is.EqualTo(body));
+        Assert.That(Deobfuscate([.. CreateHeader(0x03), .. body, .. trailer]), Is.EqualTo(body));
     }
 
     /// <summary>
-    ///     Verify that a file with the trailer whose data has no obfuscation header throws, also when it is shorter
-    ///     than the header.
+    ///     Verify that a file with MEA trailer but does not have obfuscation header,
+    ///     or the data is shorter than the header, throws NotImplemented
     /// </summary>
     [TestCase(10)]
     [TestCase(HeaderSize + 100)]
-    public void ReadAllBytes_ThrowsOnTrailerWithoutHeader(int inLength)
+    public void Deobfuscate_ThrowsOnTrailerWithoutHeader(int inLength)
     {
         byte[] trailer = CreateMeaTrailer(4, 0x5A, 0, out _);
 
-        Assert.That(() => ReadAllBytes([.. CreateBody(inLength), .. trailer]), Throws.TypeOf<NotImplementedException>());
+        Assert.That(() => Deobfuscate([.. CreateBody(inLength), .. trailer]), Throws.TypeOf<NotImplementedException>());
     }
 
     /// <summary>
     ///     Creates the trailer that v1 reads, in blocks obfuscated with their own key.
     /// </summary>
-    /// <param name="inMagic">4 if the file is obfuscated, which v1 then decodes with obfuscation type 2.</param>
+    /// <param name="inMagic">4 if the file is obfuscated, which v1 decodes with obfuscation type 2.</param>
     /// <param name="inKeySeed">The plain byte 5, which the initial key is derived from.</param>
     /// <param name="inExtraLength">The length of the optional block at 410.</param>
     /// <param name="outInitialValue">The key of the first byte of the file.</param>
@@ -144,7 +144,7 @@ internal sealed class ObfuscatedFileTests
         return trailer;
     }
 
-    // The inverse of v1's MEADeobfuscator.DeobfuscateBlock, whose key depends on the plain bytes
+    // The inverse of v1's MEADeobfuscator.DeobfuscateBlock, key depends on the plain bytes
     private static void EncodeTrailerBlock(Span<byte> bytes)
     {
         int a = 1172968056;
@@ -199,17 +199,9 @@ internal sealed class ObfuscatedFileTests
         return body;
     }
 
-    private static byte[] ReadAllBytes(byte[] inFile)
+    private static byte[] Deobfuscate(byte[] inFile)
     {
-        string path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-        try
-        {
-            File.WriteAllBytes(path, inFile);
-            return ObfuscatedFile.ReadAllBytes(path);
-        }
-        finally
-        {
-            File.Delete(path);
-        }
+        using MemoryStream stream = new(inFile, false);
+        return Deobfuscator.Deobfuscate(stream);
     }
 }

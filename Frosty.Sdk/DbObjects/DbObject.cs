@@ -62,7 +62,7 @@ public abstract class DbObject
     /// <returns>The deserialized <see cref="DbObject" />.</returns>
     public static DbObject? Deserialize(string path)
     {
-        using DataAccessor accessor = new(ObfuscatedFile.OpenRead(path));
+        using DataAccessor accessor = new(Deobfuscator.OpenRead(path));
         return Deserialize(accessor);
     }
 

@@ -14,7 +14,7 @@ namespace Frosty.Sdk.IO;
 ///     Mass Effect Andromeda also obfuscates the whole file including the header, and appends a trailer
 ///     that ends with a 32 byte magic string.
 /// </remarks>
-public static class ObfuscatedFile
+public static class Deobfuscator
 {
     private const int HeaderSize = 0x22C;
     private const int KeyOffset = 0x128;
@@ -29,10 +29,10 @@ public static class ObfuscatedFile
     /// <summary>
     ///     Opens a file for reading, with its obfuscation removed.
     /// </summary>
-    /// <remarks>The whole file is read into memory, see <see cref="ReadAllBytes" />.</remarks>
+    /// <remarks>The whole file is read into memory, see <see cref="Deobfuscate" />.</remarks>
     /// <param name="path">The path of the file.</param>
-    /// <returns>A read-only stream over what <see cref="ReadAllBytes" /> returns.</returns>
-    /// <inheritdoc cref="ReadAllBytes" path="/exception" />
+    /// <returns>A read-only stream over what <see cref="Deobfuscate" /> returns.</returns>
+    /// <inheritdoc cref="Deobfuscate" path="/exception" />
     public static Stream OpenRead(string path)
     {
         return new MemoryStream(ReadAllBytes(path), false);
@@ -42,23 +42,42 @@ public static class ObfuscatedFile
     ///     Reads a whole file and removes its obfuscation.
     /// </summary>
     /// <param name="path">The path of the file.</param>
-    /// <returns>The data after the obfuscation header, or the whole file if it has no obfuscation header.</returns>
-    /// <exception cref="IOException">The file is larger than an array can hold.</exception>
-    /// <exception cref="InvalidDataException">The file has a trailer with an invalid size.</exception>
-    /// <exception cref="NotImplementedException">The file has a trailer, but no obfuscation header.</exception>
+    /// <returns>See <see cref="Deobfuscate" />.</returns>
+    /// <inheritdoc cref="Deobfuscate" path="/exception" />
     public static byte[] ReadAllBytes(string path)
     {
-        using FileStream stream = new(path, FileMode.Open, FileAccess.Read);
+        using FileStream stream = File.OpenRead(path);
+        return Deobfuscate(stream);
+    }
 
+    /// <summary>
+    ///     Reads a whole stream from its start and removes its obfuscation.
+    /// </summary>
+    /// <param name="stream">A seekable stream, for example a file. It is left at an unspecified position.</param>
+    /// <returns>The data after the obfuscation header, or the whole stream if it has no obfuscation header.</returns>
+    /// <exception cref="ArgumentException">The stream cannot seek.</exception>
+    /// <exception cref="IOException">The stream is larger than an array can hold.</exception>
+    /// <exception cref="InvalidDataException">The stream has a trailer with an invalid size.</exception>
+    /// <exception cref="NotImplementedException">The stream has a trailer, but no obfuscation header.</exception>
+    public static byte[] Deobfuscate(Stream stream)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        if (!stream.CanSeek)
+        {
+            throw new ArgumentException("The stream must be seekable.", nameof(stream));
+        }
+
+        string source = GetSourceName(stream);
         if (stream.Length > Array.MaxLength)
         {
-            throw new IOException($"\"{path}\" is larger than {Array.MaxLength} bytes.");
+            throw new IOException($"{source} is larger than {Array.MaxLength} bytes.");
         }
 
         int length = (int)stream.Length;
+        stream.Position = 0;
 
         byte[]? data = TryReadTrailerSize(stream, length, out int trailerSize)
-            ? ReadWithTrailer(stream, length - trailerSize, path)
+            ? ReadWithTrailer(stream, length - trailerSize, source)
             : ReadWithHeader(stream, length);
 
         if (data is not null)
@@ -72,7 +91,13 @@ public static class ObfuscatedFile
         return data;
     }
 
-    private static bool TryReadTrailerSize(FileStream stream, int length, out int trailerSize)
+    /// <returns>The quoted file path for a file, otherwise the type of the stream.</returns>
+    private static string GetSourceName(Stream stream)
+    {
+        return stream is FileStream file ? $"\"{file.Name}\"" : $"The {stream.GetType().Name}";
+    }
+
+    private static bool TryReadTrailerSize(Stream stream, int length, out int trailerSize)
     {
         trailerSize = 0;
         if (length < TrailerEndSize)
@@ -100,7 +125,7 @@ public static class ObfuscatedFile
     }
 
     /// <returns>The data, or <see langword="null" /> if the file has no obfuscation header.</returns>
-    private static byte[]? ReadWithHeader(FileStream stream, int length)
+    private static byte[]? ReadWithHeader(Stream stream, int length)
     {
         if (length < HeaderSize)
         {
@@ -112,7 +137,7 @@ public static class ObfuscatedFile
         return IsHeader(header) ? ReadData(stream, header, length - HeaderSize) : null;
     }
 
-    private static byte[] ReadData(FileStream stream, ReadOnlySpan<byte> header, int dataLength)
+    private static byte[] ReadData(Stream stream, ReadOnlySpan<byte> header, int dataLength)
     {
         byte[] data = GC.AllocateUninitializedArray<byte>(dataLength);
         stream.ReadExactly(data);
@@ -120,22 +145,22 @@ public static class ObfuscatedFile
         return data;
     }
 
-    /// <param name="stream">The file.</param>
-    /// <param name="length">The length of the file without the trailer.</param>
-    /// <param name="path">The path of the file for logging.</param>
+    /// <param name="stream">The obfuscated data.</param>
+    /// <param name="length">The length of the data without the trailer.</param>
+    /// <param name="source">The name of the data for messages, see <see cref="GetSourceName" />.</param>
     /// <exception cref="NotImplementedException">The data does not start with an obfuscation header.</exception>
     /// <remarks>
     ///     <see cref="IsHeader" /> also accepts version 0, which v1's <c>MEADeobfuscator</c> does not.
     ///     A file with the trailer is not expected to have it.
     /// </remarks>
-    private static byte[] ReadWithTrailer(FileStream stream, int length, string path)
+    private static byte[] ReadWithTrailer(Stream stream, int length, string source)
     {
         if (length < HeaderSize)
         {
             // Usually unreachable.
             // Decoding it needs the key from the trailer, see MEADeobfuscator in Frosty v1
             throw new NotImplementedException(
-                $"\"{path}\" has the obfuscation trailer, but its data does not start with an obfuscation header.");
+                $"{source} has the obfuscation trailer, but its data does not start with an obfuscation header.");
         }
 
         Span<byte> header = stackalloc byte[HeaderSize];
@@ -145,7 +170,7 @@ public static class ObfuscatedFile
         if (IsHeader(header))
         {
             FrostyLogger.Logger.LogWarning(
-                "\"{Path}\" has the obfuscation trailer, but its data is not obfuscated.", path);
+                "{Source} has the obfuscation trailer, but its data is not obfuscated.", source);
             return ReadData(stream, header, length - HeaderSize);
         }
 
@@ -160,7 +185,7 @@ public static class ObfuscatedFile
             // Usually unreachable.
             // Decoding it needs the key from the trailer, see MEADeobfuscator in Frosty v1
             throw new NotImplementedException(
-                $"\"{path}\" has the obfuscation trailer, but its data does not start with an obfuscation header.");
+                $"{source} has the obfuscation trailer, but its data does not start with an obfuscation header.");
         }
 
         byte[] data = GC.AllocateUninitializedArray<byte>(length - HeaderSize);

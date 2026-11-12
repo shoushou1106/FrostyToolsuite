@@ -124,11 +124,11 @@ public class BlockAccessor : DataAccessor
     ///     Loads the whole file into memory and deobfuscates it if necessary.
     /// </summary>
     /// <param name="inPath">The path of the file</param>
-    /// <param name="inShouldDeobfuscate">Whether the file can have an obfuscation header, see <see cref="ObfuscatedFile" />.</param>
+    /// <param name="inShouldDeobfuscate">Whether the file can have an obfuscation header, see <see cref="Deobfuscator" />.</param>
     /// <returns>A <see cref="BlockAccessor" /> that has the file loaded.</returns>
     public static BlockAccessor FromFile(string inPath, bool inShouldDeobfuscate)
     {
-        byte[] data = inShouldDeobfuscate ? ObfuscatedFile.ReadAllBytes(inPath) : File.ReadAllBytes(inPath);
+        byte[] data = inShouldDeobfuscate ? Deobfuscator.ReadAllBytes(inPath) : File.ReadAllBytes(inPath);
         return new BlockAccessor(Block<byte>.Wrap(data));
     }
 
