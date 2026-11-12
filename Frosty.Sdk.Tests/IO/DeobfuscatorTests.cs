@@ -123,7 +123,8 @@ internal sealed class DeobfuscatorTests
         BinaryPrimitives.WriteInt16LittleEndian(trailer.AsSpan(392), extraLength);
 
         // v1 reads the length at 392 and byte 391 as they are, everything else here is obfuscated
-        (int Offset, int Length)[] blocks = [(extraOffset, extraLength), (394, 4), (0, 4), (402, 4), (406, 4), (4, 387)];
+        (int Offset, int Length)[] blocks =
+            [(extraOffset, extraLength), (394, 4), (0, 4), (402, 4), (406, 4), (4, 387)];
         foreach ((int offset, int length) in blocks)
         {
             EncodeTrailerBlock(trailer.AsSpan(offset, length));

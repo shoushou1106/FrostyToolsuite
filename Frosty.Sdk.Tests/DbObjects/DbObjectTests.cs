@@ -29,7 +29,7 @@ internal sealed class DbObjectTests
     [Test]
     public void Serialize_WritesFrostbiteLayout()
     {
-        var dict = DbObject.CreateDict();
+        DbObjectDict dict = DbObject.CreateDict();
         dict.Set("a", 1);
 
         byte[] expected =
@@ -49,11 +49,11 @@ internal sealed class DbObjectTests
     [Test]
     public void Deserialize_RoundTripsEveryType()
     {
-        var guid = Guid.NewGuid();
-        var sha1 = Sha1.HashData([1, 2, 3]);
+        Guid guid = Guid.NewGuid();
+        Sha1 sha1 = Sha1.HashData([1, 2, 3]);
         byte[] blob = [0xFF, 0x00];
 
-        var root = DbObject.CreateDict();
+        DbObjectDict root = DbObject.CreateDict();
         root.Set("bool", true);
         root.Set("string", "Größe");
         root.Set("int", -2);
@@ -64,15 +64,15 @@ internal sealed class DbObjectTests
         root.Set("sha1", sha1);
         root.Set("blob", blob);
 
-        var list = DbObject.CreateList("list");
+        DbObjectList list = DbObject.CreateList("list");
         list.Add(7u);
-        var inner = DbObject.CreateDict("inner");
+        DbObjectDict inner = DbObject.CreateDict("inner");
         inner.Set("x", ulong.MaxValue);
         root.Set("inner", inner);
         list.Add(DbObject.CreateDict());
         root.Set("list", list);
 
-        var result = FromBytes(ToBytes(root))!.AsDict();
+        DbObjectDict result = FromBytes(ToBytes(root))!.AsDict();
 
         using (Assert.EnterMultipleScope())
         {
@@ -95,7 +95,7 @@ internal sealed class DbObjectTests
     [Test]
     public void Dict_KeysIgnoreCase()
     {
-        var dict = DbObject.CreateDict();
+        DbObjectDict dict = DbObject.CreateDict();
         dict.Set("superBundles", DbObject.CreateList("superBundles"));
 
         Assert.That(dict.AsList("superbundles", null), Is.Not.Null);
@@ -104,7 +104,7 @@ internal sealed class DbObjectTests
     [Test]
     public void Set_RejectsValueNamedDifferently()
     {
-        var dict = DbObject.CreateDict();
+        DbObjectDict dict = DbObject.CreateDict();
 
         using (Assert.EnterMultipleScope())
         {

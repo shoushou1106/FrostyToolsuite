@@ -76,7 +76,8 @@ internal sealed class EbxValueTests
     }
 
     /// <summary>
-    ///     Verify that removing an instance also removes its reference count, so <see cref="EbxPartition.RootInstances" /> works.
+    ///     Verify that removing an instance also removes its reference count, so <see cref="EbxPartition.RootInstances" />
+    ///     works.
     /// </summary>
     [Test]
     public void EbxPartition_RemovesReferenceCountWithInstance()

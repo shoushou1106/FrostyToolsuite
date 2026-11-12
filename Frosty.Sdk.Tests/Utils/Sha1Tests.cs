@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+
 using Frosty.Sdk.Utils;
 
 namespace Frosty.Sdk.Tests.Utils;
